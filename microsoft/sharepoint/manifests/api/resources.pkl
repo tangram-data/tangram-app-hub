@@ -1,0 +1,148 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Site"
+    activeVersion = "v1"
+    doc = "A SharePoint site (site collection root or subsite) reachable by the connected account."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Search"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search sites by keyword to discover site ids; matches site names and descriptions across the tenant."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchSites" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one site by id — composite form hostname,siteCollectionId,siteId, path form hostname:/sites/name, or the literal root for the tenant root site."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getSite" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search and read SharePoint sites through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "List"
+    activeVersion = "v1"
+    doc = "A SharePoint list on a site (generic lists, document libraries, and system lists)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a site's lists; the list.template field distinguishes genericList from documentLibrary and system lists."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listLists" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse SharePoint lists through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "ListItem"
+    activeVersion = "v1"
+    doc = "A row in a SharePoint list; column values live in the fields object."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a list's items with $expand=fields for column values. Filtering on non-indexed custom columns needs the Prefer: HonorNonIndexedQueriesWarningMayFailRandomly header, which this connector does not send — fetch pages with $top and filter client-side instead."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listListItems" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one list item by id with $expand=fields for its column values."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getListItem" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read SharePoint list items through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Drive"
+    activeVersion = "v1"
+    doc = "A document library on a SharePoint site, exposed as a Graph drive."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a site's document libraries; the returned drive ids feed the DriveItem operations."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listDrives" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse SharePoint document libraries through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "DriveItem"
+    activeVersion = "v1"
+    doc = "A file or folder inside a SharePoint document library."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a folder's children; use itemId root for the library root, then descend with child ids."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listDriveChildren" }
+        },
+        new resources.Action {
+          name = "Download"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Download a file's raw bytes; Graph 302-redirects to a download URL. Non-JSON results arrive as a typed app_action_result envelope — inline up to 32KB, otherwise a saved file."
+          openApiMapping = new resources.OpenApiMapping { operationId = "downloadDriveItem" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse and download SharePoint files through the connector."
+      })
+    })
+  }
+)

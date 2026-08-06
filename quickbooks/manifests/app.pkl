@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.intuit"
+name = "quickbooks"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.intuit.com"
+category = "finance"
+tags = List("quickbooks", "accounting", "expenses", "receipts", "banking", "bookkeeping", "oauth")
+description = "QuickBooks Online connector: query company data (expenses, deposits, invoices, accounts, vendors), record and update expense transactions, and attach receipt notes — built for agent-driven receipt-to-transaction matching."
+readme      = read("README.md").text

@@ -1,0 +1,55 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/logo.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "OSBuiltIn"
+}
+
+resourceTypeIcons {
+  ["Instance"] = "static/logo.png"
+  ["DuckLake"] = "static/ducklake.svg"
+  ["Schema"] = "static/ducklake.svg"
+  ["Table"] = "static/ducklake.svg"
+  ["View"] = "static/ducklake.svg"
+}
+
+resourceTypeUri {
+  ["Instance"] = "/instances/{{names[1]}}"
+  ["DuckLake"] = "/duck-lakes/{{names[1]}}"
+  ["Table"] = "/duck-lakes/{{names[1]}}?schema={{names[2]}}&table={{names[3]}}"
+  ["View"] = "/duck-lakes/{{names[1]}}?schema={{names[2]}}&view={{names[3]}}"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "instance-panel"
+    kind = "sandboxed"
+    description = "List, start and stop Duckling instances"
+    entry = "components/instance-panel/instance-panel.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Duckling instances"
+      inputs {
+        type = "object"
+        properties {}
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "changed"
+          payload {
+            type = "object"
+            required { "instance"; "action" }
+            properties {
+              ["instance"] = new Dynamic { type = "string" }
+              ["action"] = new Dynamic {
+                type = "string"
+                enum = new Listing { "start"; "stop" }
+              }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "dashboard"; "app-page" }
+  }
+}

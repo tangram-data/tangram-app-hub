@@ -1,0 +1,16 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// Exact shared claim classes; this registration-safe module exports claims only.
+// Runtime modules (components.pkl) import the claims and resolve outputs.
+
+// App state (cluster records) lives in a platform-managed PostgreSQL database.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}
+
+// A single object-storage bucket shared by all shared-data clusters. The platform provisions it for
+// the workspace's cloud (S3 / ScalewayObjectStorage / Azure / Minio) and injects its coordinates +
+// credentials into the service, which assigns each cluster a random prefix inside it.
+bucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "sharedDataBucket"
+}

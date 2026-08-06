@@ -1,0 +1,6 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+// Airflow has no resource-import integration currently.
+// File kept as a placeholder for future integration implementations.
+
+implementations: List<integration.IntegrationImplementation> = List()

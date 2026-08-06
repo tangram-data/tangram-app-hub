@@ -1,0 +1,32 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/iceberg/Table/v1"
+local viewType  = "ai.tangram/iceberg/View/v1"
+
+local duckdbInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/duckdb"
+  version = "v1"
+}
+
+local duckdbLib = new Dynamic { name = "iceberg-duckdb"; version = "1.0.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = duckdbInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.duckdb.IcebergDuckDBSqlQuerySupport"
+    lib       = duckdbLib
+  }
+}
+
+viewQueryable = new integration.IntegrationImplementation {
+  interface          = duckdbInterface
+  implementationType = viewType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.duckdb.IcebergViewDuckDBSqlQuerySupport"
+    lib       = duckdbLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, viewQueryable)

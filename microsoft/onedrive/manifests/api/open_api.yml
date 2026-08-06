@@ -1,0 +1,332 @@
+openapi: 3.0.3
+info:
+  title: OneDrive (Microsoft Graph)
+  version: "1.0"
+  description: >
+    Read-only subset of the Microsoft Graph drive API exposed through the
+    Tangram connector. All operations act on the connected account's drive
+    (/me/drive): browsing, search, metadata, and content download.
+servers:
+  - url: https://graph.microsoft.com
+
+paths:
+  /v1.0/me/drive/items/{itemId}/children:
+    get:
+      operationId: listChildren
+      summary: List a folder's children
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: >
+            The folder's item id. Use the literal id "root" to list the top
+            level of the drive; folder ids from previous responses drill down.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 200).
+          schema:
+            type: integer
+        - name: $select
+          in: query
+          required: false
+          description: >
+            Comma-separated fields to return, e.g.
+            id,name,size,lastModifiedDateTime,folder,file,webUrl. Keep
+            responses small by selecting only what you need.
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          required: false
+          description: Sort order, e.g. name asc or lastModifiedDateTime desc.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The folder's children with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DriveItem"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Item not found or not a folder.
+
+  /v1.0/me/drive/search(q='{q}'):
+    get:
+      operationId: searchItems
+      summary: Search the whole drive by name and content
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: q
+          in: path
+          required: true
+          description: >
+            Search text, matched against file names and file content across
+            the whole drive, including items shared with the user (the
+            drive-level search; shared hits carry a remoteItem facet). The
+            search(q='...') path is Graph's OData function-call syntax.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size.
+          schema:
+            type: integer
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching items with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DriveItem"
+                  "@odata.nextLink":
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /v1.0/me/drive/items/{itemId}:
+    get:
+      operationId: getItem
+      summary: Fetch one item's metadata by id
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: The item id returned by listChildren or searchItems.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The item's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveItem"
+        "404":
+          description: Item not found.
+
+  /v1.0/me/drive/items/{itemId}/content:
+    get:
+      operationId: downloadItem
+      summary: Download a file's content
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: The file's item id (files only, not folders).
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: >
+            Set to pdf to convert Office files (docx, xlsx, pptx) to PDF —
+            usually the best way to read a Word or PowerPoint document. For
+            spreadsheets, prefer the excel connector, which reads cell values
+            as JSON.
+          schema:
+            type: string
+            enum: [pdf]
+      responses:
+        "200":
+          description: >
+            The raw file bytes. Graph actually answers 302 with a
+            pre-authenticated download URL; the platform follows the redirect
+            and returns the content.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Item not found or has no content (e.g. a folder).
+
+
+  /v1.0/drives/{driveId}/items/{itemId}:
+    get:
+      operationId: getSharedItem
+      summary: Fetch an item in another drive (shared items)
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: The drive id from remoteItem.parentReference.driveId.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The item id from remoteItem.id.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The item's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveItem"
+        "404":
+          description: Item not found.
+
+  /v1.0/drives/{driveId}/items/{itemId}/content:
+    get:
+      operationId: downloadSharedItem
+      summary: Download a file in another drive (shared items)
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: The drive id from remoteItem.parentReference.driveId.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The item id from remoteItem.id (files only).
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: Set to pdf to convert Office files to PDF.
+          schema:
+            type: string
+            enum: [pdf]
+      responses:
+        "200":
+          description: >
+            The raw file bytes (Graph answers 302 with a download URL; the
+            platform follows the redirect).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Item not found or has no content.
+
+components:
+  schemas:
+    DriveItem:
+      type: object
+      description: >
+        A file or folder. Exactly one of the folder/file facets is present,
+        which is how you tell them apart.
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          description: Size in bytes.
+        lastModifiedDateTime:
+          type: string
+        webUrl:
+          type: string
+          description: Link to the item in OneDrive on the web.
+        folder:
+          type: object
+          description: Present iff the item is a folder.
+          properties:
+            childCount:
+              type: integer
+        file:
+          type: object
+          description: Present iff the item is a file.
+          properties:
+            mimeType:
+              type: string
+        parentReference:
+          type: object
+          properties:
+            driveId:
+              type: string
+            id:
+              type: string
+              description: The parent folder's item id.
+            path:
+              type: string
+              description: Human-readable path, e.g. /drive/root:/Documents.
+        remoteItem:
+          type: object
+          description: >
+            Present on search hits for items shared with the user — points at
+            the item in the sharer's drive (its driveId + id are the real
+            coordinates for getSharedItem / downloadSharedItem).
+          properties:
+            id:
+              type: string
+            parentReference:
+              type: object
+              properties:
+                driveId:
+                  type: string

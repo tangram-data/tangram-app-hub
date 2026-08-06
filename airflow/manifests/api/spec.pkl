@@ -1,0 +1,12 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+// Tangram derives the public route and installation namespace. This is the
+// concrete Kubernetes Service name and Service port inside that namespace;
+// the API contract does not identify Helm as the producer.
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "airflow-api-server"
+  port = 8080
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open_api.yml"

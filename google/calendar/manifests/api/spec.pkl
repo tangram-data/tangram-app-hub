@@ -1,0 +1,47 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Google Calendar connector API spec. Like Drive, Calendar v3 is served from
+// www.googleapis.com (rootUrl in the discovery doc) rather than a dedicated
+// calendar.googleapis.com REST host — paths are /calendar/v3/*.
+endpoint = "https://www.googleapis.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("www.googleapis.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+  tokenUrl = "https://oauth2.googleapis.com/token"
+  revocationUrl = "https://oauth2.googleapis.com/revoke"
+  // calendar.readonly covers calendar list, event reads, and free/busy;
+  // calendar.events covers event create/update/delete.
+  scopes = List(
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events"
+  )
+  clientIdSecret = "googleClientId"
+  clientSecretSecret = "googleClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.google/calendar"
+  tokenAuthMethod = "ClientSecretPost"
+  // Google only issues a refresh token with access_type=offline, and only
+  // re-issues one on re-consent — hence prompt=consent.
+  additionalAuthorizeParams = List(
+    new oauthTypes.AuthorizeParam { name = "access_type"; value = "offline" },
+    new oauthTypes.AuthorizeParam { name = "prompt"; value = "consent" }
+  )
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

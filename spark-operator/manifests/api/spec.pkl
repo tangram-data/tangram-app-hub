@@ -1,0 +1,12 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+// The concrete Kubernetes Service inside the App's derived installation
+// namespace that implements this API (produced by the spark-operator-service
+// component's AppComponentServiceSpec).
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "spark-operator-service"
+  port = 8080
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open-api.yml"

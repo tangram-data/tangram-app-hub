@@ -1,0 +1,11 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// Exact shared claim classes; this registration-safe module exports claims only.
+// Runtime modules (components.pkl) import the claims and resolve outputs.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}
+
+bucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "storageBucket"
+}

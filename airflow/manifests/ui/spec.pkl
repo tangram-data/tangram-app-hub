@@ -1,0 +1,42 @@
+// names[] layout for resource URI templates:
+//   names[0] = workspace name (implicit scope, always present)
+//   names[1] = DAG id
+//   names[2] = DagRun id
+//   names[3] = TaskInstance id
+
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/logo.svg"
+
+deployment: ui.UIDeployment = new {
+  mode                    = "Proxy"
+  keepAppStaticPathPrefix = true
+  uriPatterns             = List(new ui.UriPattern { pattern = ".*" })
+}
+
+resourceTypeIcons {
+  ["Asset"]        = "static/logo.svg"
+  ["Backfill"]     = "static/logo.svg"
+  ["Config"]       = "static/logo.svg"
+  ["Connection"]   = "static/logo.svg"
+  ["DAG"]          = "static/logo.svg"
+  ["DagReport"]    = "static/logo.svg"
+  ["DagRun"]       = "static/logo.svg"
+  ["DagSource"]    = "static/logo.svg"
+  ["DagStats"]     = "static/logo.svg"
+  ["DagVersion"]   = "static/logo.svg"
+  ["DagWarning"]   = "static/logo.svg"
+  ["EventLog"]     = "static/logo.svg"
+  ["ExtraLinks"]   = "static/logo.svg"
+  ["ImportError"]  = "static/logo.svg"
+  ["Job"]          = "static/logo.svg"
+  ["Task"]         = "static/logo.svg"
+  ["TaskInstance"] = "static/logo.svg"
+  ["XCom"]         = "static/logo.svg"
+}
+
+resourceTypeUri {
+  ["DAG"]          = "/dags/{{names[1]}}"
+  ["DagRun"]       = "/dags/{{names[1]}}/runs/{{names[2]}}"
+  ["TaskInstance"] = "/dags/{{names[1]}}/runs/{{names[2]}}/tasks/{{names[3]}}"
+}

@@ -1,0 +1,44 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "File"
+    activeVersion = "v1"
+    doc = "A file or folder in Google Drive visible to the connected account."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List/search files with a Drive query, e.g. name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listFiles" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a file's metadata (name, mimeType, owners, modifiedTime, webViewLink) by file id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getFile" }
+        },
+        new resources.Action {
+          name = "Export"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Export a Google Workspace document's content, e.g. Docs to text/plain or text/markdown, Sheets to text/csv."
+          openApiMapping = new resources.OpenApiMapping { operationId = "exportFile" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List, inspect, and export Drive files through the Drive connector."
+      })
+    })
+  }
+)

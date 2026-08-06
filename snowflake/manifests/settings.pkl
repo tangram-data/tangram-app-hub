@@ -1,0 +1,39 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "accountIdentifier"
+    required    = true
+    description = "Snowflake account identifier (e.g. myorg-myaccount) with admin permissions."
+  },
+  new manifest.ConfigField {
+    name        = "defaultWarehouse"
+    required    = false
+    description = "Default warehouse to use when none is specified."
+    default     = ""
+  },
+  new manifest.ConfigField {
+    name        = "defaultDatabase"
+    required    = false
+    description = "Default database to use when none is specified."
+    default     = ""
+  },
+  new manifest.ConfigField {
+    name        = "defaultSchema"
+    required    = false
+    description = "Default schema to use when none is specified."
+    default     = ""
+  },
+  new manifest.ConfigField {
+    name        = "defaultRole"
+    required    = false
+    description = "Default role to assume when none is specified."
+    default     = ""
+  },
+  new manifest.ConfigField {
+    name        = "enableMaterializedViews"
+    required    = false
+    description = "Set to 'true' to enable materialized view management."
+    default     = "false"
+  }
+)

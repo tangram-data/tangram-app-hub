@@ -1,0 +1,1796 @@
+openapi: 3.1.0
+info:
+  title: Iceberg warehouse service
+  version: 1.0.0
+paths:
+  /api/v1/databases:
+    get:
+      tags:
+        - Iceberg
+      summary: List database.
+      operationId: listDBs
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IcebergDB'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Iceberg
+      summary: Create database.
+      operationId: createDB
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIcebergDB'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergDB'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+      security:
+        - httpAuth: []
+  /api/v1/databases/{dbName}:
+    get:
+      tags:
+        - Iceberg
+      summary: Get database.
+      operationId: getDB
+      parameters:
+        - name: dbName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergDB'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+      security:
+        - httpAuth: []
+  /api/v1/databases/{dbName}/tables:
+    post:
+      tags:
+        - Iceberg
+      summary: Create table.
+      operationId: createIcebergTable
+      parameters:
+        - name: dbName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIcebergTable'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergTable'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+      security:
+        - httpAuth: []
+  /api/v1/databases/{dbName}/tables/{tableName}:
+    get:
+      tags:
+        - Iceberg
+      summary: Get table.
+      operationId: getIcebergTable
+      parameters:
+        - name: dbName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tableName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergTable'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+      security:
+        - httpAuth: []
+  /v1/oauth/tokens:
+    post:
+      tags:
+        - OAuth2 API
+      summary: Get a token using an OAuth2 flow
+      operationId: getToken
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/config:
+    get:
+      tags:
+        - Configuration API
+      summary: List all catalog configuration settings
+      operationId: getConfig
+      parameters:
+        - name: warehouse
+          in: query
+          description: Warehouse location or identifier to request from the service
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Server specified configuration values
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces:
+    get:
+      tags:
+        - Catalog API
+      summary: List namespaces, optionally providing a parent namespace to list underneath
+      description: |2
+
+        List all namespaces at a certain level, optionally starting from a given parent namespace.
+        If table accounting.tax.paid.info exists, using 'SELECT NAMESPACE IN accounting' would
+        translate into `GET /namespaces?parent=accounting` and must return a namespace, ["accounting", "tax"] only.
+        Using 'SELECT NAMESPACE IN accounting.tax' would
+        translate into `GET /namespaces?parent=accounting%1Ftax` and must return a namespace, ["accounting", "tax", "paid"].
+        If `parent` is not provided, all top-level namespaces should be listed.
+      operationId: listNamespaces
+      parameters:
+        - name: parent
+          in: query
+          description: |2
+          
+            An optional namespace, underneath which to list namespaces.
+            If not provided or empty, all top-level namespaces should be listed.
+            If parent is a multipart namespace, the parts must be separated by the unit separator (`0x1F`) byte.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  namespaces:
+                    type: array
+                    description: Each namespace is its path parts, e.g. ["accounting", "tax"].
+                    items:
+                      type: array
+                      items:
+                        type: string
+                  next-page-token:
+                    # Explicit null when there are no more pages.
+                    type: ["string", "null"]
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Create a namespace
+      description: |2
+
+        Create a namespace, with an optional set of properties.
+        The server might also add properties, such as `last_modified_time` etc.
+      operationId: createNamespace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}:
+    get:
+      tags:
+        - Catalog API
+      summary: Load the metadata properties for a namespace
+      description: Return all stored metadata properties for a given namespace
+      operationId: loadNamespaceMetadata
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Set or remove properties on a namespace
+      description: |2-
+
+        Set and/or remove properties on a namespace.
+        The request body specifies a list of properties to remove and a map
+        of key value pairs to update.
+
+        Properties that are not in the request are not modified or removed by this call.
+
+        Server implementations are not required to support namespace properties.
+      operationId: updateNamespaceMetadata
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    delete:
+      tags:
+        - Catalog API
+      summary: Drop a namespace from the catalog. Namespace must be empty.
+      operationId: dropNamespace
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    head:
+      tags:
+        - Catalog API
+      summary: Check if the namespace exists
+      operationId: checkIfNamespaceExists
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/tables:
+    get:
+      tags:
+        - Catalog API
+      summary: List tables for the given namespace
+      description: Return all the tables for the given namespace
+      operationId: listTables
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Create a table in the given namespace
+      description: |-
+        Create a table or start a create transaction, like atomic CTAS.
+
+
+        If `stage-create` is false, the table is created immediately.
+
+
+        If `stage-create` is true, the table is not created, but table metadata is initialized and returned.
+        The service should prepare as needed for a commit to the table commit endpoint to complete the create
+        transaction. The client uses the returned metadata to begin a transaction. To commit the transaction,
+        the client sends all create and subsequent changes to the table commit route. Changes from the table
+        create operation include changes like AddSchemaUpdate and SetCurrentSchemaUpdate that set the initial
+        table state.
+      operationId: createTable
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}:
+    get:
+      tags:
+        - Catalog API
+      summary: Load a table from the catalog
+      operationId: loadTable
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: snapshots
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Snapshots'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Commit updates to a table
+      operationId: updateTable
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    delete:
+      tags:
+        - Catalog API
+      summary: Drop a table from the catalog
+      operationId: dropTable
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: purgeRequested
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    head:
+      tags:
+        - Catalog API
+      summary: Check if a table exists
+      description: Check if a table exists within a given namespace. .
+      operationId: checkIfTableExists
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}/credentials:
+    get:
+      tags:
+        - Catalog API
+      summary: Load vended credentials for a table from the catalog
+      operationId: loadTableCredentials
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}/snapshots:
+    get:
+      tags:
+        - Catalog API
+      summary: Load a table from the catalog
+      operationId: loadTableSnapshots
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Snapshot'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/tables/rename:
+    post:
+      tags:
+        - Catalog API
+      summary: Rename a table from its current name to a new name
+      operationId: renameTable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/views:
+    get:
+      tags:
+        - Catalog API
+      summary: List views for the given namespace
+      description: Return all the views for the given namespace
+      operationId: listViews
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageToken
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Create a view in the given namespace
+      operationId: createView
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/views/{view}:
+    get:
+      tags:
+        - Catalog API
+      summary: Load a view from the catalog
+      operationId: loadView
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Commit updates to a view
+      operationId: updateView
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+    delete:
+      tags:
+        - Catalog API
+      summary: Drop a view from catalog
+      operationId: dropView
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}/metrics:
+    post:
+      tags:
+        - Catalog API
+      summary: Send a metrics report to this endpoint to be processed by the backend
+      operationId: reportMetrics
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+  /v1/transactions/commit:
+    post:
+      tags:
+        - Catalog API
+      summary: Commit transaction
+      operationId: commitTransaction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
+components:
+  schemas:
+    AuthenticationError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    BusinessError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
+    CreateIcebergDB:
+      required:
+        - db
+        - props
+      type: object
+      properties:
+        db:
+          type: string
+        volume:
+          type: string
+        props:
+          $ref: '#/components/schemas/Map_String'
+    CreateIcebergTable:
+      required:
+        - table
+        - schema
+        - properties
+      type: object
+      properties:
+        table:
+          type: string
+        schema:
+          type: object
+        partitionSpec:
+          type: object
+        sortOrderSpec:
+          type: object
+        properties:
+          $ref: '#/components/schemas/Map_String'
+    ErrorResponseScala:
+      required:
+        - message
+        - type
+        - code
+      type: object
+      properties:
+        message:
+          type: string
+        type:
+          type: string
+        code:
+          type: integer
+          format: int32
+        stack:
+          type: array
+          items:
+            type: string
+    IcebergDB:
+      required:
+        - volume
+        - dir
+        - db
+        - properties
+      type: object
+      properties:
+        volume:
+          type: string
+        dir:
+          type: string
+        db:
+          type: string
+        properties:
+          $ref: '#/components/schemas/Map_String'
+    IcebergTable:
+      required:
+        - db
+        - name
+        - schema
+        - properties
+      type: object
+      properties:
+        db:
+          type: string
+        name:
+          type: string
+        schema:
+          type: object
+        partitionSpec:
+          type: object
+        sortOrderSpec:
+          type: object
+        properties:
+          $ref: '#/components/schemas/Map_String'
+    Map_String:
+      type: object
+      additionalProperties:
+        type: string
+    NotFoundError:
+      required:
+        - resourceType
+        - id
+        - errorType
+      type: object
+      properties:
+        resourceType:
+          type: string
+        id:
+          type: string
+        errorType:
+          type: string
+    Snapshot:
+      required:
+        - sequenceNumber
+        - snapshotId
+        - timestamp
+        - summary
+        - schemaId
+      type: object
+      properties:
+        sequenceNumber:
+          type: integer
+          format: int64
+        snapshotId:
+          type: string
+        parentSnapshotId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        summary:
+          $ref: '#/components/schemas/Map_String'
+        schemaId:
+          type: integer
+          format: int32
+    Snapshots:
+      type: string
+      enum:
+        - all
+        - refs
+    TechnicalError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorStack:
+          type: string
+        errorType:
+          type: string
+    UnauthorizedError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+  securitySchemes:
+    httpAuth:
+      type: http
+      scheme: bearer

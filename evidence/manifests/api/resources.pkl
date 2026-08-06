@@ -1,0 +1,98 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+local Stateless = resources.Effect.Stateless
+local Reversible = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+Report = new resources.ResourceTypeDefinition {
+  name = "Report"
+  doc = "Evidence Report"
+  activeVersion = "v1"
+  superType = resources.DASHBOARD_TYPE
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a report."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createReport"
+          resourceNameTemplate = "[{{requestBody.report.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a report."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getReport"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Update"
+        effect = Reversible
+        idempotent = false
+        doc = "Update a report."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "updateReport"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Build"
+        effect = Reversible
+        idempotent = false
+        doc = "Build and deploy the latest report sources."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "buildAndDeployReport"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetStatus"
+        effect = Stateless
+        idempotent = true
+        doc = "Get the current report lifecycle status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getReportStatus"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetBuildLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Get the logs for a report build."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getReportBuildLogs"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "View"
+        effect = Stateless
+        idempotent = true
+        doc = "View a report in the UI."
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        doc = "Delete a report."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteReport"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      }
+    )
+  })
+}
+
+types = List(Report)

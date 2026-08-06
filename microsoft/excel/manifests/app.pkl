@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "excel"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/excel"
+category = "productivity"
+tags = List("microsoft", "excel", "spreadsheets", "workbooks", "graph", "oauth")
+description = "Excel connector: read and write workbook ranges and tables in OneDrive/SharePoint files via Microsoft Graph."
+readme      = read("README.md").text

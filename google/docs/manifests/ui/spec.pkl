@@ -1,0 +1,84 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/googledocs.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "doc-viewer"
+    kind = "sandboxed"
+    entry = "components/doc-viewer/doc-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Document viewer"
+      description = "Render a Google Docs document's content (headings, text, lists, tables) by document id."
+      inputs {
+        type = "object"
+        required {
+          "documentId"
+        }
+        properties {
+          ["documentId"] = new Dynamic {
+            type = "string"
+            description = "Google Docs document id, e.g. from the document URL or docs_create_document."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "edit"
+          payload {
+            type = "object"
+            properties {
+              ["documentId"] = new Dynamic { type = "string" }
+              ["title"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "doc-composer"
+    kind = "sandboxed"
+    entry = "components/doc-composer/doc-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Document composer"
+      description = "Create a new Google Docs document (title + plain-text content) or append text to an existing one; fields are editable before saving."
+      inputs {
+        type = "object"
+        properties {
+          ["documentId"] = new Dynamic {
+            type = "string"
+            description = "Set to append to an existing document instead of creating one."
+          }
+          ["title"] = new Dynamic {
+            type = "string"
+            description = "Title for a new document (ignored when appending)."
+          }
+          ["content"] = new Dynamic {
+            type = "string"
+            description = "Plain-text content to write; the user can edit it before saving."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["documentId"] = new Dynamic { type = "string" }
+              ["title"] = new Dynamic { type = "string" }
+              ["url"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

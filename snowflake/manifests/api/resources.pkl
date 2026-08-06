@@ -1,0 +1,632 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local DatabaseType = new resources.ResourceType { app = appRef; name = "Database" }
+local SchemaType   = new resources.ResourceType { app = appRef; name = "Schema" }
+
+// Snowflake has time-travel for most objects — many destructive operations are
+// technically recoverable, but still require explicit confirmation from AI.
+local Describe = "Describe"
+local Read     = "Read"
+local Write    = "Write"
+local Create   = "Create"
+local Delete   = "Delete"
+local Admin    = "Admin"
+local Execute  = "Execute"
+
+local Stateless    = "Stateless"
+local Reversible   = "Reversible"
+local Irreversible = "Irreversible"
+
+// Privilege propagation shared by all dataset types (Table, View, etc.).
+local datasetPropagation = Map(
+  Admin,    List(Describe, Read, Write, Create, Delete, Admin),
+  Write,    List(Describe, Read, Write),
+  Read,     List(Describe, Read),
+  Describe, List(Describe)
+)
+
+// ---------------------------------------------------------------------------
+// Warehouse  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Warehouse = new resources.ResourceTypeDefinition {
+  name = "Warehouse"
+  doc  = "A Snowflake virtual warehouse. Provides compute for SQL queries and DML."
+  activeVersion = "v1"
+  superType     = resources.SQL_ENGINE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new Snowflake virtual warehouse."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the warehouse. Any running queries are cancelled."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters warehouse configuration (size, auto-suspend, etc.)."
+      },
+      new resources.Action {
+        name       = "Use"
+        privilege  = Execute
+        effect     = Stateless
+        idempotent = true
+        doc = "Sets the active warehouse for the current session."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists warehouses visible to the current role."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details about the warehouse configuration."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Database  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Database = new resources.ResourceTypeDefinition {
+  name = "Database"
+  doc  = "A Snowflake database. Top-level namespace containing schemas and their objects."
+  activeVersion = "v1"
+  superType     = resources.CATALOG_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new Snowflake database."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the database. Retains dropped state for Time Travel retention period."
+      },
+      new resources.Action {
+        name       = "Undrop"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Restores a recently dropped database within the Time Travel retention period."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters database properties (name, data retention, default settings)."
+      },
+      new resources.Action {
+        name       = "Use"
+        privilege  = Execute
+        effect     = Stateless
+        idempotent = true
+        doc = "Sets the active database for the current session."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists databases visible to the current role."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details about the database."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Schema  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+Schema = new resources.ResourceTypeDefinition {
+  name = "Schema"
+  doc  = "A Snowflake schema. Groups tables, views, and other objects within a database."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new schema within the database."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the schema and all its objects. Retains dropped state for Time Travel period."
+      },
+      new resources.Action {
+        name       = "Undrop"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Restores a recently dropped schema within the Time Travel retention period."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters schema properties."
+      },
+      new resources.Action {
+        name       = "Use"
+        privilege  = Execute
+        effect     = Stateless
+        idempotent = true
+        doc = "Sets the active schema for the current session."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists schemas in the parent database."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details about the schema."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "A Snowflake table. Supports standard DML with Time Travel for point-in-time recovery."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new table with the given DDL."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads rows from the table. Authorization marker for query engine access."
+      },
+      new resources.Action {
+        name       = "Insert"
+        privilege  = Write
+        effect     = Reversible   // recoverable via Time Travel
+        idempotent = false
+        doc = "Appends rows to the table. Recoverable via Time Travel within the retention period."
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates rows matching a predicate. Recoverable via Time Travel."
+      },
+      new resources.Action {
+        name       = "Delete"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes rows matching a predicate. Recoverable via Time Travel."
+      },
+      new resources.Action {
+        name                 = "Truncate"
+        privilege            = Write
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Removes all rows from the table. Requires explicit confirmation."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters table schema or properties (add/drop column, rename, clustering)."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table. Retains dropped state for Time Travel retention period."
+      },
+      new resources.Action {
+        name       = "Undrop"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Restores a recently dropped table within the Time Travel retention period."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists tables in the parent schema."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and table metadata."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// EventTable  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+EventTable = new resources.ResourceTypeDefinition {
+  name = "EventTable"
+  doc  = "A Snowflake event table. Stores structured log and trace events from Snowpark."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new event table."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Queries event records from the table."
+      },
+      new resources.Action {
+        name       = "Insert"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Appends event records. Typically written by Snowpark logging framework."
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates event records."
+      },
+      new resources.Action {
+        name       = "Delete"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes event records matching a predicate."
+      },
+      new resources.Action {
+        name                 = "Truncate"
+        privilege            = Write
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Removes all event records. Requires explicit confirmation."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters event table properties."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the event table."
+      },
+      new resources.Action {
+        name       = "Undrop"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Restores a recently dropped event table."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists event tables in the parent schema."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and event table metadata."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// IcebergTable  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+IcebergTable = new resources.ResourceTypeDefinition {
+  name = "IcebergTable"
+  doc  = "A Snowflake-managed Iceberg table. Open table format with Snowflake as catalog."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new Snowflake-managed Iceberg table."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads rows from the Iceberg table."
+      },
+      new resources.Action {
+        name       = "Insert"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Appends rows to the Iceberg table."
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates rows via Iceberg merge semantics."
+      },
+      new resources.Action {
+        name       = "Delete"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes rows matching a predicate."
+      },
+      new resources.Action {
+        name                 = "Truncate"
+        privilege            = Write
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Removes all rows. Requires explicit confirmation."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the Iceberg table."
+      },
+      new resources.Action {
+        name       = "Undrop"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Restores a recently dropped Iceberg table."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists Iceberg tables in the parent schema."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and Iceberg metadata."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// View  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc  = "A Snowflake view. Named SQL query stored in the schema."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Executes the view's SQL definition and returns results."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters the view SQL definition or properties."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the view."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists views in the parent schema."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the view column list and SQL definition."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// MaterializedView  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+MaterializedView = new resources.ResourceTypeDefinition {
+  name = "MaterializedView"
+  doc  = "A Snowflake materialized view. Pre-computed query result kept in sync by Snowflake."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new materialized view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads the pre-computed result set."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters materialized view properties (clustering, suspend/resume)."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the materialized view."
+      },
+      new resources.Action {
+        name       = "Refresh"
+        privilege  = Execute
+        effect     = Reversible
+        idempotent = true
+        doc = "Manually triggers a refresh of the materialized view's pre-computed result."
+      },
+      new resources.Action {
+        name       = "Show"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists materialized views in the parent schema."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and the SQL definition."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  Warehouse, Database, Schema, Table, EventTable, IcebergTable, View, MaterializedView
+)

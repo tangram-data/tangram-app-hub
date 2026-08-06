@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType     = "App"
+group       = "org.mlflow"
+name        = "mlflow"
+version     = "0.1.0"
+license     = "Apache-2.0"
+category    = "MLOps"
+tags        = List("MLFlow:v2.21.3", "MLOps")
+description = "Build better models and generative AI apps on a unified, end-to-end, open source MLOps platform"
+readme      = read("README.md").text

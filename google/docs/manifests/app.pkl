@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.google"
+name = "docs"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.google.com/docs/api"
+category = "productivity"
+tags = List("google", "docs", "documents", "oauth")
+description = "Google Docs connector: create documents, read their content, and apply edits."
+readme      = read("README.md").text

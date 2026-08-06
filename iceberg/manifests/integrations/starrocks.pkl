@@ -1,0 +1,34 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/iceberg/Table/v1"
+local databaseType = "ai.tangram/iceberg/Database/v1"
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = integration.TANGRAM_SQL_APP
+    name    = "queryable/starrocks"
+    version = "v1"
+  }
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
+  }
+}
+
+// CREATE/DROP DATABASE write-through: the same support class serves Database refs with a
+// storage-credential-free catalog bootstrap (namespace DDL is REST-server-side).
+databaseQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = integration.TANGRAM_SQL_APP
+    name    = "queryable/starrocks"
+    version = "v1"
+  }
+  implementationType = databaseType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, databaseQueryable)

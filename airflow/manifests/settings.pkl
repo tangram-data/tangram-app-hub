@@ -1,0 +1,37 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "dagsGitRepo"
+    required    = true
+    description = "Git repository URL containing your Airflow DAG files."
+    example     = "https://github.com/my-org/my-dags"
+  },
+  new manifest.ConfigField {
+    name        = "dagsGitRepoBranch"
+    required    = true
+    description = "Branch to sync DAGs from."
+    example     = "main"
+  },
+  new manifest.ConfigField {
+    name        = "dagsGitRepoSubPath"
+    required    = false
+    description = "Sub-path within the repository containing the DAGs directory."
+    example     = "dags"
+    default     = ""
+  },
+  new manifest.ConfigField {
+    name        = "airflowDockerImageRepo"
+    required    = false
+    description = "Docker image repository for Airflow. Override to use a custom image."
+    example     = "apache/airflow"
+    default     = "apache/airflow"
+  },
+  new manifest.ConfigField {
+    name        = "airflowDockerImageTag"
+    required    = false
+    description = "Docker image tag for Airflow."
+    example     = "3.0.2"
+    default     = "3.0.2"
+  }
+)

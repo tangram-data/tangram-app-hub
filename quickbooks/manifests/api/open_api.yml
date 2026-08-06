@@ -1,0 +1,503 @@
+openapi: 3.0.3
+info:
+  title: QuickBooks Online
+  version: "1.0"
+  description: >
+    Subset of the QuickBooks Online Accounting API (v3) exposed through the
+    Tangram connector. Every operation acts on the company file (realm)
+    captured when the workspace connected via OAuth; the realmId never appears
+    in these client-facing paths — the per-operation x-tangram-upstream
+    extension injects it into the upstream URL.
+servers:
+  - url: https://quickbooks.api.intuit.com
+
+paths:
+  /companyinfo:
+    get:
+      operationId: getCompanyInfo
+      summary: Read the connected company's profile
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/companyinfo/{{oauth.tenantId}}"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: CompanyInfo wrapper with company name, legal address, and fiscal-year start.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  CompanyInfo:
+                    type: object
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /query:
+    get:
+      operationId: queryEntities
+      summary: Run a QuickBooks SQL-like SELECT against any entity
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/query"
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: >
+            QuickBooks query language statement, e.g.
+            "select * from Purchase where TxnDate >= '2026-07-01' and TxnDate <= '2026-07-31' orderby TxnDate desc"
+            or "select * from Purchase where TotalAmt = '42.17'".
+            Queryable entities include Purchase, Deposit, Transfer, JournalEntry,
+            Invoice, Bill, BillPayment, Payment, Account, Vendor, Customer,
+            Attachable, CreditCardPayment. String literals use single quotes;
+            LIKE supports '%'. Page with "startposition N maxresults M"
+            (maxresults cap 1000). Count with "select count(*) from ...".
+          schema:
+            type: string
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: >
+            QueryResponse wrapper keyed by entity name, e.g.
+            {"QueryResponse":{"Purchase":[...],"startPosition":1,"maxResults":10}}.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  QueryResponse:
+                    type: object
+        "400":
+          description: Query syntax error (Fault.Error[].Detail explains the position).
+
+  /purchase:
+    post:
+      operationId: createPurchase
+      summary: Record an expense transaction (cash, check, or credit card)
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/purchase"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseCreate"
+      responses:
+        "200":
+          description: The created Purchase, wrapped as {"Purchase":{...}} with its Id and SyncToken.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Purchase:
+                    type: object
+        "400":
+          description: Validation fault (missing account, bad line, duplicate DocNumber, ...).
+
+  /purchase-update:
+    post:
+      operationId: updatePurchase
+      summary: Sparse-update an existing expense transaction
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/purchase"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseUpdate"
+      responses:
+        "200":
+          description: The updated Purchase with an incremented SyncToken.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Purchase:
+                    type: object
+        "400":
+          description: Stale SyncToken or validation fault.
+
+  /attachable:
+    post:
+      operationId: createAttachable
+      summary: Attach a note to one or more transactions
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/attachable"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachableCreate"
+      responses:
+        "200":
+          description: The created Attachable, wrapped as {"Attachable":{...}}.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Attachable:
+                    type: object
+        "400":
+          description: Validation fault (unknown AttachableRef entity, ...).
+
+  /upload:
+    post:
+      operationId: uploadAttachable
+      summary: Upload a receipt file and attach it to transactions
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/upload"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file_metadata_01, file_content_01]
+              properties:
+                file_metadata_01:
+                  type: object
+                  required: [FileName, ContentType, AttachableRef]
+                  description: Attachable metadata for the uploaded file.
+                  properties:
+                    FileName:
+                      type: string
+                      description: File name to show in QuickBooks, e.g. "receipt-uber-2026-07-12.pdf".
+                    ContentType:
+                      type: string
+                      description: MIME type of the file, e.g. application/pdf or image/jpeg.
+                    Note:
+                      type: string
+                      description: Optional note shown with the attachment.
+                    AttachableRef:
+                      type: array
+                      minItems: 1
+                      description: Transactions to attach the file to (required — an upload without it lands unattached in the attachment list).
+                      items:
+                        type: object
+                        required: [EntityRef]
+                        properties:
+                          EntityRef:
+                            type: object
+                            required: [value, type]
+                            properties:
+                              value:
+                                type: string
+                                description: The transaction Id.
+                              type:
+                                type: string
+                                description: Entity type, e.g. Purchase, Invoice, Bill, Deposit.
+                file_content_01:
+                  type: string
+                  format: binary
+                  description: >
+                    Tangram volume file reference "<folder>/<name>" naming the receipt
+                    file in the workspace files (e.g. a chat attachment or an
+                    app_action_result file). The platform streams the bytes; do not
+                    inline file content.
+      responses:
+        "200":
+          description: >
+            AttachableResponse array wrapper; each entry carries the created
+            Attachable (Id, FileName, TempDownloadUri) or a per-file Fault.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  AttachableResponse:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          description: Validation fault (bad content type, unknown AttachableRef entity, ...).
+
+  /attachable-update:
+    post:
+      operationId: updateAttachable
+      summary: Update an existing attachable note
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/attachable"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [Id, SyncToken, Note]
+              properties:
+                Id:
+                  type: string
+                  description: Id of the Attachable to update (from a query).
+                SyncToken:
+                  type: string
+                  description: Current SyncToken — stale tokens are rejected; re-query to refresh.
+                Note:
+                  type: string
+                  description: Replacement note text (full update — supply the complete desired value).
+                AttachableRef:
+                  type: array
+                  description: >
+                    Full update clears omitted writable fields — ALWAYS re-supply the
+                    complete AttachableRef list you want to keep (query the attachable
+                    first). Omitting it detaches the note from all transactions.
+                  items:
+                    type: object
+                    properties:
+                      EntityRef:
+                        type: object
+                        required: [value, type]
+                        properties:
+                          value:
+                            type: string
+                          type:
+                            type: string
+                      IncludeOnSend:
+                        type: boolean
+      responses:
+        "200":
+          description: The updated Attachable with an incremented SyncToken.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Attachable:
+                    type: object
+        "400":
+          description: Stale SyncToken or validation fault.
+
+  /attachable-delete:
+    post:
+      operationId: deleteAttachable
+      summary: Delete an attachable note
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/attachable"
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          description: Must be "delete".
+          schema:
+            type: string
+            enum: [delete]
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [Id, SyncToken]
+              properties:
+                Id:
+                  type: string
+                  description: Id of the Attachable to delete (from a query).
+                SyncToken:
+                  type: string
+                  description: Current SyncToken of the Attachable.
+      responses:
+        "200":
+          description: Deletion confirmation, e.g. {"Attachable":{"Id":"...","status":"Deleted"}}.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Stale SyncToken or unknown Id.
+
+  /vendor:
+    post:
+      operationId: createVendor
+      summary: Create a vendor (payee)
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/vendor"
+      parameters:
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [DisplayName]
+              properties:
+                DisplayName:
+                  type: string
+                  description: Vendor name shown on transactions. Must be unique across vendors, customers, and employees — query Vendor first to avoid duplicates.
+                CompanyName:
+                  type: string
+                PrimaryEmailAddr:
+                  type: object
+                  properties:
+                    Address:
+                      type: string
+                WebAddr:
+                  type: object
+                  properties:
+                    URI:
+                      type: string
+      responses:
+        "200":
+          description: The created Vendor, wrapped as {"Vendor":{...}}.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Vendor:
+                    type: object
+        "400":
+          description: Duplicate name or validation fault.
+
+components:
+  parameters:
+    minorversion:
+      name: minorversion
+      in: query
+      required: false
+      description: QuickBooks API minor version (e.g. "75"). Omit for the account default.
+      schema:
+        type: string
+
+  schemas:
+    EntityRef:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+          description: Target entity Id.
+        name:
+          type: string
+          description: Display name (optional, informational).
+
+    PurchaseLine:
+      type: object
+      required: [Amount, DetailType]
+      properties:
+        Amount:
+          type: number
+          description: Line amount.
+        DetailType:
+          type: string
+          enum: [AccountBasedExpenseLineDetail, ItemBasedExpenseLineDetail]
+        Description:
+          type: string
+        AccountBasedExpenseLineDetail:
+          type: object
+          description: Required when DetailType is AccountBasedExpenseLineDetail — the expense account this line posts to.
+          properties:
+            AccountRef:
+              $ref: "#/components/schemas/EntityRef"
+            TaxCodeRef:
+              $ref: "#/components/schemas/EntityRef"
+        ItemBasedExpenseLineDetail:
+          type: object
+          description: Required when DetailType is ItemBasedExpenseLineDetail.
+          properties:
+            ItemRef:
+              $ref: "#/components/schemas/EntityRef"
+            Qty:
+              type: number
+            UnitPrice:
+              type: number
+
+    PurchaseCreate:
+      type: object
+      required: [PaymentType, AccountRef, Line]
+      properties:
+        PaymentType:
+          type: string
+          enum: [Cash, Check, CreditCard]
+          description: CreditCard for corporate-card spend, Check/Cash for bank-account spend.
+        AccountRef:
+          allOf:
+            - $ref: "#/components/schemas/EntityRef"
+          description: The bank or credit-card Account the money left. Find its Id with "select * from Account where AccountType in ('Bank','Credit Card')".
+        Line:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseLine"
+        TxnDate:
+          type: string
+          description: Transaction date, yyyy-MM-dd.
+        EntityRef:
+          allOf:
+            - $ref: "#/components/schemas/EntityRef"
+          description: The vendor/payee.
+        PrivateNote:
+          type: string
+          description: Internal memo (not printed) — useful for a receipt reference.
+        DocNumber:
+          type: string
+        CurrencyRef:
+          $ref: "#/components/schemas/EntityRef"
+
+    PurchaseUpdate:
+      type: object
+      required: [Id, SyncToken, sparse]
+      properties:
+        Id:
+          type: string
+          description: Id of the Purchase to update (from a query).
+        SyncToken:
+          type: string
+          description: Current SyncToken of the Purchase — stale tokens are rejected; re-query to refresh.
+        sparse:
+          type: boolean
+          enum: [true]
+          description: Must be true — only the supplied fields change. (false would invoke QuickBooks full-update semantics and clear every omitted writable field.)
+        PrivateNote:
+          type: string
+          description: 'Internal memo, e.g. "Receipt matched: <file> (attachable <id>)".'
+        TxnDate:
+          type: string
+        EntityRef:
+          $ref: "#/components/schemas/EntityRef"
+        Line:
+          type: array
+          description: Full replacement line list when present.
+          items:
+            $ref: "#/components/schemas/PurchaseLine"
+
+    AttachableCreate:
+      type: object
+      required: [Note]
+      properties:
+        Note:
+          type: string
+          description: The note text, e.g. the receipt summary (merchant, date, total) and where the receipt file lives.
+        AttachableRef:
+          type: array
+          description: Transactions/entities this note is attached to.
+          items:
+            type: object
+            properties:
+              EntityRef:
+                type: object
+                required: [value, type]
+                properties:
+                  value:
+                    type: string
+                    description: The transaction Id.
+                  type:
+                    type: string
+                    description: Entity type, e.g. Purchase, Invoice, Bill, Deposit.
+              IncludeOnSend:
+                type: boolean
+                description: Whether to include when the transaction is emailed (default false).

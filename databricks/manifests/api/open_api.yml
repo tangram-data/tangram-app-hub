@@ -1,0 +1,335 @@
+openapi: 3.1.0
+info:
+  title: Databricks REST APIs
+  version: 2.0
+paths:
+  /api/2.0/sql/warehouses:
+    get:
+      tags:
+        - SQL Warehouses
+      summary: Lists all SQL warehouses that a user has manager permissions on.
+      operationId: listSQLWarehouses
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      tags:
+        - SQL Warehouses
+      summary: Creates a new SQL warehouse.
+      operationId: createWarehouse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                type: object
+                properties:
+                  id:
+                    type: string
+  /api/2.0/sql/warehouses:{id}:
+    delete:
+      tags:
+        - SQL Warehouses
+      summary: Deletes a SQL warehouse.
+      operationId: deleteWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+    get:
+      tags:
+        - SQL Warehouses
+      summary: Gets the information for a single SQL warehouse.
+      operationId: getWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/2.0/sql/warehouses:{id}/edit:
+    post:
+      tags:
+        - SQL Warehouses
+      summary: Updates the configuration for a SQL warehouse.
+      operationId: updateWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /api/2.0/sql/warehouses:{id}/start:
+    post:
+      tags:
+        - SQL Warehouses
+      summary: Starts a SQL warehouse.
+      operationId: startWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/2.0/sql/warehouses:{id}/stop:
+    post:
+      tags:
+        - SQL Warehouses
+      summary: Stops a SQL warehouse.
+      operationId: stopWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/2.1/unity-catalog/tables:
+    get:
+      tags:
+        - Tables
+      summary: Gets an array of all tables for the current metastore under the parent catalog and schema.
+      operationId: listTables
+      parameters:
+        - name: catalog_name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: schema_name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The table was successfully retrieved.'
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/2.1/unity-catalog/tables/{full_name}:
+    get:
+      tags:
+        - Tables
+      summary: Gets a table from the metastore for a specific catalog and schema.
+      operationId: getTable
+      parameters:
+        - name: full_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The table was successfully retrieved.'
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      tags:
+        - Tables
+      summary: Deletes a table from the specified parent catalog and schema.
+      operationId: deleteTable
+      parameters:
+        - name: full_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The table was successfully deleted.'
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/2.1/unity-catalog/schemas:
+    get:
+      tags:
+        - Schemas
+      summary: Gets an array of schemas for a catalog in the metastore.
+      operationId: listSchemas
+      parameters:
+        - name: catalog_name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      tags:
+        - Schemas
+      summary: Creates a new schema for catalog in the Metatastore.
+      operationId: createSchema
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/2.1/unity-catalog/schemas/{full_name}:
+    get:
+      tags:
+        - Schemas
+      summary: Gets the specified schema within the metastore.
+      operationId: getSchema
+      parameters:
+        - name: full_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+    patch:
+      tags:
+        - Schemas
+      summary: Updates a schema for a catalog.
+      operationId: updateSchema
+      parameters:
+        - name: full_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      tags:
+        - Schemas
+      summary: Deletes the specified schema from the parent catalog.
+      operationId: deleteSchema
+      parameters:
+        - name: full_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/2.0/unity-catalog/temporary-table-credentials:
+    post:
+      tags:
+        - Temporary Table Credentials
+      summary: Get a short-lived credential for directly accessing the table data on cloud storage.
+      operationId: generateTemporaryTableCredentials
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object

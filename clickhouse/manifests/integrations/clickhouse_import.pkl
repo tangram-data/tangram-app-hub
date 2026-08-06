@@ -1,0 +1,17 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+clickhouseImport = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = manifest.TANGRAM_OS_CORE_APP
+    name    = "app-resource-import"
+    version = "v1"
+  }
+  implementationType = "com.clickhouse/clickhouse"
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.clickhouse.ClickhouseResourceImport"
+    lib       = new Dynamic { name = "clickhouse-import"; version = "1.0.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(clickhouseImport)

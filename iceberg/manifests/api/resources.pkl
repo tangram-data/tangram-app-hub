@@ -1,0 +1,449 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local DatabaseType = new resources.ResourceType { app = appRef; name = "Database" }
+
+// ---------------------------------------------------------------------------
+// Catalog  (workspace singleton — no resource name parts)
+// ---------------------------------------------------------------------------
+
+Catalog = new resources.ResourceTypeDefinition {
+  name = "Catalog"
+  doc  = "The Iceberg REST catalog service. One catalog exists per workspace."
+  activeVersion = "v2"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v2"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "GetToken"
+        privilege  = "Execute"
+        effect     = "Stateless"
+        idempotent = false
+        skipAuth   = true
+        skipAudit  = true
+        doc = "Issues an OAuth2 bearer token for catalog access. Public endpoint — no auth required."
+        openApiMapping = new resources.OpenApiMapping { operationId = "getToken" }
+      },
+      new resources.Action {
+        name       = "GetConfig"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        skipAuth   = true
+        skipAudit  = true
+        doc = "Returns catalog configuration properties. Public endpoint — no auth required."
+        openApiMapping = new resources.OpenApiMapping { operationId = "getConfig" }
+      },
+      new resources.Action {
+        name       = "CommitTransaction"
+        privilege  = "Execute"
+        effect     = "Irreversible"
+        idempotent = false
+        doc = "Atomically commits a multi-table transaction. Cannot be rolled back once applied."
+        openApiMapping = new resources.OpenApiMapping { operationId = "commitTransaction" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Database  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Database = new resources.ResourceTypeDefinition {
+  name = "Database"
+  doc  = "An Iceberg namespace. Groups tables and views backed by a storage bucket."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"   // privilege defaults to Create
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a new Iceberg database backed by a storage bucket."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createNamespace"
+          resourceName = List(new resources.BodyField { path = "namespace[0]" })
+        }
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists all databases in the workspace."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listNamespaces" }
+      },
+      new resources.Action {
+        name       = "GetMetadata"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns namespace metadata properties."
+        openApiMapping = new resources.OpenApiMapping { operationId = "loadNamespaceMetadata" }
+      },
+      new resources.Action {
+        // privilege defaults to the action name "UpdateMetadata" — kept granular so the
+        // role-grant UI surfaces it separately and sql_queryable.pkl's `"Alter" → ["UpdateMetadata"]`
+        // mapping resolves to a real privilege.
+        name       = "UpdateMetadata"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Updates namespace metadata properties."
+        openApiMapping = new resources.OpenApiMapping { operationId = "updateNamespaceMetadata" }
+      },
+      new resources.Action {
+        name                 = "Delete"   // privilege defaults to Delete
+        effect               = "Irreversible"
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Deletes the database and all its contents. Irreversible."
+        openApiMapping = new resources.OpenApiMapping { operationId = "dropNamespace" }
+      },
+      new resources.Action {
+        name       = "CheckExists"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Checks whether a database exists."
+        openApiMapping = new resources.OpenApiMapping { operationId = "checkIfNamespaceExists" }
+      },
+      new resources.Action {
+        name       = "ListTable"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists all tables within the database."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listTables" }
+      }
+    )
+    // Three preset roles. Bound per-database via `role_bindings.resource_scope`
+    // (one workspace-level row per role; bindings scope to specific FNs).
+    //
+    // **AND-constraint** (see Catalog.presetRoles): `owner` and `editor` require
+    // a workspace-wide Catalog#committer (or owner) binding for the same
+    // principal — creating, dropping, or updating a namespace transits the
+    // catalog commit path. `viewer` does not.
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List("Create", "List", "GetMetadata", "UpdateMetadata", "Delete", "CheckExists", "ListTable")
+        description = "Full control over the database — create, alter, drop, list/describe contents."
+      },
+      new resources.Role {
+        name = "maintainer"
+        permissions = List("List", "GetMetadata", "UpdateMetadata", "CheckExists", "ListTable")
+        description = "Update metadata + describe. Cannot create or delete databases."
+      },
+      new resources.Role {
+        name = "viewer"
+        permissions = List("List", "GetMetadata", "CheckExists", "ListTable")
+        description = "Read-only — list, describe, and enumerate tables. No mutation."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "An Iceberg table. Versioned, ACID-compliant columnar data with full snapshot history."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"   // privilege defaults to Create
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a new Iceberg table with the given schema."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createTable"
+          resourceName = List(
+            new resources.PathParam { name = "namespace" },
+            new resources.BodyField { path = "name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "Load"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Loads full table metadata including schema, partition spec, and file locations. Required by query engines before reading."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "loadTable"
+          resourceName = List(
+            new resources.PathParam { name = "namespace" },
+            new resources.PathParam { name = "table" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "LoadCredentials"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = false
+        // Declares the minimum privilege required to invoke. The platform IAM checks
+        // exact action match (no implicit Write→Read hierarchy within the same resource),
+        // so a caller holding only Write on the Table won't pass — by convention roles
+        // that grant Write also grant Read.
+        // Returned credentials are scoped to whatever the caller actually holds:
+        // Read → read-only; Read+Write → read-write.
+        doc = "Issues short-lived storage credentials scoped to the caller's effective privileges on the table. Requires at least Read; if the caller also holds Write the credentials are widened to read-write."
+        openApiMapping = new resources.OpenApiMapping { operationId = "loadTableCredentials" }
+      },
+      new resources.Action {
+        name       = "GetSnapshots"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns the table snapshot history. Use before time-travel queries."
+        openApiMapping = new resources.OpenApiMapping { operationId = "loadTableSnapshots" }
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists tables in the parent database."
+        // No HTTP mapping — exposed via Database.ListTable
+      },
+      new resources.Action {
+        // privilege defaults to "UpdateMetadata" so SQL `ALTER TABLE` (mapped via
+        // sql_queryable.pkl's `"Alter" → ["UpdateMetadata"]`) grants and is auditable
+        // separately from broader admin actions.
+        name       = "UpdateMetadata"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Updates table metadata: schema evolution, partition spec, sort order."
+        openApiMapping = new resources.OpenApiMapping { operationId = "updateTable" }
+      },
+      new resources.Action {
+        name       = "Read"   // privilege defaults to Read
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Authorization marker for reading table data via a query engine. No HTTP endpoint."
+        // No openApiMapping — invoked through internal query engine protocol
+      },
+      new resources.Action {
+        name       = "Write"   // privilege defaults to Write
+        effect     = "Reversible"   // Iceberg snapshots allow rollback to any prior version
+        idempotent = false
+        doc = "Authorization marker for writing table data via a query engine. Reversible via snapshot rollback. No HTTP endpoint."
+        // No openApiMapping — invoked through internal query engine protocol
+      },
+      new resources.Action {
+        name                 = "Delete"   // privilege defaults to Delete
+        effect               = "Irreversible"
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table and its metadata. Data files may be retained depending on GC policy."
+        openApiMapping = new resources.OpenApiMapping { operationId = "dropTable" }
+      },
+      new resources.Action {
+        // privilege defaults to "Rename" so it stays granular in the role-grant UI and
+        // aligns with sql_queryable.pkl's `"Rename" → ["Rename"]` mapping.
+        name       = "Rename"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Renames a table."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "renameTable"
+          // Name extracted from nested body fields — cannot be derived from path params
+          resourceName = List(
+            new resources.BodyField { path = "source.namespace[0]" },
+            new resources.BodyField      { path = "source.name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "ReportMetrics"
+        privilege  = "Execute"
+        effect     = "Stateless"
+        idempotent = false
+        skipAudit  = true   // high-frequency engine heartbeat; not meaningful to audit
+        doc = "Reports scan and commit metrics from a query engine. High-frequency; not audited."
+        openApiMapping = new resources.OpenApiMapping { operationId = "reportMetrics" }
+      },
+      new resources.Action {
+        name       = "CheckExists"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Checks whether a table exists."
+        openApiMapping = new resources.OpenApiMapping { operationId = "checkIfTableExists" }
+      }
+    )
+    // Five preset roles. The `owner`/`editor`/`writer`/`reader` quartet
+    // mirrors common data-platform conventions; `schema_admin` is the
+    // narrow "can evolve metadata but not touch data" pattern requested
+    // in earlier auth-design discussions (Phase 3.6 cross-app role-name
+    // tests use this same shape).
+    //
+    // **AND-constraint** (see Catalog.presetRoles for the full explanation):
+    // any role that grants Write, UpdateMetadata, Delete, Rename, or Create
+    // here ALSO requires the principal to be bound to Catalog#committer
+    // (or owner) at the workspace catalog FN. That includes every role in
+    // this list EXCEPT `reader`. The Iceberg handler runs the dual check;
+    // the platform doesn't express the AND in roles.
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List(
+          "Create", "Load", "LoadCredentials", "GetSnapshots", "List",
+          "UpdateMetadata", "Read", "Write", "Delete", "Rename",
+          "ReportMetrics", "CheckExists"
+        )
+        description = "Full control over the table."
+      },
+      new resources.Role {
+        name = "maintainer"
+        permissions = List(
+          "Load", "Create", "LoadCredentials", "GetSnapshots", "List",
+          "UpdateMetadata", "Read", "Write", "Rename",
+          "ReportMetrics", "CheckExists"
+        )
+        description = "Read + write data, evolve schema, rename. Cannot create new tables or drop existing ones."
+      },
+      new resources.Role {
+        name = "writer"
+        permissions = List(
+          "Load", "LoadCredentials", "GetSnapshots", "List",
+          "Read", "Write", "ReportMetrics", "CheckExists"
+        )
+        description = "Read + write data only. Cannot evolve schema or rename."
+      },
+      new resources.Role {
+        name = "reader"
+        permissions = List(
+          "Load", "LoadCredentials", "GetSnapshots", "List",
+          "Read", "CheckExists"
+        )
+        description = "Read-only access to table data and metadata."
+      },
+      new resources.Role {
+        name = "schema_admin"
+        permissions = List(
+          "GetSnapshots", "List", "UpdateMetadata", "Rename", "CheckExists"
+        )
+        description = "Schema/metadata steward — alter and rename, but no data access."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// View  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc  = "An Iceberg view. Named SQL query stored in the catalog with versioned definitions."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"   // privilege defaults to Create
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a new Iceberg view with a SQL definition."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createView"
+          resourceName = List(
+            new resources.PathParam { name = "namespace" },
+            new resources.BodyField { path = "name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "Load"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Loads the view definition. Required by query engines before executing."
+        openApiMapping = new resources.OpenApiMapping { operationId = "loadView" }
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists views in the parent database."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listViews" }
+      },
+      new resources.Action {
+        // Named `UpdateMetadata` (not `Update`) to mirror Table and to align with
+        // sql_queryable.pkl's `"Alter" → ["UpdateMetadata"]` mapping for views.
+        // privilege defaults to the action name.
+        name       = "UpdateMetadata"
+        effect     = "Reversible"   // previous versions retained in view history
+        idempotent = false
+        doc = "Updates the view SQL definition. Previous versions retained in view history."
+        openApiMapping = new resources.OpenApiMapping { operationId = "updateView" }
+      },
+      new resources.Action {
+        name       = "Read"   // privilege defaults to Read
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Authorization marker for executing the view via a query engine. No HTTP endpoint."
+      },
+      new resources.Action {
+        name                 = "Delete"   // privilege defaults to Delete
+        effect               = "Irreversible"
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the view. Irreversible."
+        openApiMapping = new resources.OpenApiMapping { operationId = "dropView" }
+      },
+      new resources.Action {
+        // privilege defaults to "Rename" — stays granular and matches sql_queryable's
+        // `"Rename" → ["Rename"]` mapping.
+        name       = "Rename"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Renames a view."
+        // No HTTP mapping in current Iceberg REST spec
+      }
+    )
+    // Three preset roles, parallel to Table's reader/editor/owner.
+    //
+    // **AND-constraint** (see Catalog.presetRoles): `owner` and `editor` require
+    // a workspace-wide Catalog#committer (or owner) binding for the same
+    // principal; `viewer` does not.
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List("Create", "Load", "List", "UpdateMetadata", "Read", "Delete", "Rename")
+        description = "Full control over the view."
+      },
+      new resources.Role {
+        name = "editor"
+        permissions = List("Load", "List", "UpdateMetadata", "Read", "Rename")
+        description = "Update the SQL definition, rename, read. Cannot create or drop views."
+      },
+      new resources.Role {
+        name = "viewer"
+        permissions = List("Load", "List", "Read")
+        description = "Read-only access to the view definition and results."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(Catalog, Database, Table, View)

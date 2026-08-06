@@ -1,0 +1,458 @@
+openapi: 3.0.3
+info:
+  title: Google Calendar
+  version: "1.0"
+  description: >
+    Subset of the Google Calendar API v3 exposed through the Tangram connector.
+    All operations act on the connected account's calendars.
+servers:
+  - url: https://www.googleapis.com
+
+paths:
+  /calendar/v3/users/me/calendarList:
+    get:
+      operationId: listCalendars
+      summary: List the calendars on the connected account's calendar list
+      parameters:
+        - name: minAccessRole
+          in: query
+          required: false
+          description: Only return calendars where the user has at least this role.
+          schema:
+            type: string
+            enum: [freeBusyReader, reader, writer, owner]
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum entries to return (default 100, max 250).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listCalendars response.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calendar list entries with a nextPageToken when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Calendar id — use as calendarId in event operations.
+                        summary:
+                          type: string
+                        primary:
+                          type: boolean
+                        timeZone:
+                          type: string
+                        accessRole:
+                          type: string
+                  nextPageToken:
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /calendar/v3/calendars/{calendarId}/events:
+    get:
+      operationId: listEvents
+      summary: List or search events on a calendar
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          description: Calendar id from listCalendars, or "primary" for the connected account's main calendar.
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          description: Free-text search over summary, description, location, and attendees.
+          schema:
+            type: string
+        - name: timeMin
+          in: query
+          required: false
+          description: Only events ending at or after this RFC3339 timestamp (e.g. 2026-07-10T00:00:00Z).
+          schema:
+            type: string
+        - name: timeMax
+          in: query
+          required: false
+          description: Only events starting before this RFC3339 timestamp.
+          schema:
+            type: string
+        - name: singleEvents
+          in: query
+          required: false
+          description: Expand recurring events into instances. Required for orderBy=startTime.
+          schema:
+            type: boolean
+        - name: orderBy
+          in: query
+          required: false
+          description: startTime (needs singleEvents=true) or updated.
+          schema:
+            type: string
+            enum: [startTime, updated]
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum events to return (default 250, max 2500).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listEvents response.
+          schema:
+            type: string
+        - name: timeZone
+          in: query
+          required: false
+          description: Time zone for the response (default is the calendar's time zone).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching events with a nextPageToken when more results exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timeZone:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Event"
+                  nextPageToken:
+                    type: string
+        "404":
+          description: Calendar not found.
+    post:
+      operationId: createEvent
+      summary: Create an event on a calendar
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          description: Calendar id from listCalendars, or "primary".
+          schema:
+            type: string
+        - name: sendUpdates
+          in: query
+          required: false
+          description: >
+            Whether attendees receive invitation emails: all, externalOnly, or
+            none (default none).
+          schema:
+            type: string
+            enum: [all, externalOnly, none]
+        - name: conferenceDataVersion
+          in: query
+          required: false
+          description: Set to 1 to allow conferenceData (e.g. a Meet link request) in the body.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventCreateInput"
+      responses:
+        "200":
+          description: The created event (id, htmlLink, status).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          description: Invalid event body (e.g. missing start/end).
+
+  /calendar/v3/calendars/{calendarId}/events/{eventId}:
+    get:
+      operationId: getEvent
+      summary: Fetch one event by id
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          description: The event id returned by listEvents.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The event with times, attendees, and description.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: Event not found.
+    patch:
+      operationId: updateEvent
+      summary: Update fields of an existing event
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sendUpdates
+          in: query
+          required: false
+          description: Whether attendees are notified of the change (default none).
+          schema:
+            type: string
+            enum: [all, externalOnly, none]
+        - name: conferenceDataVersion
+          in: query
+          required: false
+          description: Set to 1 to allow conferenceData (e.g. a Meet link request) in the body.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventPatchInput"
+      responses:
+        "200":
+          description: The updated event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: Event not found.
+    delete:
+      operationId: deleteEvent
+      summary: Delete an event
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sendUpdates
+          in: query
+          required: false
+          description: Whether attendees are notified of the cancellation (default none).
+          schema:
+            type: string
+            enum: [all, externalOnly, none]
+      responses:
+        "204":
+          description: Event deleted.
+        "404":
+          description: Event not found.
+
+  /calendar/v3/freeBusy:
+    post:
+      operationId: queryFreeBusy
+      summary: Query busy intervals for one or more calendars
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [timeMin, timeMax, items]
+              properties:
+                timeMin:
+                  type: string
+                  description: Start of the window, RFC3339.
+                timeMax:
+                  type: string
+                  description: End of the window, RFC3339.
+                timeZone:
+                  type: string
+                items:
+                  type: array
+                  description: Calendars to query, e.g. [{"id":"primary"}].
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+      responses:
+        "200":
+          description: Busy intervals per requested calendar.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calendars:
+                    type: object
+                    description: Map of calendar id to {busy:[{start,end}], errors?}.
+
+components:
+  schemas:
+    EventDateTime:
+      type: object
+      description: Either date (all-day, YYYY-MM-DD) or dateTime (RFC3339) + optional timeZone.
+      properties:
+        date:
+          type: string
+          description: All-day date, YYYY-MM-DD. End date is exclusive.
+        dateTime:
+          type: string
+          description: RFC3339 timestamp, e.g. 2026-07-10T14:00:00+02:00.
+        timeZone:
+          type: string
+          description: IANA time zone, e.g. Europe/Paris.
+    EventPatchInput:
+      type: object
+      description: >
+        Event fields for update (PATCH — only fields present change). start/end
+        each take exactly one of date (all-day) or dateTime.
+      properties: &eventInputProps
+        summary:
+          type: string
+          description: Event title.
+        description:
+          type: string
+        location:
+          type: string
+        start:
+          $ref: "#/components/schemas/EventDateTime"
+        end:
+          $ref: "#/components/schemas/EventDateTime"
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [email]
+            properties:
+              email:
+                type: string
+              optional:
+                type: boolean
+        recurrence:
+          type: array
+          description: RRULE lines, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO"].
+          items:
+            type: string
+        conferenceData:
+          type: object
+          description: >
+            Requires conferenceDataVersion=1. To attach a Google Meet link, send
+            {"createRequest": {"requestId": "<unique string>",
+            "conferenceSolutionKey": {"type": "hangoutsMeet"}}}.
+          properties:
+            createRequest:
+              type: object
+              properties:
+                requestId:
+                  type: string
+                  description: Client-generated unique id for the request.
+                conferenceSolutionKey:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [hangoutsMeet]
+        reminders:
+          type: object
+          properties:
+            useDefault:
+              type: boolean
+            overrides:
+              type: array
+              items:
+                type: object
+                properties:
+                  method:
+                    type: string
+                    enum: [email, popup]
+                  minutes:
+                    type: integer
+    EventCreateInput:
+      type: object
+      description: Event fields for create; start and end are required.
+      required: [start, end]
+      properties: *eventInputProps
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          description: confirmed, tentative, or cancelled.
+        htmlLink:
+          type: string
+          description: Link to the event in the Google Calendar UI.
+        summary:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        start:
+          $ref: "#/components/schemas/EventDateTime"
+        end:
+          $ref: "#/components/schemas/EventDateTime"
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              email:
+                type: string
+              displayName:
+                type: string
+              responseStatus:
+                type: string
+                description: needsAction, declined, tentative, or accepted.
+        organizer:
+          type: object
+          properties:
+            email:
+              type: string
+            displayName:
+              type: string
+        recurrence:
+          type: array
+          items:
+            type: string
+        recurringEventId:
+          type: string
+        hangoutLink:
+          type: string
+          description: Google Meet link, when the event has one.
+        conferenceData:
+          type: object
+          description: Conference details; entryPoints[].uri of type "video" is the Meet link.
+        updated:
+          type: string

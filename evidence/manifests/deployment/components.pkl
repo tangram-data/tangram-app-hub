@@ -1,0 +1,56 @@
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.databaseClaim.database()
+local dbSecrets = deps.databaseClaim.secrets()
+local bucket = deps.storageBucketClaim.bucket()
+local bucketCredential = deps.storageBucketClaim.secrets()
+
+@deployment.AppComponentMeta {
+  name = "report-server"
+  recommendedReplica = 3
+  containers = List(new deployment.ContainerMeta {
+    name = "report-server"
+    image = "ghcr.io/tangram-data/tangram-evidence-server:1.0.1"
+  })
+}
+reportServer: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port = 8081
+    targetPort = 8081
+    protocol = "TCP"
+  }
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports = List(8081)
+      variables = Map(
+        "TANGRAM_WORKSPACE", deploymentRuntime.context.workspace,
+        "HTTP_PORT", "8081",
+        "TANGRAM_APP_K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+        "EVIDENCE_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "EVIDENCE_JDBC_USER", dbSecrets.user,
+        "EVIDENCE_JDBC_PASSWORD",
+        new deployment.SecretValue {
+          value = dbSecrets.password
+        },
+        "STORAGE_BUCKET_TYPE", bucket.type,
+        "STORAGE_BUCKET_NAME", bucket.name,
+        "STORAGE_BUCKET_REGION", bucket.region ?? "us-east-1",
+        "STORAGE_BUCKET_ENDPOINT", bucket.endpoint ?? "",
+        "STORAGE_BUCKET_PORT", (bucket.port ?? 443).toString(),
+        "STORAGE_BUCKET_SECURED_CONNECTION", (bucket.securedConnection ?? false).toString(),
+        "STORAGE_ACCESS_PERMIT_TYPE", bucketCredential.type,
+        "STORAGE_ACCESS_KEY",
+        new deployment.SecretValue {
+          value = bucketCredential.accessKey
+        },
+        "STORAGE_SECRET_KEY",
+        new deployment.SecretValue {
+          value = bucketCredential.secretKey ?? ""
+        }
+      )
+      files = List()
+    }
+  )
+}

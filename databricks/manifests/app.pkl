@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+appType    = "Connector"
+group      = "com.databricks"
+name       = "databricks"
+version    = "0.1.0"
+license    = "Apache-2.0"
+category   = "Lakehouse"
+description = "Databricks connector. Manages Databricks SQL warehouses, Unity Catalog assets, and tables."
+readme     = read("README.md").text
+tags       = List("lakehouse", "delta", "unity-catalog")

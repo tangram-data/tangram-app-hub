@@ -1,0 +1,40 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// OneDrive connector API spec. All Microsoft 365 APIs are served from the
+// single Microsoft Graph host; the drive lives under /v1.0/me/drive/*.
+endpoint = "https://graph.microsoft.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("graph.microsoft.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+  tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+  // Files.Read.All covers the whole drive plus items shared with the user
+  // (read-only v1, the Graph analog of Google's drive.readonly).
+  // offline_access is what makes Azure AD issue a refresh token.
+  scopes = List(
+    "https://graph.microsoft.com/Files.Read.All",
+    "offline_access"
+  )
+  clientIdSecret = "microsoftClientId"
+  clientSecretSecret = "microsoftClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.microsoft/onedrive"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

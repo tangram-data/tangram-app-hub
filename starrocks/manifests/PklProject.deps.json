@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "resolvedDependencies": {
+    "package://pkg.pkl-lang.org/github.com/tangram-data/tangram-app-manifest/tangram-app-manifest@1": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/github.com/tangram-data/tangram-app-manifest/tangram-app-manifest@1.0.0",
+      "checksums": {
+        "sha256": "699a212ad4eb22c91c180e14ea6fd15a96754d72587a58c9ea77f314182b5308"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+amends "pkl:Project"
+
+dependencies {
+  ["tangram-app-manifest"] {
+    uri = "package://pkg.pkl-lang.org/github.com/tangram-data/tangram-app-manifest/tangram-app-manifest@1.0.0"
+  }
+}

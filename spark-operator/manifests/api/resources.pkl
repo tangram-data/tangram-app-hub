@@ -1,0 +1,275 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+local Stateless    = resources.Effect.Stateless
+local Reversible   = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+// ---------------------------------------------------------------------------
+// SparkApplication  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+SparkApplication = new resources.ResourceTypeDefinition {
+  name = "SparkApplication"
+  doc  = "Spark Application"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a Spark application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createSparkApplication"
+          resourceNameTemplate = "[{{requestBody.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a Spark application by name, or a single run by id."
+        openApiMappings = List(
+          new resources.OpenApiMapping {
+            operationId = "getSparkApplicationByName"
+            resourceNameTemplate = "[{{parameters.name}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "getSparkApplicationRunById"
+            resourceNameTemplate = "[{{parameters.appName}}]"
+          }
+        )
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List all Spark applications."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listAllSparkApplications"
+          resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "UpdateLib"
+        effect = Reversible
+        idempotent = false
+        doc = "Upload or update an application library."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "uploadSparkApplicationLib"
+          resourceNameTemplate = "[{{parameters.applicationName}}]"
+        }
+      },
+      new resources.Action {
+        name = "DeleteLib"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete an application library."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSparkApplicationLib"
+          resourceNameTemplate = "[{{parameters.applicationName}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListLib"
+        effect = Stateless
+        idempotent = true
+        doc = "List application libraries and their versions."
+        openApiMappings = List(
+          new resources.OpenApiMapping {
+            operationId = "listSparkApplicationLibs"
+            resourceNameTemplate = "[{{parameters.applicationName}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "listSparkApplicationLibVersions"
+            resourceNameTemplate = "[{{parameters.applicationName}}]"
+          }
+        )
+      },
+      new resources.Action {
+        name = "DeleteLibVersion"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete a specific application library version."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSparkApplicationLibVersion"
+          resourceNameTemplate = "[{{parameters.applicationName}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete the Spark application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSparkApplication"
+          resourceNameTemplate = "[{{parameters.applicationName}}]"
+        }
+      },
+      new resources.Action {
+        name = "Run"
+        effect = Reversible
+        idempotent = false
+        doc = "Submit a run of the Spark application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "runSparkApplication"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListRuns"
+        effect = Stateless
+        idempotent = true
+        doc = "List runs of the Spark application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listSparkApplicationRuns"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetRunStats"
+        effect = Stateless
+        idempotent = true
+        doc = "Get run statistics for the Spark application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkApplicationRunsStatistics"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetRunStatus"
+        effect = Stateless
+        idempotent = true
+        doc = "Get the status of a run."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkApplicationRunStatus"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      },
+      new resources.Action {
+        name = "CancelRun"
+        effect = Reversible
+        idempotent = true
+        doc = "Cancel a running execution."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "cancelSparkApplicationRun"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetRunLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Get logs for a run."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkRunLogs"
+          resourceNameTemplate = "[{{parameters.appName}}]"
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// SparkCluster  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+SparkCluster = new resources.ResourceTypeDefinition {
+  name = "SparkCluster"
+  doc  = "Spark Cluster"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Provision a Spark cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createSparkCluster"
+          resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a Spark cluster by name."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getApiV1Findcluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List Spark clusters."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getApiV1Clusters"
+          resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete the Spark cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteApiV1ClustersClustername"
+          resourceNameTemplate = "[{{parameters.clusterName}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetStatus"
+        effect = Stateless
+        idempotent = true
+        doc = "Get cluster provisioning status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkClusterStatus"
+          resourceNameTemplate = "[{{parameters.clusterName}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetNodes"
+        effect = Stateless
+        idempotent = true
+        doc = "List cluster nodes."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkClusterNodes"
+          resourceNameTemplate = "[{{parameters.clusterName}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListRuns"
+        effect = Stateless
+        idempotent = true
+        doc = "List runs on the cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkRunsByCluster"
+          resourceNameTemplate = "[{{parameters.clusterName}}]"
+        }
+      },
+      new resources.Action {
+        name = "Retry"
+        effect = Reversible
+        idempotent = false
+        doc = "Retry cluster provisioning."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "retrySparkClusterProvision"
+          resourceNameTemplate = "[{{parameters.clusterName}}]"
+        }
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(SparkApplication, SparkCluster)

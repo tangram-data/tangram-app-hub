@@ -1,0 +1,127 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Message"
+    activeVersion = "v1"
+    doc = "An email message in the connected Gmail mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search the mailbox with a Gmail query string (same syntax as the Gmail search box)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listMessages" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a single message, including headers and body, by message id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getMessage" }
+          presentation = new resources.ComponentPresentation {
+            component = "mail-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["messageId"] = new resources.FromArg {
+                path = List("parameters", "id")
+              }
+            }
+          }
+        },
+        new resources.Action {
+          name = "Send"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Send an email as the connected account. The body is a base64url-encoded RFC 2822 message."
+          openApiMapping = new resources.OpenApiMapping { operationId = "sendMessage" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Search, read, and send email through the Gmail connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Attachment"
+    activeVersion = "v1"
+    doc = "A file attached to a message in the connected Gmail mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch an attachment's content (base64url) by messageId and attachmentId from getMessage's MIME parts."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAttachment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Download attachments through the Gmail connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Draft"
+    activeVersion = "v1"
+    doc = "A draft email in the connected Gmail mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a draft without sending it. The message is a base64url-encoded RFC 2822 message."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDraft" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create")
+        description = "Create drafts through the Gmail connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Label"
+    activeVersion = "v1"
+    doc = "A Gmail label (system or user-defined)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List all labels in the mailbox, for use as listMessages labelIds filters."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listLabels" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List labels through the Gmail connector."
+      })
+    })
+  }
+)

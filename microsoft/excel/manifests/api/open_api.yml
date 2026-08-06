@@ -1,0 +1,358 @@
+openapi: 3.0.3
+info:
+  title: Excel Workbooks (Microsoft Graph)
+  version: "1.0"
+  description: >
+    Subset of the Microsoft Graph Excel workbook API exposed through the
+    Tangram connector. Operations address workbooks by driveId + itemId, so
+    they reach files in the connected account's OneDrive AND in SharePoint
+    document libraries; find a workbook with the onedrive connector (its
+    parentReference carries the driveId) or via sharepoint_list_drive.
+servers:
+  - url: https://graph.microsoft.com
+
+paths:
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets:
+    get:
+      operationId: listWorksheets
+      summary: List a workbook's worksheets
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: >
+            The workbook file's drive item id — find it with the onedrive
+            connector's search (onedrive_search_driveitem).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The workbook's worksheets in tab order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Worksheet"
+        "404":
+          description: Drive item not found or not an Excel workbook.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/{worksheetIdOrName}/range(address='{address}'):
+    get:
+      operationId: getRange
+      summary: Read a cell range by A1 address
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: worksheetIdOrName
+          in: path
+          required: true
+          description: Worksheet id or name, e.g. Sheet1.
+          schema:
+            type: string
+        - name: address
+          in: path
+          required: true
+          description: >
+            A1-notation range like A1:D20 or B2. The worksheet is already
+            named in the path, so do not prefix the address with
+            "Sheet1!" — use just A1:C10, not Sheet1!A1:C10.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The range with values, formulas, and display text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Range"
+        "400":
+          description: Invalid range address.
+        "404":
+          description: Workbook or worksheet not found.
+    patch:
+      operationId: updateRange
+      summary: Overwrite a cell range's values
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: worksheetIdOrName
+          in: path
+          required: true
+          description: Worksheet id or name, e.g. Sheet1.
+          schema:
+            type: string
+        - name: address
+          in: path
+          required: true
+          description: >
+            A1-notation range like A1:D20. The values array's dimensions
+            must match this address exactly (e.g. A1:C2 needs 2 rows x 3
+            columns).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values]
+              properties:
+                values:
+                  type: array
+                  description: >
+                    Row-major 2D array matching the address dimensions, e.g.
+                    [["Name","Total"],["Widgets",42]]. Strings starting with
+                    = are treated as formulas (e.g. "=SUM(B2:B10)").
+                  items:
+                    type: array
+                    items: {}
+      responses:
+        "200":
+          description: The updated range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Range"
+        "400":
+          description: Dimension mismatch or invalid range address.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/{worksheetIdOrName}/usedRange:
+    get:
+      operationId: getUsedRange
+      summary: Read the worksheet's used range
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: worksheetIdOrName
+          in: path
+          required: true
+          description: Worksheet id or name, e.g. Sheet1.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            The smallest rectangle containing all non-empty cells — read a
+            whole sheet without knowing its size. (Considers formatted-but-empty
+            cells too; Graph's valuesOnly variant is an OData function form
+            this connector does not expose.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Range"
+        "404":
+          description: Workbook or worksheet not found.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/tables:
+    get:
+      operationId: listTables
+      summary: List a workbook's tables
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The workbook's tables across all worksheets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Table"
+        "404":
+          description: Drive item not found or not an Excel workbook.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/tables/{tableIdOrName}/rows/add:
+    post:
+      operationId: addTableRows
+      summary: Append rows to the end of a table
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: tableIdOrName
+          in: path
+          required: true
+          description: Table id or name from listTables, e.g. Table1.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values]
+              properties:
+                values:
+                  type: array
+                  description: >
+                    Row-major 2D array of new rows, one inner array per row,
+                    each matching the table's column count, e.g.
+                    [["2026-07-11","Widgets",42]]. Rows are appended at the
+                    end of the table.
+                  items:
+                    type: array
+                    items: {}
+      responses:
+        "200":
+          description: The added rows and the index where they were inserted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  index:
+                    type: integer
+                    description: Zero-based index of the first added row within the table.
+                  values:
+                    type: array
+                    description: The appended row values, row-major.
+                    items:
+                      type: array
+                      items: {}
+        "400":
+          description: Column-count mismatch or invalid table.
+
+components:
+  schemas:
+    Worksheet:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable worksheet id — survives renames, usable as worksheetIdOrName.
+        name:
+          type: string
+          description: The tab name, e.g. Sheet1.
+        position:
+          type: integer
+          description: Zero-based tab position.
+        visibility:
+          type: string
+          description: Visible, Hidden, or VeryHidden.
+    Range:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Full address including the sheet, e.g. Sheet1!A1:C10.
+        values:
+          type: array
+          description: >
+            Row-major 2D array of cell values (numbers, strings, booleans);
+            empty cells are empty strings.
+          items:
+            type: array
+            items: {}
+        formulas:
+          type: array
+          description: Row-major 2D array of formulas; plain values where a cell has no formula.
+          items:
+            type: array
+            items: {}
+        rowCount:
+          type: integer
+        columnCount:
+          type: integer
+        text:
+          type: array
+          description: Row-major 2D array of display text as formatted in Excel.
+          items:
+            type: array
+            items: {}
+    Table:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable table id, usable as tableIdOrName.
+        name:
+          type: string
+          description: The table name, e.g. Table1.
+        showHeaders:
+          type: boolean
+        style:
+          type: string
+          description: Table style name, e.g. TableStyleMedium2.

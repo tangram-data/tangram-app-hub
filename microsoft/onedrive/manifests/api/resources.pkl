@@ -1,0 +1,68 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "DriveItem"
+    activeVersion = "v1"
+    doc = "A file or folder in the connected account's OneDrive."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a folder's children; itemId 'root' lists the drive root, folder ids from previous calls drill down. $top, $select, $orderby (e.g. name asc)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listChildren" }
+        },
+        new resources.Action {
+          name = "Search"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search by file name and content across the whole drive INCLUDING items shared with the user (shared hits carry a remoteItem facet) — this is also the shared-file discovery path; Graph's sharedWithMe listing is deprecated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchItems" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a single item's metadata (name, size, folder/file facets, parentReference, webUrl) by item id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getItem" }
+        },
+        new resources.Action {
+          name = "Download"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Download a file's raw content; format=pdf converts docx/xlsx/pptx to PDF. Non-JSON responses come back as a typed result envelope (inline text up to 32KB or a saved file reference)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "downloadItem" }
+        },
+        new resources.Action {
+          name = "GetShared"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch an item that lives in another drive (shared items) by the remoteItem.parentReference.driveId + remoteItem.id a search hit carries."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getSharedItem" }
+        },
+        new resources.Action {
+          name = "DownloadShared"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Download a file from another drive (shared items) by driveId + itemId; format=pdf converts Office files."
+          openApiMapping = new resources.OpenApiMapping { operationId = "downloadSharedItem" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse, search, and read OneDrive files through the OneDrive connector."
+      })
+    })
+  }
+)

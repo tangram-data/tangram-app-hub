@@ -1,0 +1,136 @@
+import "../app.pkl" as app
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.postgresDb.database()
+local dbSecrets = deps.postgresDb.secrets()
+local bucket = deps.bucketClaim.bucket()
+local bucketCredential = deps.bucketClaim.secrets()
+
+function extractStorageAccountFromEndpoint(endpoint: String): String =
+  endpoint.replaceAll("https://", "").split("\\.")[0]
+
+envVars = if (bucket.type == "Minio")
+  Map(
+    "MLFLOW_S3_ENDPOINT_URL",  "http://\(bucket.endpoint):\(bucket.port)",
+    "MLFLOW_S3_IGNORE_TLS",    "true",
+    "AWS_ACCESS_KEY_ID",       bucketCredential.accessKey,
+    "AWS_SECRET_ACCESS_KEY",   bucketCredential.secretKey
+  )
+else if (bucket.type == "ScalewayObjectStorage")
+  Map(
+    "MLFLOW_S3_ENDPOINT_URL",  "https://s3.\(bucket.region ?? "fr-par").scw.cloud",
+    "AWS_ACCESS_KEY_ID",       bucketCredential.accessKey,
+    "AWS_SECRET_ACCESS_KEY",   bucketCredential.secretKey
+  )
+else if (bucket.type == "S3")
+  Map(
+    "MLFLOW_S3_ENDPOINT_URL",  "https://s3.\(bucket.region.toUpperCase()).amazonaws.com",
+    "AWS_ACCESS_KEY_ID",       bucketCredential.accessKey,
+    "AWS_SECRET_ACCESS_KEY",   bucketCredential.secretKey
+  )
+else if (bucket.type == "Azure")
+  Map(
+    "AZURE_STORAGE_ACCESS_KEY",       bucketCredential.accessKey,
+    "AZURE_STORAGE_CONNECTION_STRING",
+    "DefaultEndpointsProtocol=https;AccountName="
+      + extractStorageAccountFromEndpoint(bucket.endpoint!!)
+      + ";AccountKey=" + bucketCredential.accessKey
+      + ";EndpointSuffix=core.windows.net"
+  )
+else
+  Map()
+
+staticPrefix = "/apps/workspaces/\(deploymentRuntime.context.workspace)/applications/\(app.group)/\(app.name)"
+
+mlCommands = if (bucket.type == "Minio" || bucket.type == "S3" || bucket.type == "ScalewayObjectStorage")
+  List(
+    "mlflow", "server",
+    "--host", "0.0.0.0",
+    "--port", "5000",
+    "--backend-store-uri",       "postgresql+psycopg2://\(dbSecrets.user):\(dbSecrets.password)@\(database.host):\(database.port)/\(database.name)",
+    "--default-artifact-root",   "s3://\(bucket.name)",
+    "--static-prefix",           staticPrefix
+  )
+else if (bucket.type == "Azure")
+  List(
+    "mlflow", "server",
+    "--host", "0.0.0.0",
+    "--port", "5000",
+    "--backend-store-uri",       "postgresql+psycopg2://\(dbSecrets.user):\(dbSecrets.password)@\(database.host):\(database.port)/\(database.name)",
+    "--default-artifact-root",   "wasbs://\(bucket.name)@\(extractStorageAccountFromEndpoint(bucket.endpoint!!)).blob.core.windows.net",
+    "--static-prefix",           staticPrefix
+  )
+else
+  List(
+    "mlflow", "server",
+    "--host", "0.0.0.0",
+    "--port", "5000",
+    "--backend-store-uri",       "postgresql+psycopg2://\(dbSecrets.user):\(dbSecrets.password)@\(database.host):\(database.port)/\(database.name)",
+    "--static-prefix",           staticPrefix
+  )
+
+@deployment.AppComponentMeta {
+  name               = "mlflow-tracking-server"
+  recommendedReplica = 3
+  initContainers = List(new deployment.ContainerMeta {
+    name  = "default-experiment-registeration"
+    image = "ghcr.io/tangram-data/tangram-mlflow:v2.21.3"
+  })
+  containers = List(new deployment.ContainerMeta {
+    name  = "mlflow-tracking-server"
+    image = "ghcr.io/tangram-data/tangram-mlflow:v2.21.3"
+  })
+}
+mlflowTrackingServer: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port       = 5000
+    targetPort = 5000
+    protocol   = "TCP"
+  }
+  initContainers = List(
+    new deployment.AppContainerSpec {
+      ports     = List()
+      variables = Map(
+        "WORKSPACE", deploymentRuntime.context.workspace,
+        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl
+      )
+      command   = List("sh", "-c")
+      args = List(
+        """
+        TOKEN=$(cat /var/run/.tangram-os/.auth_token) &&
+        ID=$(echo -n "rn://ai.tangram-os/core/AppDeployment/${WORKSPACE}/org.mlflow.mlflow" | sha1sum | cut -d ' ' -f 1) &&
+        ID="${ID}-0" &&
+        JSON=$(cat <<EOF
+          {
+            "resourceType": {
+              "app":  { "group": "org.mlflow", "name": "mlflow" },
+              "name": "Experiment"
+            },
+            "rn": {
+              "resourceType": {
+                "app":  { "group": "org.mlflow", "name": "mlflow" },
+                "name": "Experiment"
+              },
+              "names": [ "${WORKSPACE}", "Default" ]
+            },
+            "id": "${ID}"
+          }
+        EOF
+        ) &&
+        echo "Posting JSON payload:" &&
+        echo "$JSON" &&
+        curl -X POST $TANGRAM_CORE_SERVICE_URI/api/core/v1/resources -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$JSON"
+        """
+      )
+    }
+  )
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports     = List(5000)
+      variables = envVars
+      command   = mlCommands
+    }
+  )
+}

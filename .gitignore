@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+*.tar.gz
+*.iml
+.claude
+
+scripts/republish-all-apps.sh
+
+iceberg/libs
+duckling/libs
+clickhouse/libs
+snowflake/libs
+databricks/libs

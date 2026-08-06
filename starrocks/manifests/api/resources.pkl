@@ -1,0 +1,404 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef = new manifest.AppName { group = app.group; name = app.name }
+local DatabaseType = new resources.ResourceType { app = appRef; name = "Database" }
+
+local Stateless = resources.Effect.Stateless
+local Reversible = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+// ---------------------------------------------------------------------------
+// StarRocksCluster  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+StarRocksCluster = new resources.ResourceTypeDefinition {
+  name = "StarRocksCluster"
+  doc  = "StarRocks OLAP cluster on Kubernetes"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  superType = resources.SQL_ENGINE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Initialize the workspace's single StarRocks cluster (asynchronous, fixed name)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "initializeStarRocksCluster"
+          resourceNameTemplate = "[starrocks]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a StarRocks cluster by name, including lifecycle status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Decommission a StarRocks cluster (asynchronous): CR, namespace, provisioned k8s cluster and SQL engine registration."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Scale"
+        effect = Reversible
+        idempotent = true
+        doc = "Update the compute (CN/BE) replica count of an active cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "scaleStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Configure"
+        effect = Reversible
+        idempotent = true
+        doc = "Update the FE and compute (CN/BE) replica counts and per-pod resources of an active cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "configureStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetEndpoints"
+        effect = Stateless
+        idempotent = true
+        doc = "FE MySQL/HTTP endpoints and the registered SQL engine FN."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksClusterEndpoints"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstances"
+        effect = Stateless
+        idempotent = true
+        doc = "Status of the cluster's FE and compute (CN/BE) pods."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksClusterInstances"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstanceLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Tail of one FE/CN/BE pod's logs (debugging aid)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksClusterInstanceLogs"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetConnectionDetails"
+        effect = Stateless
+        idempotent = true
+        doc = "FE MySQL host/port and root credentials — used by the SQL proxy to connect."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksClusterConnectionDetails"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Database  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Database = new resources.ResourceTypeDefinition {
+  name = "Database"
+  doc  = "A StarRocks database. Namespace containing tables, views and materialized views."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new StarRocks database."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single database by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists databases on the cluster."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details about the database."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the database and all its objects. Cannot be undone."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "A StarRocks table."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new table with the given DDL."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single table by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists tables in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads rows from the table."
+      },
+      new resources.Action {
+        name       = "Insert"
+        effect     = Reversible
+        idempotent = false
+        doc = "Appends rows to the table."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters table schema or properties (add/drop column, modify properties)."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the table."
+      },
+      new resources.Action {
+        name       = "Update"
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates rows matching a predicate (primary-key tables)."
+      },
+      new resources.Action {
+        name       = "Delete"
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes rows matching a predicate."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and table metadata."
+      },
+      new resources.Action {
+        name       = "Read"
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for read access to the table."
+      },
+      new resources.Action {
+        name       = "Write"
+        effect     = Reversible
+        idempotent = false
+        doc = "Authorization marker for write access to the table."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// View  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc  = "A StarRocks logical view. Named SQL query stored in the database."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single view by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists views in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Executes the view's SQL definition and returns results."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the view. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters the view SQL definition or properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the view."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the view column list and SQL definition."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// MaterializedView  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+MaterializedView = new resources.ResourceTypeDefinition {
+  name = "MaterializedView"
+  doc  = "A StarRocks materialized view. Pre-computed query result refreshed on schedule or on demand."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new materialized view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single materialized view by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists materialized views in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads the pre-computed result set."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the materialized view. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters materialized view properties or refresh strategy."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the materialized view."
+      },
+      new resources.Action {
+        name       = "Refresh"
+        effect     = Reversible
+        idempotent = true
+        doc = "Triggers a refresh of the materialized view (REFRESH MATERIALIZED VIEW)."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and the SQL definition."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  StarRocksCluster, Database, Table, View, MaterializedView
+)

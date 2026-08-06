@@ -1,0 +1,14 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// Exact shared claim classes; this registration-safe module exports claims only.
+// Runtime modules (components.pkl) import the claims and resolve outputs.
+
+// PostgreSQL stores report metadata, lifecycle state, and build history.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}
+
+// Object storage holds report sources and rendered build artifacts.
+storageBucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "storageBucket"
+}

@@ -1,0 +1,30 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType  = "ai.tangram/iceberg/Table/v1"
+local viewType   = "ai.tangram/iceberg/View/v1"
+local sparkLib   = new Dynamic { name = "iceberg-spark-io"; version = "1.0.0" }
+local sparkClass = "ai.tangram.os.iceberg.spark.io.IcebergSparkSupport"
+
+tableIO = new integration.IntegrationImplementation {
+  interface          = integration.SPARK_IO
+  implementationType = tableType
+  implementationSpec = new Dynamic { className = sparkClass; lib = sparkLib }
+}
+
+viewIO = new integration.IntegrationImplementation {
+  interface          = integration.SPARK_IO
+  implementationType = viewType
+  implementationSpec = new Dynamic { className = sparkClass; lib = sparkLib }
+}
+
+databaseSupport = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = integration.TANGRAM_SQL_APP
+    name    = "spark-sql-database-support"
+    version = "v1"
+  }
+  implementationType = "ai.tangram.iceberg"
+  implementationSpec = new Dynamic { className = sparkClass; lib = sparkLib }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableIO, viewIO, databaseSupport)

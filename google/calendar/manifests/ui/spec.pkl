@@ -1,0 +1,121 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/googlecalendar.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "event-list"
+    kind = "sandboxed"
+    entry = "components/event-list/event-list.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Event list"
+      description = "Agenda view of Google Calendar events for a calendar and time window; rows expand to show details."
+      inputs {
+        type = "object"
+        properties {
+          ["calendarId"] = new Dynamic {
+            type = "string"
+            description = "Calendar id from calendar_list_calendar; defaults to \"primary\"."
+          }
+          ["timeMin"] = new Dynamic {
+            type = "string"
+            description = "RFC3339 lower bound; defaults to the start of today."
+          }
+          ["timeMax"] = new Dynamic {
+            type = "string"
+            description = "RFC3339 upper bound; unbounded when omitted."
+          }
+          ["q"] = new Dynamic {
+            type = "string"
+            description = "Free-text search over summary, description, location, and attendees."
+          }
+          ["maxResults"] = new Dynamic {
+            type = "number"
+            description = "Events per page (default 50)."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "select"
+          payload {
+            type = "object"
+            properties {
+              ["calendarId"] = new Dynamic { type = "string" }
+              ["eventId"] = new Dynamic { type = "string" }
+              ["summary"] = new Dynamic { type = "string" }
+              ["start"] = new Dynamic { type = "string" }
+              ["end"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "event-composer"
+    kind = "sandboxed"
+    entry = "components/event-composer/event-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Event composer"
+      description = "Create or edit a Google Calendar event; an agent prefills the fields and the user edits before saving."
+      inputs {
+        type = "object"
+        properties {
+          ["calendarId"] = new Dynamic {
+            type = "string"
+            description = "Target calendar id; defaults to \"primary\"."
+          }
+          ["eventId"] = new Dynamic {
+            type = "string"
+            description = "Set to edit an existing event instead of creating one."
+          }
+          ["summary"] = new Dynamic { type = "string"; description = "Event title." }
+          ["description"] = new Dynamic { type = "string" }
+          ["location"] = new Dynamic { type = "string" }
+          ["start"] = new Dynamic {
+            type = "string"
+            description = "Start time, RFC3339 (or YYYY-MM-DD for all-day)."
+          }
+          ["end"] = new Dynamic {
+            type = "string"
+            description = "End time, RFC3339 (or YYYY-MM-DD for all-day)."
+          }
+          ["allDay"] = new Dynamic { type = "boolean" }
+          ["attendees"] = new Dynamic {
+            type = "string"
+            description = "Attendee emails, comma-separated."
+          }
+          ["sendUpdates"] = new Dynamic {
+            type = "string"
+            description = "Invitation emails: none (default), all, or externalOnly."
+          }
+          ["meet"] = new Dynamic {
+            type = "boolean"
+            description = "Request a Google Meet link for the event."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["id"] = new Dynamic { type = "string" }
+              ["htmlLink"] = new Dynamic { type = "string" }
+              ["calendarId"] = new Dynamic { type = "string" }
+              ["meetLink"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

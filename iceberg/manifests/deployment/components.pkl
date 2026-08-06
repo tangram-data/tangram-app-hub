@@ -1,0 +1,48 @@
+import "../app.pkl" as app
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.postgresDb.database()
+local dbSecrets = deps.postgresDb.secrets()
+local storageBucket = deps.storageBucketClaim.bucket()
+
+@deployment.AppComponentMeta {
+  name = "catalog-service"
+  recommendedReplica = 3
+  containers = List(new deployment.ContainerMeta {
+    name = "catalog-server"
+    image = "ghcr.io/tangram-data/tangram-iceberg-catalog:1.0.0"
+  })
+  // Push OTLP traces + JVM-runtime metrics to the platform collector; the collector derives the
+  // workspace from the namespace and the tangram router fans out to {tenant}-traces / {tenant}-metrics.
+  observability = new deployment.ComponentObservability {
+    traces = "otlp"
+    metrics = new deployment.OtlpMetrics {}
+  }
+}
+
+catalogService: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port = 9494
+    targetPort = 9494
+    protocol = "TCP"
+  }
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports = List(9494)
+      variables = Map(
+        "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
+        "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+        "ICEBERG_STORAGE_BUCKET", storageBucket.name,
+        "ICEBERG_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "ICEBERG_JDBC_USER", dbSecrets.user,
+        "ICEBERG_JDBC_PASSWORD",
+        new deployment.SecretValue {
+          value = dbSecrets.password
+        }
+
+      )
+    }
+  )
+}

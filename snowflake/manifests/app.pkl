@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+appType    = "Connector"
+group      = "com.snowflake"
+name       = "snowflake"
+version    = "0.1.0"
+license    = "Apache-2.0"
+category   = "Data Warehouse"
+description = "Snowflake connector. Manages Snowflake warehouses, databases, schemas, and tables."
+readme     = read("README.md").text
+tags       = List("snowflake", "data-warehouse", "sql")

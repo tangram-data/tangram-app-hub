@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.google"
+name = "calendar"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.google.com/calendar/api"
+category = "productivity"
+tags = List("google", "calendar", "events", "scheduling", "oauth")
+description = "Google Calendar connector: list calendars, search and manage events, and check availability."
+readme      = read("README.md").text

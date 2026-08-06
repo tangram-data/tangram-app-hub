@@ -1,0 +1,50 @@
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.databaseClaim.database()
+local dbSecrets = deps.databaseClaim.secrets()
+local storageBucket = deps.bucketClaim.bucket()
+local storageBucketSecrets = deps.bucketClaim.secrets()
+
+@deployment.AppComponentMeta {
+  name = "spark-operator-service"
+  recommendedReplica = 3
+  containers = List(new deployment.ContainerMeta {
+    name = "spark-operator-server"
+    image = "ghcr.io/tangram-data/tangram-spark:0.1.0"
+  })
+  observability = new deployment.ComponentObservability {
+    traces = "otlp"
+    metrics = new deployment.OtlpMetrics {}
+  }
+}
+sparkOperatorManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port = 8080
+    targetPort = 8080
+    protocol = "TCP"
+  }
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports = List(8080)
+      variables = Map(
+        "TANGRAM_APP_DEPLOYMENT_ID", deploymentRuntime.context.id,
+        "CLOUD_PROVIDER", deploymentRuntime.context.cloudProvider,
+        "BUCKET_NAME", storageBucket.name,
+        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
+        "TANGRAM_OS_WORKSPACE", deploymentRuntime.context.workspace,
+        "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+        "SPARK_OPERATOR_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "SPARK_OPERATOR_JDBC_USER", dbSecrets.user,
+        "SPARK_OPERATOR_JDBC_PASSWORD", new deployment.SecretValue {
+          value = dbSecrets.password
+        },
+        "QUICKWIT_S3_BUCKET", storageBucket.name,
+        "QUICKWIT_S3_REGION", storageBucket.region ?? "us-east-1",
+        "QUICKWIT_S3_ACCESS_KEY", storageBucketSecrets.accessKey,
+        "QUICKWIT_S3_SECRET_KEY", storageBucketSecrets.secretKey ?? ""
+      )
+    }
+  )
+}

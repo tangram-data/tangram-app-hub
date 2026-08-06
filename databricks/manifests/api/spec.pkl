@@ -1,0 +1,27 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+
+// ConnectorAuth — credentials injected into every outbound request to Databricks REST API.
+// The token is read from secrets at request time; never stored in the manifest.
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization", new connector.HeaderTemplate { template = "Bearer {{secrets.token}}" }
+  )
+}
+
+// Path to the OpenAPI spec for the Databricks REST API.
+// The platform validates all openApiMapping.operationId values against this file at publish time.
+// The operationResourceActionMapping has been removed — routing is now declared via
+// openApiMapping fields on each Action in api/resources.pkl.
+apiSpecFile = "open_api.yml"
+
+// Databricks is per-workspace: each tenant proxies to its own workspace host, so
+// there is no shared default endpoint. The install operator must supply it, and the
+// host is fenced to the Databricks cloud domains (AWS, Azure, GCP).
+endpoint = null
+endpointOverridable = true
+endpointRequired = true
+endpointHostAllowlist = List(
+  "*.cloud.databricks.com",
+  "*.azuredatabricks.net",
+  "*.gcp.databricks.com"
+)

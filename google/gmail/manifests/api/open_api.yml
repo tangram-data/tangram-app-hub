@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Gmail
+  version: "1.0"
+  description: >
+    Subset of the Gmail API v1 exposed through the Tangram connector. All
+    operations act on the connected account (users/me).
+servers:
+  - url: https://gmail.googleapis.com
+
+paths:
+  /gmail/v1/users/me/messages:
+    get:
+      operationId: listMessages
+      summary: Search messages in the connected mailbox
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: >
+            Gmail search query, same syntax as the Gmail search box
+            (e.g. "from:alice@example.com is:unread newer_than:7d").
+          schema:
+            type: string
+        - name: labelIds
+          in: query
+          required: false
+          description: Only return messages with all of these label ids (e.g. INBOX, UNREAD).
+          schema:
+            type: array
+            items:
+              type: string
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum messages to return (default 100, max 500).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listMessages response.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching message ids with a nextPageToken when more results exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        threadId:
+                          type: string
+                  nextPageToken:
+                    type: string
+                  resultSizeEstimate:
+                    type: integer
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /gmail/v1/users/me/messages/{id}:
+    get:
+      operationId: getMessage
+      summary: Fetch one message by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The message id returned by listMessages.
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: full (default), metadata, minimal, or raw.
+          schema:
+            type: string
+            enum: [full, metadata, minimal, raw]
+      responses:
+        "200":
+          description: The message with headers, labels, and payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message not found.
+
+  /gmail/v1/users/me/messages/send:
+    post:
+      operationId: sendMessage
+      summary: Send an email as the connected account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [raw]
+              properties:
+                raw:
+                  type: string
+                  description: >
+                    The complete email as a base64url-encoded RFC 2822 message
+                    (headers To/Subject/Content-Type followed by a blank line
+                    and the body).
+                threadId:
+                  type: string
+                  description: Set to reply within an existing thread.
+      responses:
+        "200":
+          description: The sent message (id, threadId, labelIds).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid raw message.
+
+  /gmail/v1/users/me/messages/{messageId}/attachments/{id}:
+    get:
+      operationId: getAttachment
+      summary: Fetch an attachment's content by id
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          description: The message the attachment belongs to.
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: The attachmentId from the message part's body.attachmentId.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The attachment bytes, base64url-encoded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  size:
+                    type: integer
+                  data:
+                    type: string
+                    description: base64url-encoded file content.
+        "404":
+          description: Attachment not found.
+
+  /gmail/v1/users/me/drafts:
+    post:
+      operationId: createDraft
+      summary: Create a draft without sending it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: object
+                  required: [raw]
+                  properties:
+                    raw:
+                      type: string
+                      description: The draft email as a base64url-encoded RFC 2822 message.
+                    threadId:
+                      type: string
+      responses:
+        "200":
+          description: The created draft with its id.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  message:
+                    $ref: "#/components/schemas/Message"
+
+  /gmail/v1/users/me/labels:
+    get:
+      operationId: listLabels
+      summary: List all labels in the mailbox
+      responses:
+        "200":
+          description: System and user labels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        type:
+                          type: string
+
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        threadId:
+          type: string
+        labelIds:
+          type: array
+          items:
+            type: string
+        snippet:
+          type: string
+          description: Short plain-text preview of the message.
+        payload:
+          type: object
+          description: MIME tree with headers and base64url-encoded body parts.
+        internalDate:
+          type: string
+          description: Epoch millis when the message was received.

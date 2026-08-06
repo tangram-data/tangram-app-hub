@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "onedrive"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/onedrive"
+category = "productivity"
+tags = List("microsoft", "onedrive", "files", "storage", "graph", "oauth")
+description = "OneDrive connector: browse, search, and read files in the connected account's drive via Microsoft Graph."
+readme      = read("README.md").text

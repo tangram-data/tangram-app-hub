@@ -1,0 +1,30 @@
+// UI surface — proxied web UI hosted inside the mlflow tracking server.
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/logo.svg"
+
+deployment: ui.UIDeployment = new {
+  mode = "Proxy"
+  uriPatterns = List(new ui.UriPattern { pattern = ".*" })
+  // UI assets live under the app's static path prefix (mlflow's tracking server is
+  // launched with `--static-prefix /apps/workspaces/<ws>/applications/org.mlflow/mlflow`).
+  keepAppStaticPathPrefix = true
+  // API calls originating from the embedded UI (the React frontend's ajax-api/ requests)
+  // also need that prefix. The public REST API at /api/2.0/mlflow/... served at root is
+  // governed by api/spec.pkl's keepAppStaticPathPrefix = false instead.
+  apiKeepAppStaticPathPrefix = true
+}
+
+resourceTypeIcons {
+  ["Experiment"]      = "static/logo.svg"
+  ["Run"]             = "static/logo.svg"
+  ["Artifact"]        = "static/logo.svg"
+  ["RegisteredModel"] = "static/logo.svg"
+  ["ModelVersion"]    = "static/logo.svg"
+}
+
+resourceTypeUri {
+  ["RegisteredModel"] = "/#/models/{{names[1]}}"
+  ["Experiment"]      = "/#/experiments/{{ids[1]}}"
+  ["Run"]             = "/#/experiments/{{ids[1]}}/runs/{{ids[2]}}"
+}

@@ -1,0 +1,1735 @@
+openapi: 3.1.0
+info:
+  title: Spark Operator Service
+  version: 1.0.0
+paths:
+  /api/v1/applications:
+    get:
+      tags:
+        - Applications
+      description: Get all Spark applications
+      operationId: listAllSparkApplications
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppResourceResponse'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    post:
+      tags:
+        - Applications
+      description: Creates a new Spark application
+      operationId: createSparkApplication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SparkApplicationSpec'
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/runs:
+    get:
+      tags:
+        - Applications
+      description: Lists runs for a Spark application, optionally filtered by submission
+        time range
+      operationId: listSparkApplicationRuns
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: startTime
+          in: query
+          description: Filter runs submitted at or after this Unix epoch second
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: endTime
+          in: query
+          description: Filter runs submitted at or before this Unix epoch second
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationRun'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    post:
+      tags:
+        - Applications
+      description: Running a Spark application
+      operationId: runSparkApplication
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunAppRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{name}:
+    get:
+      tags:
+        - Applications
+      description: Searches for a Spark application by name
+      operationId: getSparkApplicationByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppResourceResponse'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/stats:
+    get:
+      tags:
+        - Applications
+      description: Searches for a Spark application by name
+      operationId: getSparkApplicationRunsStatistics
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppRunsStatsResponse'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/runs/{runId}:
+    get:
+      tags:
+        - Applications
+      description: Searches for a Spark application by name
+      operationId: getSparkApplicationRunById
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationRun'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/runs/{runId}/status:
+    get:
+      tags:
+        - Applications
+      description: Gets the status of a Spark application run
+      operationId: getSparkApplicationRunStatus
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationRunStatus'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/runs/{runId}/cancel:
+    post:
+      tags:
+        - Applications
+      description: Cancels a running Spark application run
+      operationId: cancelSparkApplicationRun
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{applicationName}:
+    delete:
+      tags:
+        - Applications
+      description: Deletes an existing application
+      operationId: deleteSparkApplication
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/createCluster:
+    post:
+      tags:
+        - Clusters
+      description: Creates a new cluster
+      operationId: createSparkCluster
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSparkClusterRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkCluster'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/findCluster:
+    get:
+      tags:
+        - Clusters
+      description: Creates a new cluster
+      operationId: getApiV1Findcluster
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkCluster'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters:
+    get:
+      tags:
+        - Clusters
+      description: Find all clusters
+      operationId: getApiV1Clusters
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SparkCluster'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters/{clusterName}:
+    delete:
+      tags:
+        - Clusters
+      description: Deletes an existing cluster
+      operationId: deleteApiV1ClustersClustername
+      parameters:
+        - name: clusterName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkCluster'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters/{clusterName}/retry:
+    post:
+      tags:
+        - Clusters
+      description: Retries provisioning a cluster that failed to create
+      operationId: retrySparkClusterProvision
+      parameters:
+        - name: clusterName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkCluster'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters/{clusterName}/nodes:
+    get:
+      tags:
+        - Clusters
+      description: Gets the nodes of a Spark cluster with CPU, memory, and storage
+        details
+      operationId: getSparkClusterNodes
+      parameters:
+        - name: clusterName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterNode'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters/{clusterName}/runs:
+    get:
+      tags:
+        - Clusters
+      description: Gets all Spark application runs for a given cluster, optionally
+        filtered by submission time range
+      operationId: getSparkRunsByCluster
+      parameters:
+        - name: clusterName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: startTime
+          in: query
+          description: Filter runs submitted at or after this Unix epoch second
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: endTime
+          in: query
+          description: Filter runs submitted at or before this Unix epoch second
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationRun'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{appName}/runs/{runId}/logs:
+    get:
+      tags:
+        - Applications
+      description: Queries Quickwit for logs of a Spark application run
+      operationId: getSparkRunLogs
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: component
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: startTime
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: endTime
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkRunLogsResponse'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/clusters/{clusterName}/status:
+    get:
+      tags:
+        - Clusters
+      description: Gets the status of an existing cluster
+      operationId: getSparkClusterStatus
+      parameters:
+        - name: clusterName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterStatus'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{applicationName}/libs:
+    get:
+      tags:
+        - Application Libraries
+      operationId: listSparkApplicationLibs
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SparkApplicationLib'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{applicationName}/libs/{libName}/versions/{version}:
+    post:
+      tags:
+        - Application Libraries
+      operationId: uploadSparkApplicationLib
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: libName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: libType
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: gitRepo
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gitBranch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gitCommitHash
+          in: query
+          required: false
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LibUploadBody'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    delete:
+      tags:
+        - Application Libraries
+      operationId: deleteSparkApplicationLibVersion
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: libName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{applicationName}/libs/{libName}:
+    delete:
+      tags:
+        - Application Libraries
+      operationId: deleteSparkApplicationLib
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: libName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/applications/{applicationName}/libs/{libName}/versions:
+    get:
+      tags:
+        - Application Libraries
+      operationId: listSparkApplicationLibVersions
+      parameters:
+        - name: applicationName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: libName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SparkApplicationLib'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+components:
+  schemas:
+    AppLibType:
+      type: string
+      enum:
+        - Jar
+        - PyFile
+        - RFile
+    AppResourceResponse:
+      required:
+        - name
+        - sparkVersion
+        - sparkApplicationType
+        - status
+        - containerImage
+        - createdAt
+      type: object
+      properties:
+        name:
+          type: string
+        sparkVersion:
+          type: string
+        sparkApplicationType:
+          type: string
+        status:
+          type: string
+        mainApplicationEntry:
+          type: string
+        containerImage:
+          type: string
+        createdAt:
+          type: string
+        driverSpec:
+          $ref: '#/components/schemas/SparkDriverSpec'
+        executorsSpec:
+          $ref: '#/components/schemas/SparkExecutorSpec'
+    AppRunsStatsResponse:
+      required:
+        - lastRunStatus
+        - stats
+      type: object
+      properties:
+        lastRunStatus:
+          $ref: '#/components/schemas/ApplicationRunStatus'
+        stats:
+          $ref: '#/components/schemas/Map_Int'
+    ApplicationRun:
+      required:
+        - appName
+        - runId
+        - clusterName
+        - status
+        - submittedAt
+      type: object
+      properties:
+        appName:
+          type: string
+        runId:
+          type: string
+        clusterName:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApplicationRunStatus'
+        submittedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        statusMessage:
+          type: string
+        additionalSparkConf:
+          $ref: '#/components/schemas/Map_String'
+    ApplicationRunStatus:
+      type: string
+      enum:
+        - Pending
+        - Running
+        - Succeeded
+        - Failed
+        - Cancelled
+        - Unknown
+    AuthenticationError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    BusinessError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
+    ClusterNode:
+      required:
+        - name
+        - cpuCores
+        - memoryGb
+        - storageGb
+      type: object
+      properties:
+        name:
+          type: string
+        cpuCores:
+          type: integer
+          format: int32
+        memoryGb:
+          type: number
+          format: double
+        storageGb:
+          type: number
+          format: double
+        instanceType:
+          type: string
+    ClusterStatus:
+      type: string
+      enum:
+        - Creating
+        - Active
+        - CreationFailed
+        - Deleting
+        - DeletionFailed
+    CreateSparkClusterRequest:
+      required:
+        - clusterName
+        - nodeSize
+        - nodeDiskSizeGb
+        - initWorkers
+        - minWorkers
+        - maxWorkers
+      type: object
+      properties:
+        clusterName:
+          type: string
+        nodeSize:
+          $ref: '#/components/schemas/NodeSize'
+        nodeDiskSizeGb:
+          type: integer
+          format: int32
+        initWorkers:
+          type: integer
+          format: int32
+        minWorkers:
+          type: integer
+          format: int32
+        maxWorkers:
+          type: integer
+          format: int32
+        masterResources:
+          $ref: '#/components/schemas/Resource'
+        workerResources:
+          $ref: '#/components/schemas/Resource'
+    GitInfo:
+      required:
+        - repo
+        - branch
+      type: object
+      properties:
+        repo:
+          type: string
+        branch:
+          type: string
+        commitHash:
+          type: string
+    LibUploadBody:
+      required:
+        - file
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+    Map_Int:
+      type: object
+      additionalProperties:
+        type: integer
+        format: int32
+    Map_String:
+      type: object
+      additionalProperties:
+        type: string
+    NodeSize:
+      type: string
+      enum:
+        - XS
+        - S
+        - M
+        - L
+        - XL
+        - XXL
+    NotFoundError:
+      required:
+        - resourceType
+        - id
+        - errorType
+      type: object
+      properties:
+        resourceType:
+          type: string
+        id:
+          type: string
+        errorType:
+          type: string
+        errorMessage:
+          type: string
+    Resource:
+      required:
+        - requests
+        - limits
+      type: object
+      properties:
+        requests:
+          $ref: '#/components/schemas/ResourceSpec'
+        limits:
+          $ref: '#/components/schemas/ResourceSpec'
+    ResourceSpec:
+      required:
+        - cpu
+        - memory
+      type: object
+      properties:
+        cpu:
+          type: string
+        memory:
+          type: string
+    RunAppRequest:
+      required:
+        - clusterName
+      type: object
+      properties:
+        clusterName:
+          type: string
+        additionalSparkConf:
+          $ref: '#/components/schemas/Map_String'
+    SparkApplicationLib:
+      required:
+        - name
+        - version
+        - fileName
+        - libType
+        - createdAt
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        fileName:
+          type: string
+        libType:
+          $ref: '#/components/schemas/AppLibType'
+        createdAt:
+          type: string
+          format: date-time
+        gitInfo:
+          $ref: '#/components/schemas/GitInfo'
+    SparkApplicationSpec:
+      required:
+        - name
+        - sparkVersion
+        - containerImage
+        - driverSpec
+        - executorsSpec
+        - sparkConf
+      type: object
+      properties:
+        name:
+          type: string
+        sparkVersion:
+          type: string
+        sparkApplicationType:
+          type: string
+        jars:
+          type: array
+          items:
+            type: string
+        pyFiles:
+          type: array
+          items:
+            type: string
+        sparkRFiles:
+          type: array
+          items:
+            type: string
+        files:
+          type: array
+          items:
+            type: string
+        containerImage:
+          type: string
+        driverSpec:
+          $ref: '#/components/schemas/SparkDriverSpec'
+        executorsSpec:
+          $ref: '#/components/schemas/SparkExecutorSpec'
+        mainApplicationEntry:
+          type: string
+        mainArgs:
+          type: array
+          items:
+            type: string
+        sparkConf:
+          $ref: '#/components/schemas/Map_String'
+    SparkCluster:
+      required:
+        - name
+        - nodeSize
+        - nodeDiskSizeGb
+        - initWorkers
+        - minWorkers
+        - maxWorkers
+        - status
+        - createdAt
+      type: object
+      properties:
+        name:
+          type: string
+        nodeSize:
+          $ref: '#/components/schemas/NodeSize'
+        nodeDiskSizeGb:
+          type: integer
+          format: int32
+        initWorkers:
+          type: integer
+          format: int32
+        minWorkers:
+          type: integer
+          format: int32
+        maxWorkers:
+          type: integer
+          format: int32
+        status:
+          $ref: '#/components/schemas/ClusterStatus'
+        createdAt:
+          type: string
+          format: date-time
+        statusMessage:
+          type: string
+    SparkDriverSpec:
+      required:
+        - cores
+      type: object
+      properties:
+        cores:
+          type: integer
+          format: int32
+        memory:
+          type: string
+        disk:
+          type: string
+    SparkExecutorSpec:
+      required:
+        - instances
+        - cores
+      type: object
+      properties:
+        instances:
+          type: integer
+          format: int32
+        cores:
+          type: integer
+          format: int32
+        memory:
+          type: string
+        disk:
+          type: string
+    SparkLogEntry:
+      required:
+        - timestamp
+        - log
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          format: int64
+        log:
+          type: string
+        containerName:
+          type: string
+    SparkRunLogsResponse:
+      required:
+        - numHits
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SparkLogEntry'
+        numHits:
+          type: integer
+          format: int64
+    TechnicalError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorStack:
+          type: string
+        errorType:
+          type: string
+    UnauthorizedError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string

@@ -1,0 +1,63 @@
+import "@tangram-app-manifest/deployment.pkl" as deployment
+
+// Helm chart coordinates and the component inventory Tangram tracks for this chart.
+// The platform uses this at register time to know what containers the chart runs.
+// Helm values (the full configuration template) live in helm_chart_values.pkl,
+// which is evaluated at deploy time with infra and deployment context injected.
+
+charts: List<deployment.HelmChart> = List(
+  new deployment.HelmChart {
+    repo      = "https://airflow.apache.org"
+    fullName  = "apache-airflow/airflow"
+    version   = "1.18.0"
+    requestedCapabilities = new deployment.HelmRequestedCapabilities {
+      hooks = true
+      crds = false
+      clusterScopedKinds = Set()
+    }
+    components = List(
+      new deployment.HelmComponent {
+        name                = "airflow-api-server"
+        recommendedReplica  = 1
+        maxReplica          = 1
+        containers = List(
+          new deployment.ContainerMeta {
+            name  = "api-server"
+            image = "apache/airflow:3.0.2"
+          }
+        )
+      },
+      new deployment.HelmComponent {
+        name               = "airflow-scheduler"
+        recommendedReplica = 1
+        maxReplica         = 1
+        containers = List(
+          new deployment.ContainerMeta {
+            name  = "scheduler"
+            image = "apache/airflow:3.0.2"
+          }
+        )
+      },
+      new deployment.HelmComponent {
+        name               = "airflow-triggerer"
+        recommendedReplica = 1
+        maxReplica         = 1
+        containers = List(
+          new deployment.ContainerMeta {
+            name  = "triggerer"
+            image = "apache/airflow:3.0.2"
+          }
+        )
+      }
+    )
+
+    // Declares this chart pushes OTLP. Airflow itself is configured to export to the
+    // platform collector in helm_chart_values.pkl (config.metrics / config.traces) —
+    // for Helm apps the platform records this intent but does not inject env, so the
+    // emission is wired in the values template.
+    observability = new deployment.ComponentObservability {
+      traces  = "otlp"
+      metrics = new deployment.OtlpMetrics {}
+    }
+  }
+)

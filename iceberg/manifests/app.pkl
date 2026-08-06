@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType     = "App"
+group       = "ai.tangram"
+name        = "iceberg"
+version     = "0.1.0"
+license     = "Apache-2.0"
+category    = "Data lake"
+tags        = List("Datalake", "OpenTableFormat")
+description = "High-performance open table format for huge analytic tables."
+readme      = read("README.md").text

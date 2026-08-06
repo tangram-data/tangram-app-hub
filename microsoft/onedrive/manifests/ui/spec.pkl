@@ -1,0 +1,73 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/onedrive.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "file-browser"
+    kind = "sandboxed"
+    entry = "components/file-browser/file-browser.tsx"
+    spec = new ui.UIComponentContract {
+      title = "OneDrive file browser"
+      description = "Search and browse OneDrive files; folders drill down by item id, files open in OneDrive on the web or are handed to the agent."
+      inputs {
+        type = "object"
+        properties {
+          ["query"] = new Dynamic {
+            type = "string"
+            description = "Search text, matched against file names and content across the whole drive. Empty browses from the drive root."
+          }
+          ["orderBy"] = new Dynamic {
+            type = "string"
+            description = "$orderby for folder listings, e.g. name asc or lastModifiedDateTime desc. Searches are relevance-ordered and ignore this."
+          }
+          ["pageSize"] = new Dynamic {
+            type = "integer"
+            description = "Items per page ($top, default 50)."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["itemId"] = new Dynamic { type = "string" }
+              ["name"] = new Dynamic { type = "string" }
+              ["mimeType"] = new Dynamic { type = "string" }
+              ["webUrl"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "file-viewer"
+    kind = "sandboxed"
+    entry = "components/file-viewer/file-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "OneDrive file viewer"
+      description = "Show a OneDrive item's metadata and preview its content by item id: text-like files inline, CSV as a table, Word/PowerPoint via Convert-to-PDF."
+      inputs {
+        type = "object"
+        required {
+          "itemId"
+        }
+        properties {
+          ["itemId"] = new Dynamic {
+            type = "string"
+            description = "OneDrive item id, e.g. from onedrive_list_driveitem or the file-browser component."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

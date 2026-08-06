@@ -1,0 +1,73 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/googledrive.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "file-browser"
+    kind = "sandboxed"
+    entry = "components/file-browser/file-browser.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Drive file browser"
+      description = "Search and browse Google Drive files; folders drill down, files open in Drive or are handed to the agent."
+      inputs {
+        type = "object"
+        properties {
+          ["query"] = new Dynamic {
+            type = "string"
+            description = "Drive search query (q), e.g. name contains 'budget' and trashed=false. Plain text is treated as a name search."
+          }
+          ["orderBy"] = new Dynamic {
+            type = "string"
+            description = "Sort keys, e.g. modifiedTime desc, name. Defaults to modifiedTime desc."
+          }
+          ["pageSize"] = new Dynamic {
+            type = "integer"
+            description = "Files per page (default 25)."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["fileId"] = new Dynamic { type = "string" }
+              ["name"] = new Dynamic { type = "string" }
+              ["mimeType"] = new Dynamic { type = "string" }
+              ["webViewLink"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "file-viewer"
+    kind = "sandboxed"
+    entry = "components/file-viewer/file-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Drive file viewer"
+      description = "Show a Drive file's metadata and preview its content by file id: Docs and Slides as text, Sheets as a table."
+      inputs {
+        type = "object"
+        required {
+          "fileId"
+        }
+        properties {
+          ["fileId"] = new Dynamic {
+            type = "string"
+            description = "Drive file id, e.g. from drive_list_file or the file-browser component."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

@@ -1,0 +1,81 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/notion.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "page-viewer"
+    kind = "sandboxed"
+    entry = "components/page-viewer/page-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Page viewer"
+      description = "Render a Notion page's title and content blocks (headings, lists, to-dos, quotes, code, tables) by page id; collapsed sections (toggles, toggle headings) expand on click, fetching nested blocks on demand. The pencil button toggles a Notion-style edit mode: top-level blocks can be edited in place (plain text), new blocks inserted after any block, blocks deleted (host-confirmed), plus an append editor for the end of the page. Markdown-style prefixes in drafts (#, ##, ###, -, 1., [], [x], >, ---, ```) become matching block types. The append draft is readable via component state, and a re-render with a `draft` input prefills/refines it."
+      inputs {
+        type = "object"
+        required {
+          "pageId"
+        }
+        properties {
+          ["pageId"] = new Dynamic {
+            type = "string"
+            description = "Notion page id, e.g. from notion_search_workspace or a Notion URL."
+          }
+          ["draft"] = new Dynamic {
+            type = "string"
+            description = "Optional: opens the inline append editor prefilled with this text. Re-render with a new draft to assist or refine what the user is writing (read their current draft via component state first)."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "page-composer"
+    kind = "sandboxed"
+    entry = "components/page-composer/page-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Page composer"
+      description = "Notion-editor-style composer: create a page (title + content) or append to an existing one; fields are editable before saving. Content is plain text where markdown-style prefixes (#, ##, ###, -, 1., [], [x], >, ---, ```) become matching Notion block types; other lines become paragraphs."
+      inputs {
+        type = "object"
+        properties {
+          ["pageId"] = new Dynamic {
+            type = "string"
+            description = "Set to append to an existing page instead of creating one."
+          }
+          ["parentPageId"] = new Dynamic {
+            type = "string"
+            description = "Parent page for a new page; empty creates a private workspace-level page. Ignored when appending."
+          }
+          ["title"] = new Dynamic {
+            type = "string"
+            description = "Title for a new page (ignored when appending)."
+          }
+          ["content"] = new Dynamic {
+            type = "string"
+            description = "Plain-text content; markdown-style prefixes become Notion blocks (# heading, - bullet, 1. numbered, [] to-do, > quote, --- divider, ``` code fence), other lines become paragraphs. The user can edit it before saving."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["pageId"] = new Dynamic { type = "string" }
+              ["title"] = new Dynamic { type = "string" }
+              ["url"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

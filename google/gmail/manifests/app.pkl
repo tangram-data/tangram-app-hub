@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.google"
+name = "gmail"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.google.com/gmail/api"
+category = "communication"
+tags = List("google", "gmail", "email", "oauth")
+description = "Gmail connector: search, read, draft, and send email via the Gmail API."
+readme      = read("README.md").text

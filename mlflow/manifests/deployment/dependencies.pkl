@@ -1,0 +1,11 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// PostgreSQL — mlflow tracking backing store (experiments, runs, params, metrics).
+postgresDb: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}
+
+// Object storage — mlflow artifact root (models, plots, datasets logged with runs).
+bucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "artifactsStorageBucket"
+}

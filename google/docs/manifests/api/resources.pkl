@@ -1,0 +1,46 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Document"
+    activeVersion = "v1"
+    doc = "A Google Docs document accessible to the connected account."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a new empty document with a title; returns its documentId."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDocument" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a document's full structured content (body, headers, footers)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getDocument" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Apply a batch of edit requests (insert/replace/delete text, styling) to a document."
+          openApiMapping = new resources.OpenApiMapping { operationId = "batchUpdateDocument" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Write")
+        description = "Create, read, and edit documents through the Docs connector."
+      })
+    })
+  }
+)

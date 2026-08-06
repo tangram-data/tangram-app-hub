@@ -1,0 +1,50 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Notion public API — one host, versioned via the mandatory Notion-Version
+// header. Pinned to 2022-06-28: the stable version with classic
+// /v1/databases/{id}/query semantics (2025-09-03 moved querying to
+// per-data-source endpoints).
+endpoint = "https://api.notion.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.notion.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "Notion-Version",
+    new connector.HeaderTemplate { template = "2022-06-28" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://api.notion.com/v1/oauth/authorize"
+  tokenUrl = "https://api.notion.com/v1/oauth/token"
+  // Notion has no OAuth scopes — capabilities (read/update/insert content,
+  // comments, user info) are configured on the integration itself at
+  // notion.so/profile/integrations and reflected in the consent screen.
+  scopes = List()
+  clientIdSecret = "notionClientId"
+  clientSecretSecret = "notionClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.notion/notion"
+  // Notion requires client_id:client_secret as an HTTP Basic header on the
+  // token endpoint.
+  tokenAuthMethod = "ClientSecretBasic"
+  // owner=user is required on Notion's authorize URL.
+  additionalAuthorizeParams = List(
+    new oauthTypes.AuthorizeParam { name = "owner"; value = "user" }
+  )
+  // Notion doesn't support PKCE. Access tokens are long-lived: the exchange
+  // returns no expires_in and no refresh_token, so the platform stores the
+  // token with no expiry and refresh never triggers.
+  pkce = false
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

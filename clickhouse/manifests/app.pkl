@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType     = "Connector"
+group       = "com.clickhouse"
+name        = "clickhouse"
+version     = "0.1.0"
+license     = "Apache-2.0"
+category    = "SQL Engine Connector"
+tags        = List("clickhouse", "sql-engine", "olap")
+description = "ClickHouse connector. Manages ClickHouse engines, databases, tables, and views."
+readme      = read("README.md").text

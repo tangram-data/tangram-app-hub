@@ -1,0 +1,22 @@
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+// Values for the StarRocks operator chart (see helm_charts.pkl).
+//
+// The operator is scoped to the app's own namespace via `watchNamespace`: the chart then creates a
+// namespaced Role + RoleBinding (not a cluster-wide ClusterRole), so the operator can NOT read
+// secrets or manage workloads in any other tenant's namespace. All StarRocks clusters this app
+// creates on the current cluster live in this same namespace (see StarRocksClusterService), so a
+// single scoped operator reconciles every cluster.
+//
+// The namespace is resolved from the injected deployment context, so it matches the `helm -n`
+// install namespace and the app's own K8S_NAMESPACE at runtime.
+values = new Dynamic {
+  global {
+    rbac {
+      create = true
+    }
+  }
+  starrocksOperator {
+    watchNamespace = deploymentRuntime.context.k8sNamespace
+  }
+}

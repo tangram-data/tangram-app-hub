@@ -1,0 +1,12 @@
+manifestSpecVersion = "v1"
+
+appType = "App"
+group = "ai.tangram"
+name = "spark-operator"
+version = "0.1.0"
+license = "Apache-2.0 license"
+category = "Big Data"
+tags = List("Spark")
+description = "Apache Spark operator app."
+readme = read("README.md").text
+supportedCloudProviders = List("AWS")

@@ -1,0 +1,515 @@
+openapi: 3.1.0
+info:
+  title: Tangram Evidence Report Service
+  version: 1.0.0
+paths:
+  /api/v1/reports:
+    post:
+      tags:
+        - Report
+      summary: Create evidence report from git repo.
+      operationId: createReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReport'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionedReport'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/reports/{name}:
+    get:
+      tags:
+        - Report
+      summary: Get evidence report.
+      operationId: getReport
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionedReport'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    post:
+      tags:
+        - Report
+      summary: Update evidence report by loading from git repo.
+      operationId: updateReport
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReport'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionedReport'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    delete:
+      tags:
+        - Report
+      summary: Delete evidence report.
+      operationId: deleteReport
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/reports/{name}/build:
+    post:
+      tags:
+        - Report
+      summary: Build and deploy evidence report.
+      operationId: buildAndDeployReport
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/reports/{name}/status:
+    get:
+      tags:
+        - Report
+      summary: Get evidence report status.
+      operationId: getReportStatus
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionedReportStatus'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/reports/{name}/builds/{buildId}/logs:
+    get:
+      tags:
+        - Report
+      summary: Get report build logs.
+      operationId: getReportBuildLogs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: buildId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportBuildLogEntry'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+components:
+  schemas:
+    AuthenticationError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    BusinessError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
+    CreateReport:
+      required:
+        - report
+      type: object
+      properties:
+        report:
+          $ref: '#/components/schemas/Report'
+        gitCredentials:
+          $ref: '#/components/schemas/GitCredentials'
+    GitCredentials:
+      required:
+        - userName
+        - password
+      type: object
+      properties:
+        userName:
+          type: string
+        password:
+          type: string
+    GitInfo:
+      required:
+        - repo
+        - branch
+        - commit
+      type: object
+      properties:
+        repo:
+          type: string
+        branch:
+          type: string
+        commit:
+          type: string
+    NotFoundError:
+      required:
+        - resourceType
+        - id
+        - errorType
+      type: object
+      properties:
+        resourceType:
+          type: string
+        id:
+          type: string
+        errorType:
+          type: string
+    Report:
+      required:
+        - name
+        - gitInfo
+      type: object
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        gitInfo:
+          $ref: '#/components/schemas/GitInfo'
+        description:
+          type: string
+    ReportStatus:
+      type: string
+      enum:
+        - Loading
+        - LoadFailed
+        - Building
+        - BuildFailed
+        - Deployed
+    ReportBuildLogEntry:
+      required:
+        - log
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          format: int64
+        log:
+          type: string
+    TechnicalError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorStack:
+          type: string
+        errorType:
+          type: string
+    UnauthorizedError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    UpdateReport:
+      required:
+        - baseVersion
+        - gitInfo
+      type: object
+      properties:
+        baseVersion:
+          type: string
+        gitCredentials:
+          $ref: '#/components/schemas/GitCredentials'
+        gitInfo:
+          $ref: '#/components/schemas/GitInfo'
+        newDisplayName:
+          type: string
+        newDescription:
+          type: string
+    VersionedReport:
+      required:
+        - version
+        - report
+        - status
+      type: object
+      properties:
+        version:
+          type: string
+        report:
+          $ref: '#/components/schemas/Report'
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        lastBuildId:
+          type: string
+    VersionedReportStatus:
+      required:
+        - status
+        - version
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        version:
+          type: string

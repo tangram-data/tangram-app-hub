@@ -1,0 +1,391 @@
+// Compose-and-send form over the connector's Message.Send / Draft.Create
+// actions. An agent prefills the fields via render inputs; the user can edit
+// everything (and attach files) before sending. Send is confirmation-gated by
+// the host. Attachments are read locally via FileReader and embedded as
+// multipart/mixed parts in the raw RFC 2822 payload — Gmail's JSON `raw` field
+// caps the total message at a few MB, guarded below.
+import { DeleteOutlined, PaperClipOutlined } from "@ant-design/icons";
+import { Alert, Button, Divider, Input, Space, Typography } from "antd";
+import React, { useEffect, useRef, useState } from "react";
+
+const tangram = (window as any).tangram;
+
+// Total attachment bytes allowed; base64 inflates ~4/3 and the JSON raw field
+// tops out around 5 MB, so guard well under it.
+const MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024;
+
+function b64Bytes(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+function b64Utf8(s: string): string {
+  return b64Bytes(new TextEncoder().encode(s));
+}
+
+// UTF-8-safe base64; Gmail wants the URL-safe alphabet without padding.
+function b64UrlUtf8(s: string): string {
+  return b64Utf8(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Header values are single-line by construction — CR/LF here is header
+// injection (inputs may be agent- or upstream-supplied, not just typed).
+function headerValue(s: string): string {
+  return s.replace(/[\r\n]+/g, " ").trim();
+}
+
+// Filenames land inside quoted header parameters.
+function headerFilename(s: string): string {
+  return headerValue(s).replace(/["\\]/g, "_");
+}
+
+// RFC 2045 caps encoded lines at 76 chars.
+function wrap76(b64: string): string {
+  return b64.replace(/(.{76})/g, "$1\r\n");
+}
+
+type Attachment = { name: string; mimeType: string; bytes: Uint8Array };
+
+// RFC 2822 message: UTF-8 subject via encoded-word, base64 text body, and —
+// when files are attached — a multipart/mixed envelope.
+function buildRaw(
+  fields: { to: string; cc: string; subject: string; body: string },
+  attachments: Attachment[],
+): string {
+  const headers = [
+    `To: ${headerValue(fields.to)}`,
+    ...(fields.cc.trim() ? [`Cc: ${headerValue(fields.cc)}`] : []),
+    `Subject: =?UTF-8?B?${b64Utf8(headerValue(fields.subject))}?=`,
+    "MIME-Version: 1.0",
+  ];
+  const textPart = [
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrap76(b64Utf8(fields.body)),
+  ];
+  if (attachments.length === 0) {
+    return b64UrlUtf8([...headers, ...textPart].join("\r\n"));
+  }
+  const boundary = `tangram_${Date.now().toString(36)}`;
+  const lines = [
+    ...headers,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    ...textPart,
+  ];
+  attachments.forEach((att) => {
+    const name = headerFilename(att.name);
+    lines.push(
+      `--${boundary}`,
+      `Content-Type: ${att.mimeType || "application/octet-stream"}; name="${name}"`,
+      `Content-Disposition: attachment; filename="${name}"`,
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrap76(b64Bytes(att.bytes)),
+    );
+  });
+  lines.push(`--${boundary}--`);
+  return b64UrlUtf8(lines.join("\r\n"));
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type SentMail = {
+  id: string;
+  threadId: string;
+  to: string;
+  cc: string;
+  subject: string;
+  body: string;
+  attachments: { name: string; size: number }[];
+  at: Date;
+};
+
+type Status =
+  | { kind: "idle" }
+  | { kind: "busy"; what: "send" | "draft" }
+  | { kind: "sent"; mail: SentMail }
+  | { kind: "drafted" }
+  | { kind: "error"; message: string };
+
+export default function MailComposer() {
+  const [to, setTo] = useState("");
+  const [cc, setCc] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [threadId, setThreadId] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const fileInput = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    // Token renewal replays `init` with the same inputs — skip no-op re-applies
+    // so a renewal can't wipe the user's in-progress edits. Keys are canonical
+    // (sorted) so property order can never fake a change. A real input change
+    // (agent re-render of this instance, e.g. a refined draft) applies the new
+    // fields but keeps attachments: local files can't round-trip via the agent.
+    const canonical = (v: unknown): string =>
+      Array.isArray(v)
+        ? `[${v.map(canonical).join(",")}]`
+        : v !== null && typeof v === "object"
+          ? `{${Object.keys(v as Record<string, unknown>)
+              .sort()
+              .map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`)
+              .join(",")}}`
+          : (JSON.stringify(v) ?? "null");
+    let lastApplied = "";
+    const apply = (inputs: Record<string, unknown>) => {
+      const key = canonical(inputs ?? {});
+      if (key === lastApplied) return;
+      lastApplied = key;
+      setTo(String(inputs?.to ?? ""));
+      setCc(String(inputs?.cc ?? ""));
+      setSubject(String(inputs?.subject ?? ""));
+      setBody(String(inputs?.body ?? ""));
+      setThreadId(String(inputs?.threadId ?? ""));
+      setStatus({ kind: "idle" });
+    };
+    apply(tangram.getInputs() ?? {});
+    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+  }, []);
+
+  // Expose the draft fields to the agent (tangram_get_component_state) so
+  // "refine my draft" can read the user's edits; attachments stay local.
+  const draftRef = useRef({ to: "", cc: "", subject: "", body: "", threadId: "" });
+  draftRef.current = { to, cc, subject, body, threadId };
+  useEffect(() => {
+    tangram.provideState?.(() => ({ ...draftRef.current }));
+  }, []);
+
+  const disabled = status.kind === "busy";
+  const attachedBytes = attachments.reduce((n, a) => n + a.bytes.length, 0);
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const files = Array.from(list);
+    const incoming = files.reduce((n, f) => n + f.size, 0);
+    if (attachedBytes + incoming > MAX_ATTACHMENT_BYTES) {
+      setStatus({
+        kind: "error",
+        message: `Attachments exceed ${formatSize(MAX_ATTACHMENT_BYTES)} total — send large files as links instead.`,
+      });
+      return;
+    }
+    Promise.all(
+      files.map(
+        (f) =>
+          new Promise<Attachment>((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () =>
+              resolve({
+                name: f.name,
+                mimeType: f.type || "application/octet-stream",
+                bytes: new Uint8Array(r.result as ArrayBuffer),
+              });
+            r.onerror = () => reject(new Error(`Failed to read ${f.name}`));
+            r.readAsArrayBuffer(f);
+          }),
+      ),
+    )
+      .then((read) => {
+        setAttachments((prev) => [...prev, ...read]);
+        setStatus({ kind: "idle" });
+      })
+      .catch((e: unknown) =>
+        setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) }),
+      );
+  }
+
+  function send() {
+    if (!to.trim()) {
+      setStatus({ kind: "error", message: "Recipient (To) is required." });
+      return;
+    }
+    setStatus({ kind: "busy", what: "send" });
+    const raw = buildRaw({ to, cc, subject, body }, attachments);
+    tangram
+      .performAction({ resourceType: "Message", action: "Send" }, {
+        requestBody: threadId.trim() ? { raw, threadId } : { raw },
+      })
+      .then((m: { id?: string; threadId?: string }) => {
+        setStatus({
+          kind: "sent",
+          mail: {
+            id: m?.id ?? "",
+            threadId: m?.threadId ?? threadId,
+            to,
+            cc,
+            subject,
+            body,
+            attachments: attachments.map((a) => ({ name: a.name, size: a.bytes.length })),
+            at: new Date(),
+          },
+        });
+        tangram.emit("sent", { id: m?.id ?? "", threadId: m?.threadId ?? "" });
+      })
+      .catch((e: unknown) =>
+        setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) }),
+      );
+  }
+
+  function composeAnother() {
+    setTo("");
+    setCc("");
+    setSubject("");
+    setBody("");
+    setThreadId("");
+    setAttachments([]);
+    setStatus({ kind: "idle" });
+  }
+
+  function saveDraft() {
+    setStatus({ kind: "busy", what: "draft" });
+    const raw = buildRaw({ to, cc, subject, body }, attachments);
+    const message = threadId.trim() ? { raw, threadId } : { raw };
+    tangram
+      .performAction({ resourceType: "Draft", action: "Create" }, { requestBody: { message } })
+      .then(() => setStatus({ kind: "drafted" }))
+      .catch((e: unknown) =>
+        setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) }),
+      );
+  }
+
+  const label = (text: string) => (
+    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
+      {text}
+    </Typography.Text>
+  );
+
+  const rootStyle = {
+    padding: 16,
+    maxWidth: 720,
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  };
+
+  if (status.kind === "sent") {
+    const mail = status.mail;
+    const metaRows: [string, string][] = [
+      ["To", mail.to],
+      ...(mail.cc.trim() ? ([["Cc", mail.cc]] as [string, string][]) : []),
+      ["Date", mail.at.toLocaleString()],
+    ];
+    return (
+      <div style={rootStyle}>
+        <Alert type="success" showIcon message="Message sent" style={{ marginBottom: 12 }} />
+        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
+          {mail.subject || "(no subject)"}
+        </Typography.Title>
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
+          {metaRows.map(([l, v]) => (
+            <React.Fragment key={l}>
+              <Typography.Text type="secondary">{l}</Typography.Text>
+              <Typography.Text>{v}</Typography.Text>
+            </React.Fragment>
+          ))}
+        </div>
+        <Divider style={{ margin: "12px 0" }} />
+        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55, wordBreak: "break-word" }}>
+          {mail.body}
+        </div>
+        {mail.attachments.length > 0 ? (
+          <>
+            <Divider style={{ margin: "12px 0" }} />
+            <Space direction="vertical" size={4}>
+              {mail.attachments.map((a, i) => (
+                <Space key={`${a.name}-${i}`} size={6}>
+                  <PaperClipOutlined />
+                  <Typography.Text>{a.name}</Typography.Text>
+                  <Typography.Text type="secondary">({formatSize(a.size)})</Typography.Text>
+                </Space>
+              ))}
+            </Space>
+          </>
+        ) : null}
+        <Divider style={{ margin: "12px 0" }} />
+        <Button size="small" onClick={composeAnother}>
+          Compose another
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={rootStyle}>
+      {label("To")}
+      <Input
+        value={to}
+        disabled={disabled}
+        placeholder="alice@example.com, bob@example.com"
+        onChange={(e) => setTo(e.target.value)}
+      />
+      {label("Cc")}
+      <Input value={cc} disabled={disabled} onChange={(e) => setCc(e.target.value)} />
+      {label("Subject")}
+      <Input value={subject} disabled={disabled} onChange={(e) => setSubject(e.target.value)} />
+      {label("Body")}
+      <Input.TextArea
+        value={body}
+        disabled={disabled}
+        autoSize={{ minRows: 8, maxRows: 24 }}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        style={{ display: "none" }}
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <Space direction="vertical" size={4} style={{ marginTop: 10, display: "flex" }}>
+        {attachments.map((att, i) => (
+          <Space key={`${att.name}-${i}`} size={6}>
+            <PaperClipOutlined />
+            <Typography.Text>{att.name}</Typography.Text>
+            <Typography.Text type="secondary">({formatSize(att.bytes.length)})</Typography.Text>
+            <Button
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={disabled}
+              onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+            />
+          </Space>
+        ))}
+      </Space>
+      {threadId.trim() ? (
+        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 6 }}>
+          Replying within thread {threadId}
+        </Typography.Text>
+      ) : null}
+      <Space style={{ marginTop: 14 }} align="center">
+        <Button type="primary" onClick={send} disabled={disabled} loading={status.kind === "busy" && status.what === "send"}>
+          Send
+        </Button>
+        <Button onClick={saveDraft} disabled={disabled} loading={status.kind === "busy" && status.what === "draft"}>
+          Save draft
+        </Button>
+        <Button icon={<PaperClipOutlined />} disabled={disabled} onClick={() => fileInput.current?.click()}>
+          Attach
+        </Button>
+        {status.kind === "drafted" ? <Typography.Text type="success">Draft saved ✓</Typography.Text> : null}
+      </Space>
+      {status.kind === "error" ? (
+        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
+      ) : null}
+    </div>
+  );
+}

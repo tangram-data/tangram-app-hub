@@ -1,0 +1,10 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "endpoint"
+    required    = true
+    description = "ClickHouse database endpoint."
+    example     = "https://xxxxx.us-east-1.aws.clickhouse.cloud:8443"
+  }
+)

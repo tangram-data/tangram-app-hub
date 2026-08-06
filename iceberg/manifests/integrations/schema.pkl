@@ -1,0 +1,20 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType   = "ai.tangram/iceberg/Table/v1"
+local viewType    = "ai.tangram/iceberg/View/v1"
+local schemaLib   = new Dynamic { name = "iceberg-schema-update"; version = "1.0.0" }
+local schemaClass = "ai.tangram.os.iceberg.schema.IcebergSchemaUpdateExecutor"
+
+tableSchemaUpdater = new integration.IntegrationImplementation {
+  interface          = integration.SCHEMA_UPDATOR
+  implementationType = tableType
+  implementationSpec = new Dynamic { className = schemaClass; lib = schemaLib }
+}
+
+viewSchemaUpdater = new integration.IntegrationImplementation {
+  interface          = integration.SCHEMA_UPDATOR
+  implementationType = viewType
+  implementationSpec = new Dynamic { className = schemaClass; lib = schemaLib }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableSchemaUpdater, viewSchemaUpdater)

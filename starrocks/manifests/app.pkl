@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType = "App"
+group = "ai.tangram"
+name = "starrocks"
+version = "0.1.0"
+license = "Apache-2.0 license"
+category = "Big Data"
+tags = List("StarRocks", "OLAP", "Lakehouse")
+description = "StarRocks cluster management app: provision and operate StarRocks OLAP clusters on Kubernetes."
+readme = read("README.md").text

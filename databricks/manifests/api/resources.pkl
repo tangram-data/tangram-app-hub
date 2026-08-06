@@ -1,0 +1,572 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local CatalogType  = new resources.ResourceType { app = appRef; name = "Catalog" }
+local SchemaType   = new resources.ResourceType { app = appRef; name = "Schema" }
+
+local Describe = "Describe"
+local Read     = "Read"
+local Write    = "Write"
+local Create   = "Create"
+local Delete   = "Delete"
+local Admin    = "Admin"
+local Execute  = "Execute"
+
+local Stateless    = "Stateless"
+local Reversible   = "Reversible"
+local Irreversible = "Irreversible"
+
+local datasetPropagation = Map(
+  Admin,    List(Describe, Read, Write, Create, Delete, Admin),
+  Write,    List(Describe, Read, Write),
+  Read,     List(Describe, Read),
+  Describe, List(Describe)
+)
+
+// ---------------------------------------------------------------------------
+// Warehouse  (workspace-scoped)
+// Databricks SQL Warehouse — compute cluster for SQL workloads.
+// HTTP API: POST/GET/PUT/DELETE /api/2.0/sql/warehouses/{id}
+//
+// Note on id-based routing: Databricks' warehouse API uses an opaque internal
+// id in the path, not a user-visible name. openApiMapping uses PathParam{name="id"}
+// for these operations; the connector resolves id↔name at runtime.
+// ---------------------------------------------------------------------------
+
+Warehouse = new resources.ResourceTypeDefinition {
+  name = "Warehouse"
+  doc  = "A Databricks SQL Warehouse. Provides compute for SQL queries via Databricks SQL."
+  activeVersion = "v1"
+  superType     = resources.SQL_ENGINE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all SQL warehouses visible to the caller."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listSQLWarehouses" }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new SQL warehouse."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createWarehouse"
+          resourceName = List(new resources.BodyField { path = "name" })
+        }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns configuration and status of a SQL warehouse."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "getWarehouse"
+          resourceName = List(new resources.PathParam { name = "id" })
+        }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates SQL warehouse configuration (size, auto-stop, spot policy)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "updateWarehouse"
+          resourceName = List(new resources.PathParam { name = "id" })
+        }
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Deletes a SQL warehouse. Irreversible."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "deleteWarehouse"
+          resourceName = List(new resources.PathParam { name = "id" })
+        }
+      },
+      new resources.Action {
+        name       = "Start"
+        privilege  = Execute
+        effect     = Reversible
+        idempotent = true
+        doc = "Starts a stopped SQL warehouse."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "startWarehouse"
+          resourceName = List(new resources.PathParam { name = "id" })
+        }
+      },
+      new resources.Action {
+        name       = "Stop"
+        privilege  = Execute
+        effect     = Reversible
+        idempotent = true
+        doc = "Stops a running SQL warehouse."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "stopWarehouse"
+          resourceName = List(new resources.PathParam { name = "id" })
+        }
+      },
+      new resources.Action {
+        name       = "Use"
+        privilege  = Execute
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for routing SQL queries to this warehouse. No HTTP endpoint."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Catalog  (workspace-scoped)
+// Databricks Unity Catalog.
+// No HTTP API in the current Databricks Catalog REST spec — managed via SQL.
+// ---------------------------------------------------------------------------
+
+Catalog = new resources.ResourceTypeDefinition {
+  name = "Catalog"
+  doc  = "A Databricks Unity Catalog. Top-level namespace in the three-level namespace."
+  activeVersion = "v1"
+  superType     = resources.CATALOG_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new Unity Catalog."
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns catalog metadata."
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all catalogs in the workspace."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns detailed catalog information."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the catalog and all schemas within it. Irreversible."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Schema  (Catalog-scoped)
+// Databricks Unity Catalog schema.
+// HTTP API: /api/2.1/unity-catalog/schemas
+// full_name path param encodes "catalog.schema" — connector splits at runtime.
+// ---------------------------------------------------------------------------
+
+Schema = new resources.ResourceTypeDefinition {
+  name = "Schema"
+  doc  = "A Databricks Unity Catalog schema. Groups tables and views within a catalog."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = CatalogType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists schemas in a catalog."
+        // listSchemas takes ?catalog_name=<name> as a query param.
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "listSchemas"
+          resourceName = List(new resources.QueryParam { name = "catalog_name" })
+        }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new schema in the specified catalog."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createSchema"
+          resourceName = List(
+            new resources.BodyField { path = "catalog_name" },
+            new resources.BodyField { path = "name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns schema metadata. full_name format: catalog.schema."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "getSchema"
+          // full_name encodes "catalog.schema" — connector resolves compound name
+          resourceName = List(new resources.PathParam { name = "full_name" })
+        }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates schema properties."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "updateSchema"
+          resourceName = List(new resources.PathParam { name = "full_name" })
+        }
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns detailed schema information."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the schema and all tables within it. Irreversible."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "deleteSchema"
+          resourceName = List(new resources.PathParam { name = "full_name" })
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Schema-scoped)
+// Databricks Unity Catalog table (Delta Lake).
+// HTTP API: /api/2.1/unity-catalog/tables
+// full_name path param encodes "catalog.schema.table" — connector splits at runtime.
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "A Databricks Unity Catalog table (Delta Lake). ACID-compliant with full DML support."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists tables in a schema."
+        // listTables takes ?catalog_name=<name>&schema_name=<name> as query params.
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "listTables"
+          resourceName = List(
+            new resources.QueryParam { name = "catalog_name" },
+            new resources.QueryParam { name = "schema_name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Registers or creates a new Delta table in Unity Catalog."
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns table metadata. full_name format: catalog.schema.table."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "getTable"
+          resourceName = List(new resources.PathParam { name = "full_name" })
+        }
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and table statistics."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads rows from the table. Authorization marker for SQL engine access."
+      },
+      new resources.Action {
+        name       = "Read"   // privilege defaults to Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for direct storage read access (e.g. Spark, DuckDB). No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "Insert"
+        privilege  = Write
+        effect     = Reversible   // Delta Lake supports RESTORE to prior version
+        idempotent = false
+        doc = "Appends rows. Recoverable via Delta RESTORE."
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates rows matching a predicate. Recoverable via Delta RESTORE."
+      },
+      new resources.Action {
+        name       = "Delete"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes rows matching a predicate. Recoverable via Delta RESTORE."
+      },
+      new resources.Action {
+        name       = "Write"   // privilege defaults to Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Authorization marker for direct storage write access. No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters table schema or properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the table within the same schema."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table from Unity Catalog. Irreversible."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "deleteTable"
+          resourceName = List(new resources.PathParam { name = "full_name" })
+        }
+      },
+      new resources.Action {
+        name       = "GenerateTempCredential"
+        privilege  = Execute
+        effect     = Stateless
+        idempotent = false
+        doc = "Issues short-lived storage credentials scoped to this table. Required by Spark and DuckDB before reading/writing."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "generateTemporaryTableCredentials"
+          // table_id is an internal Unity Catalog identifier; connector resolves name→id
+          resourceName = List(new resources.BodyField { path = "table_id" })
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// View  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc  = "A Databricks Unity Catalog view. Named SQL query stored in the catalog."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists views in the parent schema."
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns view metadata and SQL definition."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Executes the view's SQL definition. Authorization marker for SQL engine access."
+      },
+      new resources.Action {
+        name       = "Read"   // privilege defaults to Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for direct read access. No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters the view SQL definition or properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the view."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the view column list and SQL definition."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the view. Irreversible."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// MaterializedView  (Schema-scoped)
+// ---------------------------------------------------------------------------
+
+MaterializedView = new resources.ResourceTypeDefinition {
+  name = "MaterializedView"
+  doc  = "A Databricks materialized view. Pre-computed query result refreshed on a schedule."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = SchemaType
+  scopePrivilegePropagation = datasetPropagation
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists materialized views in the parent schema."
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new materialized view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns materialized view metadata and SQL definition."
+      },
+      new resources.Action {
+        name       = "Select"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads the pre-computed result set."
+      },
+      new resources.Action {
+        name       = "Read"   // privilege defaults to Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for direct read access. No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "Alter"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters materialized view properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the materialized view."
+      },
+      new resources.Action {
+        name       = "Describe"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and the SQL definition."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        privilege            = Delete
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the materialized view. Irreversible."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  Warehouse, Catalog, Schema, Table, View, MaterializedView
+)

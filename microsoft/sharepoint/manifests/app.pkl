@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "sharepoint"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/sharepoint"
+category = "productivity"
+tags = List("microsoft", "sharepoint", "sites", "lists", "documents", "graph", "oauth")
+description = "SharePoint connector: search sites, browse lists and document libraries, and read list items and files via Microsoft Graph."
+readme      = read("README.md").text

@@ -1,0 +1,469 @@
+openapi: 3.0.3
+info:
+  title: SharePoint (Microsoft Graph)
+  version: "1.0"
+  description: >
+    Subset of the Microsoft Graph SharePoint API exposed through the Tangram
+    connector. Read-only: sites, lists, list items, and document libraries
+    the connected account can access.
+servers:
+  - url: https://graph.microsoft.com
+
+paths:
+  /v1.0/sites:
+    get:
+      operationId: searchSites
+      summary: Search SharePoint sites by keyword
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: true
+          description: >
+            Keyword matched against site names and descriptions, e.g.
+            search=contoso intranet. Returns sites the connected account can
+            access; use the returned id in the site-scoped operations.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching sites with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Site"
+                  "@odata.nextLink":
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /v1.0/sites/{siteId}:
+    get:
+      operationId: getSite
+      summary: Fetch one site by id
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          description: >
+            Composite id from searchSites
+            (hostname,siteCollectionId,siteId, e.g.
+            contoso.sharepoint.com,3f6c...,a1b2...), a server-relative path
+            (contoso.sharepoint.com:/sites/marketing), or the literal
+            root for the tenant's root site.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The site with its id, name, and web URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "404":
+          description: Site not found or not accessible.
+
+  /v1.0/sites/{siteId}/lists:
+    get:
+      operationId: listLists
+      summary: List the lists on a site
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: siteId
+          in: path
+          required: true
+          description: Site id from searchSites or getSite.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            The site's lists, including document libraries
+            (list.template = documentLibrary) and generic lists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/List"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Site not found.
+
+  /v1.0/sites/{siteId}/lists/{listId}/items:
+    get:
+      operationId: listListItems
+      summary: List the items in a list, with column values
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: listId
+          in: path
+          required: true
+          description: List id from listLists.
+          schema:
+            type: string
+        - name: $expand
+          in: query
+          required: false
+          description: >
+            Set to fields to include each item's column values. Without it
+            only bare item metadata is returned.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: >
+            Page size (max 200 for list items); page with @odata.nextLink.
+            Prefer $top + client-side filtering over $filter on custom
+            columns — non-indexed columns need a Prefer header this
+            connector does not send.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List items with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ListItem"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Site or list not found.
+
+  /v1.0/sites/{siteId}/lists/{listId}/items/{itemId}:
+    get:
+      operationId: getListItem
+      summary: Fetch one list item by id, with column values
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: Item id from listListItems.
+          schema:
+            type: string
+        - name: $expand
+          in: query
+          required: false
+          description: Set to fields to include the item's column values.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The list item with its fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItem"
+        "404":
+          description: Item not found.
+
+  /v1.0/sites/{siteId}/drives:
+    get:
+      operationId: listDrives
+      summary: List a site's document libraries (drives)
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: siteId
+          in: path
+          required: true
+          description: Site id from searchSites or getSite.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            The site's document libraries; each drive id feeds
+            listDriveChildren and downloadDriveItem.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Drive"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Site not found.
+
+  /v1.0/drives/{driveId}/items/{itemId}/children:
+    get:
+      operationId: listDriveChildren
+      summary: List the files and folders under a drive item
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: driveId
+          in: path
+          required: true
+          description: Drive id from listDrives.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: >
+            Folder item id, or the literal root for the library root. Descend
+            by calling again with a child folder's id.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size; page with @odata.nextLink.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: >
+            Children of the folder; entries with a folder facet are folders,
+            entries with a file facet are downloadable files.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DriveItem"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Drive or item not found.
+
+  /v1.0/drives/{driveId}/items/{itemId}/content:
+    get:
+      operationId: downloadDriveItem
+      summary: Download a file's content
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: File item id from listDriveChildren (must have a file facet).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            The raw file bytes (Graph answers with a 302 redirect to a
+            pre-authenticated download URL, followed automatically).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+
+components:
+  schemas:
+    Site:
+      type: object
+      properties:
+        id:
+          type: string
+          description: >
+            Composite site id (hostname,siteCollectionId,siteId) — pass it
+            verbatim to the site-scoped operations.
+        displayName:
+          type: string
+        name:
+          type: string
+        webUrl:
+          type: string
+          description: Link to the site in SharePoint.
+        siteCollection:
+          type: object
+          properties:
+            hostname:
+              type: string
+    List:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        list:
+          type: object
+          properties:
+            template:
+              type: string
+              description: >
+                List template, e.g. genericList or documentLibrary.
+    ListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        webUrl:
+          type: string
+        createdDateTime:
+          type: string
+        lastModifiedDateTime:
+          type: string
+        fields:
+          type: object
+          additionalProperties: true
+          description: >
+            The item's column values keyed by internal column name (present
+            when $expand=fields is set), e.g. {"Title":"Q3 plan","Status":"Done"}.
+    Drive:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Drive id — pass it to listDriveChildren and downloadDriveItem.
+        name:
+          type: string
+        driveType:
+          type: string
+          description: documentLibrary for SharePoint libraries.
+        webUrl:
+          type: string
+    DriveItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          description: Size in bytes.
+        lastModifiedDateTime:
+          type: string
+        webUrl:
+          type: string
+        folder:
+          type: object
+          description: Present when the item is a folder.
+          properties:
+            childCount:
+              type: integer
+        file:
+          type: object
+          description: Present when the item is a file.
+          properties:
+            mimeType:
+              type: string

@@ -1,0 +1,74 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+duckLakeTableType = "ai.tangram/duckling/Table/v1"
+duckLakeViewType = "ai.tangram/duckling/View/v1"
+
+duckLakeDuckDBQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app = integration.TANGRAM_SQL_APP
+    name = "queryable/duckdb"
+    version = "v1"
+  }
+  implementationType = duckLakeTableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.duckling.duckdb.DuckLakeDuckDBSqlQuerySupport"
+    lib {
+      name = "duckling-ducklake"
+      version = "1.0.0"
+    }
+  }
+}
+
+duckLakeDuckDBViewQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app = integration.TANGRAM_SQL_APP
+    name = "queryable/duckdb"
+    version = "v1"
+  }
+  implementationType = duckLakeViewType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.duckling.duckdb.DuckLakeDuckDBSqlQuerySupport"
+    lib {
+      name = "duckling-ducklake"
+      version = "1.0.0"
+    }
+  }
+}
+
+duckLakeTableSqlQueryable = new integration.IntegrationImplementation {
+  interface = integration.SQL_QUERYABLE
+  implementationType = duckLakeTableType
+  implementationSpec = new integration.TangramSQLQueryableSpec {
+    sqlCommandPrivilegeMapping = Map(
+      "Select", List("Select"),
+      "Insert", List("Insert"),
+      "Delete", List("Delete"),
+      "Update", List("Update"),
+      "Drop", List("Drop"),
+      "Create", List("Create"),
+      "Rename", List("Rename"),
+      "Alter", List("Alter")
+    )
+  }.toDynamic()
+}
+
+duckLakeViewSqlQueryable = new integration.IntegrationImplementation {
+  interface = integration.SQL_QUERYABLE
+  implementationType = duckLakeViewType
+  implementationSpec = new integration.TangramSQLQueryableSpec {
+    sqlCommandPrivilegeMapping = Map(
+      "Select", List("Select"),
+      "Drop", List("Drop"),
+      "Create", List("Create"),
+      "Rename", List("Rename"),
+      "Alter", List("Alter")
+    )
+  }.toDynamic()
+}
+
+implementations: List<integration.IntegrationImplementation> = List(
+  duckLakeDuckDBQueryable,
+  duckLakeDuckDBViewQueryable,
+  duckLakeTableSqlQueryable,
+  duckLakeViewSqlQueryable
+)

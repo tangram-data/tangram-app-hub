@@ -1,0 +1,32 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/iceberg/Table/v1"
+local viewType  = "ai.tangram/iceberg/View/v1"
+
+local clickhouseInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/clickhouse"
+  version = "v1"
+}
+
+local clickhouseLib = new Dynamic { name = "iceberg-clickhouse"; version = "1.0.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = clickhouseInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.iceberg.clickhouse.IcebergClickhouseSqlQuerySupport"
+    lib       = clickhouseLib
+  }
+}
+
+viewQueryable = new integration.IntegrationImplementation {
+  interface          = clickhouseInterface
+  implementationType = viewType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.iceberg.clickhouse.IcebergViewClickhouseSqlQuerySupport"
+    lib       = clickhouseLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, viewQueryable)

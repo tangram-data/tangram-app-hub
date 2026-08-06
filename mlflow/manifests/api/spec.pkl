@@ -1,0 +1,16 @@
+// API service metadata. HTTP routing is fully derived from openApiMapping fields
+// on each action in resources.pkl.
+
+import "@tangram-app-manifest/api.pkl" as api
+
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "mlflow-tracking-server"
+  port = 5000
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open_api.yml"
+// Direct API calls (`/api/...`) are forwarded to the upstream WITHOUT the app static
+// path prefix. UI-mediated API calls (originating from the embedded mlflow UI) take a
+// separate path that adds the prefix — see ui/spec.pkl.
+keepAppStaticPathPrefix = false

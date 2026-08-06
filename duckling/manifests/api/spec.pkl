@@ -1,0 +1,12 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+// The concrete Kubernetes Service inside the App's derived installation
+// namespace that implements this API (produced by the duckling-service-server
+// component's AppComponentServiceSpec).
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "duckling-service-server"
+  port = 9898
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open_api.yml"

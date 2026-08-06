@@ -1,0 +1,165 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Company"
+    activeVersion = "v1"
+    doc = "The connected QuickBooks Online company file (realm)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read the connected company's profile (name, legal address, fiscal-year start). Also the cheapest way to confirm the OAuth connection and which company file is connected."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getCompanyInfo" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read company info through the QuickBooks connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Entity"
+    activeVersion = "v1"
+    doc = "Any queryable QuickBooks entity — transactions (Purchase, Deposit, Transfer, Invoice, Bill, Payment, ...) and lists (Account, Vendor, Customer, Attachable)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Query"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Run a QuickBooks SQL-like SELECT — the universal read. Receipt matching: find candidate bank/card expenses with e.g. \"select * from Purchase where TotalAmt = '42.17' and TxnDate >= '2026-07-01' and TxnDate <= '2026-07-15'\" (widen the date window or drop cents-exactness if nothing matches), list spend accounts with \"select * from Account where AccountType in ('Bank','Credit Card')\", find payees with \"select * from Vendor where DisplayName like 'Uber%'\", and check existing attachments with \"select * from Attachable\". Page with 'startposition N maxresults M'."
+          openApiMapping = new resources.OpenApiMapping { operationId = "queryEntities" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Query company data through the QuickBooks connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Purchase"
+    activeVersion = "v1"
+    doc = "An expense transaction — money leaving a bank or credit-card account (the entity behind most corporate-card and bank spend)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Record a new expense (PaymentType Cash/Check/CreditCard) against a bank or credit-card AccountRef, with expense lines and an optional vendor EntityRef. Use when a receipt has no matching transaction in the books. Writes to the ledger — confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPurchase" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Sparse-update an existing Purchase by Id + current SyncToken (sparse=true): set PrivateNote after matching a receipt, fix the vendor or date. Only supplied fields change; a supplied Line array replaces all lines. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updatePurchase" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create", "Update")
+        description = "Record and update expense transactions through the QuickBooks connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Attachable"
+    activeVersion = "v1"
+    doc = "A note or file attached to QuickBooks transactions."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Attach a NOTE-ONLY attachable to one or more transactions via AttachableRef (EntityRef.type e.g. Purchase + the transaction Id) — e.g. a receipt summary (merchant, date, total). To upload the receipt file itself, use the Upload action instead. Read existing attachments via Entity Query, e.g. \"select * from Attachable where AttachableRef.EntityRef.Type = 'purchase' and AttachableRef.EntityRef.value = '145'\"."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createAttachable" }
+        },
+        new resources.Action {
+          name = "Upload"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Upload a receipt file into QuickBooks and attach it to matched transactions in one call: file_metadata_01 carries FileName/ContentType/AttachableRef, file_content_01 is the Tangram volume file reference '<folder>/<name>' (chat attachment or app_action_result file) — the platform streams the bytes. Each upload creates a new attachable; check existing attachments via Entity Query first to avoid duplicates."
+          openApiMapping = new resources.OpenApiMapping { operationId = "uploadAttachable" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Full-update an attachable note by Id + current SyncToken (e.g. fix or re-point a receipt note after a mis-match). QuickBooks full update clears omitted writable fields — query the attachable first and re-supply the complete Note and AttachableRef list you want to keep; omitting AttachableRef detaches the note from all transactions."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateAttachable" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          // QuickBooks deletes attachables permanently — there is no trash to
+          // restore from.
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Delete an attachable note by Id + current SyncToken (query param operation=delete). Permanent — QuickBooks has no undo for deleted attachables."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteAttachable" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create", "Update", "Delete")
+        description = "Attach, correct, and remove receipt notes on transactions through the QuickBooks connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Vendor"
+    activeVersion = "v1"
+    doc = "A payee — the merchant on receipts and expense transactions."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a vendor for a receipt's merchant when none exists. DisplayName must be unique across vendors/customers/employees — query Vendor first (\"select * from Vendor where DisplayName like '...%'\") to avoid duplicates."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createVendor" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create")
+        description = "Create vendors through the QuickBooks connector."
+      })
+    })
+  }
+)

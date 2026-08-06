@@ -1,0 +1,67 @@
+import "dependencies.pkl" as deps
+
+// Deploy-time claim-output resolution (registration never evaluates this module).
+local storageBucket = deps.bucketClaim.bucket()
+local storageBucketSecrets = deps.bucketClaim.secrets()
+local database = deps.databaseClaim.database()
+local dbSecrets = deps.databaseClaim.secrets()
+
+configValue = if (storageBucket.type == "S3") new Dynamic {
+  storage {
+    s3 {
+      region = storageBucket.region ?? "us-east-1"
+      access_key_id = storageBucketSecrets.accessKey
+      secret_access_key = storageBucketSecrets.secretKey ?? ""
+    }
+  }
+} else if (storageBucket.type == "Minio") new Dynamic {
+  storage {
+    s3 {
+      endpoint = "http://\(storageBucket.endpoint):\(storageBucket.port)"
+      region = storageBucket.region ?? "us-east-1"
+      access_key_id = storageBucketSecrets.accessKey
+      secret_access_key = storageBucketSecrets.secretKey ?? ""
+    }
+  }
+}
+else if (storageBucket.type == "ScalewayObjectStorage") new Dynamic {
+  storage {
+    s3 {
+      endpoint = "https://s3.\((storageBucket.region ?? "fr-par").toLowerCase()).scw.cloud"
+      region = storageBucket.region ?? "fr-par"
+      access_key_id = storageBucketSecrets.accessKey
+      secret_access_key = storageBucketSecrets.secretKey ?? ""
+    }
+  }
+} else if (storageBucket.type == "Azure")
+  new Dynamic {
+    storage {
+      azure {
+        account = storageBucket.storageAccount()
+        access_key = storageBucketSecrets.accessKey
+      }
+    }
+  }
+else new Dynamic {}
+
+
+values = new Dynamic {
+  searcher {
+    enabled = true
+  }
+  indexer {
+    enabled = false
+  }
+  metastore {
+    extraEnv {
+      QW_METASTORE_URI = "postgres://\(dbSecrets.user):\(dbSecrets.urlEncodedPassword)@\(database.host):\(database.port)/\(database.name)"
+    }
+  }
+  control_plane {
+    enabled = false
+  }
+  janitor {
+    enabled = false
+  }
+  config = configValue
+}

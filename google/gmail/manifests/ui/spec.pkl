@@ -1,0 +1,86 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/gmail.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "mail-viewer"
+    kind = "sandboxed"
+    entry = "components/mail-viewer/mail-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Mail viewer"
+      description = "Render a Gmail message's headers and body by message id."
+      inputs {
+        type = "object"
+        required {
+          "messageId"
+        }
+        properties {
+          ["messageId"] = new Dynamic {
+            type = "string"
+            description = "Gmail message id, e.g. from gmail_list_message."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "reply"
+          payload {
+            type = "object"
+            properties {
+              ["to"] = new Dynamic { type = "string" }
+              ["subject"] = new Dynamic { type = "string" }
+              ["threadId"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "mail-composer"
+    kind = "sandboxed"
+    entry = "components/mail-composer/mail-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Mail composer"
+      description = "Compose and send an email as the connected Gmail account; fields are editable before sending."
+      inputs {
+        type = "object"
+        properties {
+          ["to"] = new Dynamic {
+            type = "string"
+            description = "Recipient addresses, comma-separated."
+          }
+          ["cc"] = new Dynamic { type = "string" }
+          ["subject"] = new Dynamic { type = "string" }
+          ["body"] = new Dynamic {
+            type = "string"
+            description = "Plain-text message body; the user can edit it before sending."
+          }
+          ["threadId"] = new Dynamic {
+            type = "string"
+            description = "Set to reply within an existing Gmail thread."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "sent"
+          payload {
+            type = "object"
+            properties {
+              ["id"] = new Dynamic { type = "string" }
+              ["threadId"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

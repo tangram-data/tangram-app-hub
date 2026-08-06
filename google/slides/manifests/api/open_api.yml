@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: Google Slides
+  version: "1.0"
+  description: Subset of the Google Slides API v1 exposed through the Tangram connector.
+servers:
+  - url: https://slides.googleapis.com
+
+paths:
+  /v1/presentations:
+    post:
+      operationId: createPresentation
+      summary: Create a new presentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Title of the new presentation.
+      responses:
+        "200":
+          description: The created presentation with its presentationId.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Presentation"
+
+  /v1/presentations/{presentationId}:
+    get:
+      operationId: getPresentation
+      summary: Fetch a presentation
+      parameters:
+        - name: presentationId
+          in: path
+          required: true
+          description: The presentation id from its URL.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The full presentation, including slides and page elements.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Presentation"
+        "404":
+          description: Presentation not found.
+
+  /v1/presentations/{presentationId}/pages/{pageObjectId}:
+    get:
+      operationId: getPage
+      summary: Fetch one slide by page object id
+      parameters:
+        - name: presentationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageObjectId
+          in: path
+          required: true
+          description: The slide's objectId (from getPresentation slides list).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The slide with its page elements.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objectId:
+                    type: string
+                  pageElements:
+                    type: array
+                    items:
+                      type: object
+
+  /v1/presentations/{presentationId}:batchUpdate:
+    post:
+      operationId: batchUpdatePresentation
+      summary: Apply edit requests to a presentation
+      parameters:
+        - name: presentationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  description: >
+                    Slides API request objects applied in order, e.g.
+                    {"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}} or
+                    {"insertText": {"objectId": "shapeId", "text": "Hello"}}.
+                  items:
+                    type: object
+                writeControl:
+                  type: object
+                  description: Optional revision guard (requiredRevisionId).
+      responses:
+        "200":
+          description: Per-request replies in the same order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presentationId:
+                    type: string
+                  replies:
+                    type: array
+                    items:
+                      type: object
+
+components:
+  schemas:
+    Presentation:
+      type: object
+      properties:
+        presentationId:
+          type: string
+        title:
+          type: string
+        revisionId:
+          type: string
+        slides:
+          type: array
+          description: Slides in presentation order; each carries an objectId and pageElements.
+          items:
+            type: object

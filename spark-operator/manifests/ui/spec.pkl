@@ -1,0 +1,20 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+logo = "static/logo.png"
+
+uiPattern = new ui.UriPattern {
+  pattern =  ".*"
+}
+
+deployment: ui.UIDeployment = new {
+  mode = "Proxy"
+  uriPatterns= List(uiPattern)
+}
+
+resourceTypeIcons {
+  ["SparkApplication"] = "static/logo.png"
+  ["SparkCluster"] = "static/logo.png"
+}
+resourceTypeUri {
+  ["SparkApplication"] = "/applications?app={{names[1]}}"
+  ["SparkCluster"] = "/clusters?cluster={{names[1]}}"
+}

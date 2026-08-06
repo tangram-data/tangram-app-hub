@@ -1,0 +1,284 @@
+// Helm values template — evaluated by the platform at deploy time.
+// The platform injects the following modules before evaluation:
+//   infra       — resolved infrastructure claims (database host/port/name, bucket name, etc.)
+//   deployment  — user settings, secrets, component replica counts, and platform context
+//
+// The `values` property is rendered to YAML and passed to `helm upgrade --values`.
+
+import "dependencies.pkl" as claims
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+import "../app.pkl" as app
+
+local database = claims.databaseClaim.database()
+local dbSecrets = claims.databaseClaim.secrets()
+local loggingBucket = claims.loggingBucketClaim.bucket()
+local loggingBucketSecret = claims.loggingBucketClaim.accessPermit()
+
+local loggingBucketConnectionString =
+  if (loggingBucket.type == "Minio")
+    """
+    {
+      "conn_type": "aws",
+      "login": "\(loggingBucketSecret.accessKey)",
+      "password": "\(loggingBucketSecret.secretKey)",
+      "extra": {
+        "region_name": "us-east-1",
+        "endpoint_url": "http://\(loggingBucket.endpoint):\(loggingBucket.port)"
+      }
+    }
+    """
+  else if (loggingBucket.type == "ScalewayObjectStorage")
+    """
+    {
+      "conn_type": "aws",
+      "login": "\(loggingBucketSecret.accessKey)",
+      "password": "\(loggingBucketSecret.secretKey)",
+      "extra": {
+        "region_name": "\(loggingBucket.region ?? "fr-par")",
+        "endpoint_url": "https://s3.\(loggingBucket.region ?? "fr-par").scw.cloud"
+      }
+    }
+    """
+  else if (loggingBucket.type == "S3")
+    """
+    {
+      "conn_type": "aws",
+      "login": "\(loggingBucketSecret.accessKey)",
+      "password": "\(loggingBucketSecret.secretKey)",
+      "extra": { "region_name": "\(loggingBucket.region)" }
+    }
+    """
+  else if (loggingBucket.type == "Azure")
+    """
+    {
+      "conn_type": "wasb",
+      "login": "\(loggingBucket.storageAccount())",
+      "password": "\(loggingBucketSecret.accessKey)"
+    }
+    """
+  else ""
+
+local loggingConfig =
+  if (loggingBucket.type == "Azure")
+    new Dynamic {
+      remote_logging           = "True"
+      remote_log_conn_id       = "LOGGING_BUCKET_CONN"
+      remote_base_log_folder   = "wasb://airflow-logs"
+    }
+  else if (loggingBucket.type != "")
+    new Dynamic {
+      remote_logging           = "True"
+      remote_log_conn_id       = "LOGGING_BUCKET_CONN"
+      remote_base_log_folder   =
+        "s3://\(loggingBucket.name)/airflow-logs"
+      encrypt_s3_logs          = "False"
+    }
+  else new Dynamic {}
+
+local baseUrl = "\(deploymentRuntime.context.tangramOSPublicUrl)/apps/workspaces/\(deploymentRuntime.context.workspace)/applications/\(app.group)/\(app.name)"
+
+// Platform OTLP collector (OTLP/HTTP). Workspace attribution is re-derived by the
+// collector from the pod namespace, so no resource attributes are set here.
+local otelHost = "otel-collector.observability.svc.cluster.local"
+local otelPort = "4318"
+
+// Top-level `values` — rendered to YAML and passed to `helm upgrade --values`.
+values = new Dynamic {
+  // ServiceBackend requires this stable rendered Service name. Tangram also
+  // forces the Helm release into the App's derived installation namespace.
+  fullnameOverride = "airflow"
+
+  executor = "KubernetesExecutor"
+
+  createUserJob {
+    args = List("bash", "-c", "echo", "hello")
+  }
+
+  postgresql { enabled = false }
+  redis      { enabled = false }
+  pgbouncer  { enabled = true }
+  // Disable statsd: Airflow's metrics backend prefers statsd over OTEL when both
+  // are on, so it would emit to the statsd sidecar instead of pushing OTLP.
+  statsd     { enabled = false }
+
+  fernetKey    = deploymentRuntime.getSecret("fernetKey")
+  apiSecretKey = deploymentRuntime.getSecret("apiSecretKey")
+  jwtSecret    = deploymentRuntime.getSecret("apiSecretKey")
+
+  data {
+    metadataConnection {
+      user     = dbSecrets.user
+      pass     = dbSecrets.password
+      protocol = "postgresql+psycopg2"
+      host     = database.host
+      port     = database.port
+      db       = database.name
+      sslmode  = "disable"
+    }
+    resultBackendConnection {
+      user     = dbSecrets.user
+      pass     = dbSecrets.password
+      protocol = "postgresql+psycopg2"
+      host     = database.host
+      port     = database.port
+      db       = database.name
+      sslmode  = "disable"
+    }
+  }
+
+  apiServer {
+    replicas = deploymentRuntime.getComponentReplicas("airflow-api-server")
+    resources {
+      requests {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-api-server", "api-server")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-api-server", "api-server")
+      }
+      limits {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-api-server", "api-server")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-api-server", "api-server")
+      }
+    }
+    env = List(new Dynamic { name = "TANGRAM_OS_WORKSPACE"; value = deploymentRuntime.context.workspace })
+    labels = new Mapping {
+      ["tangram-os-app"]       = app.group + "." + app.name
+      ["tangram-os-workspace"] = deploymentRuntime.context.workspace
+      ["tangram-os-app-component"] = "airflow-api-server"
+    }
+  }
+
+  scheduler {
+    waitForMigrations { enabled = false }
+    replicas = deploymentRuntime.getComponentReplicas("airflow-scheduler")
+    resources {
+      requests {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-scheduler", "scheduler")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-scheduler", "scheduler")
+      }
+      limits {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-scheduler", "scheduler")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-scheduler", "scheduler")
+      }
+    }
+    env = List(new Dynamic { name = "TANGRAM_OS_WORKSPACE"; value = deploymentRuntime.context.workspace })
+    labels = new Mapping {
+      ["tangram-os-app"]           = app.group + "." + app.name
+      ["tangram-os-workspace"]     = deploymentRuntime.context.workspace
+      ["tangram-os-app-component"] = "airflow-scheduler"
+    }
+  }
+
+  triggerer {
+    waitForMigrations { enabled = false }
+    persistence { enabled = false }
+    replicas = deploymentRuntime.getComponentReplicas("airflow-triggerer")
+    resources {
+      requests {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-triggerer", "triggerer")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-triggerer", "triggerer")
+      }
+      limits {
+        cpu    = deploymentRuntime.getComponentContainerK8sCpuQuantity("airflow-triggerer", "triggerer")
+        memory = deploymentRuntime.getComponentContainerK8sMemoryQuantity("airflow-triggerer", "triggerer")
+      }
+    }
+    env = List(new Dynamic { name = "TANGRAM_OS_WORKSPACE"; value = deploymentRuntime.context.workspace })
+    labels = new Mapping {
+      ["tangram-os-app"]           = app.group + "." + app.name
+      ["tangram-os-workspace"]     = deploymentRuntime.context.workspace
+      ["tangram-os-app-component"] = "airflow-triggerer"
+    }
+  }
+
+  workers {
+    env = List(new Dynamic { name = "TANGRAM_OS_WORKSPACE"; value = deploymentRuntime.context.workspace })
+  }
+
+  dagProcessor {
+    enabled = true
+    env = List(new Dynamic { name = "TANGRAM_OS_WORKSPACE"; value = deploymentRuntime.context.workspace })
+    // tangram-airflow-sync sidecar — keeps Airflow DAG ownership in sync with Tangram
+    extraContainers = List(
+      new Dynamic {
+        name            = "tangram-airflow-sync"
+        image           = "ghcr.io/tangram-data/tangram-airflow-sync:1.0.0"
+        imagePullPolicy = "IfNotPresent"
+        env = List(
+          new Dynamic { name = "TANGRAM_OS_WORKSPACE";      value = deploymentRuntime.context.workspace },
+          new Dynamic { name = "TANGRAM_CORE_SERVICE_URI";  value = "http://tangram-os-core-service.tangram-os.svc.cluster.local:8081" },
+          new Dynamic { name = "AIRFLOW_CONN_STR";          value = "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)" },
+          new Dynamic { name = "AIRFLOW_DB_USER";           value = dbSecrets.user },
+          new Dynamic { name = "AIRFLOW_DB_PASSWORD";       value = dbSecrets.password },
+          new Dynamic {
+            name = "TANGRAM_CORE_SERVICE_TOKEN"
+            valueFrom { secretKeyRef {
+              name = deploymentRuntime.context.serviceAccountTokenSecret.name
+              key  = deploymentRuntime.context.serviceAccountTokenSecret.tokenKey
+            }}
+          }
+        )
+      }
+    )
+  }
+
+  config {
+    core {
+      auth_manager                    = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+      simple_auth_manager_all_admins  = "True"
+    }
+    api {
+      workers  = 1
+      base_url = baseUrl
+    }
+    webserver {
+      enable_proxy_fix = "True"
+      base_url         = baseUrl
+    }
+    // OTLP metrics push to the platform collector.
+    metrics {
+      otel_on                    = "True"
+      otel_host                  = otelHost
+      otel_port                  = otelPort
+      otel_ssl_active            = "False"
+      otel_prefix                = "airflow"
+      otel_interval_milliseconds = "30000"
+    }
+    // OTLP distributed tracing push to the platform collector.
+    traces {
+      otel_on         = "True"
+      otel_host       = otelHost
+      otel_port       = otelPort
+      otel_ssl_active = "False"
+      otel_service    = "airflow"
+    }
+    logging = loggingConfig
+  }
+
+  dags {
+    gitSync {
+      enabled  = true
+      repo     = deploymentRuntime.getConfig("dagsGitRepo")
+      branch   = deploymentRuntime.getOptionalConfig("dagsGitRepoBranch") ?? "main"
+      subPath  = deploymentRuntime.getOptionalConfig("dagsGitRepoSubPath") ?? "dags"
+      env = List(
+        new Dynamic { name = "GITSYNC_USERNAME"; value = deploymentRuntime.getSecret("gitUser") },
+        new Dynamic { name = "GITSYNC_PASSWORD"; value = deploymentRuntime.getSecret("gitPassword") }
+      )
+    }
+  }
+
+  env = List(
+    new Dynamic { name = "AIRFLOW_CONN_LOGGING_BUCKET_CONN"; value = loggingBucketConnectionString }
+  )
+
+  images {
+    airflow {
+      repository = deploymentRuntime.getOptionalConfig("airflowDockerImageRepo") ?? "apache/airflow"
+      tag        = deploymentRuntime.getOptionalConfig("airflowDockerImageTag") ?? "3.0.2"
+    }
+  }
+
+  imagePullSecrets =
+    if (deploymentRuntime.getImagePullSecretName() != null)
+      List(deploymentRuntime.getImagePullSecretName())
+    else List()
+}

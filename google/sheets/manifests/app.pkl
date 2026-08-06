@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.google"
+name = "sheets"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.google.com/sheets/api"
+category = "productivity"
+tags = List("google", "sheets", "spreadsheet", "oauth")
+description = "Google Sheets connector: create spreadsheets and read, update, or append cell values."
+readme = read("README.md").text

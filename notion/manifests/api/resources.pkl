@@ -1,0 +1,233 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Workspace"
+    activeVersion = "v1"
+    doc = "The connected Notion workspace, as visible to the integration."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Search"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search pages and databases shared with the integration by title; filter.value=page|database narrows the object type. Start here to find ids — but the index can lag recent edits and is not guaranteed exhaustive."
+          openApiMapping = new resources.OpenApiMapping { operationId = "search" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search the workspace through the Notion connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Page"
+    activeVersion = "v1"
+    doc = "A Notion page — a standalone document or a database item."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a page's properties (title, database fields, url) by page_id. Page body content is read separately via the Block List action on the same id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getPage" }
+          presentation = new resources.ComponentPresentation {
+            component = "page-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["pageId"] = new resources.FromArg {
+                path = List("parameters", "page_id")
+              }
+            }
+          }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a page under a parent page ({page_id}, title-only properties), as a database item ({database_id}, properties matching the database schema), or — with parent omitted — as a private workspace-level page; optional children blocks write initial content."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPage" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Patch a page's properties (only the listed properties change) or set archived=true/false to trash/restore it."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updatePage" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update")
+        description = "Read and manage pages through the Notion connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Block"
+    activeVersion = "v1"
+    doc = "A content block; a page's body is its tree of child blocks."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a block's children — pass a page_id as block_id to read the page's content. Blocks with has_children=true need a further List on their own id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getBlockChildren" }
+        },
+        new resources.Action {
+          name = "Append"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Append content blocks (paragraphs, headings, lists, code, ...) to a page or block; max 100 blocks per call, `after` inserts mid-page."
+          openApiMapping = new resources.OpenApiMapping { operationId = "appendBlockChildren" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Replace fields of a block in place — the body key must match the block's existing type (e.g. paragraph.rich_text, to_do.checked); rich_text is replaced wholesale, not merged, and the block's type cannot change."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateBlock" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Move a block — or a whole page, by its id — to Notion's trash (archived; restorable in the Notion UI)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteBlock" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update", "Delete")
+        description = "Read and edit page content through the Notion connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Database"
+    activeVersion = "v1"
+    doc = "A Notion database — a typed collection of pages."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a database's title and property schema — read this before creating items or building query filters."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getDatabase" }
+        },
+        new resources.Action {
+          name = "Query"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a database's items with optional property filters and sorts; items are pages whose properties follow the database schema."
+          openApiMapping = new resources.OpenApiMapping { operationId = "queryDatabase" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a database under a parent page with a property schema (exactly one title property); add items afterwards with the Page Create action."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDatabase" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read, query, and create databases through the Notion connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "User"
+    activeVersion = "v1"
+    doc = "A member or bot of the connected Notion workspace."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List workspace users; ids feed people property values and mentions. Requires the integration's user-information capability."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listUsers" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List workspace users through the Notion connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Comment"
+    activeVersion = "v1"
+    doc = "A comment in a discussion on a page or block."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List open comments on a page or block (block_id query param); each carries the discussion_id used to reply."
+          openApiMapping = new resources.OpenApiMapping {
+            operationId = "listComments"
+            resourceName = List(new resources.QueryParam { name = "block_id" })
+          }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Comments notify participants and the API cannot delete them —
+          // only the Notion UI can.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Add a top-level comment to a page (parent.page_id) or reply to a discussion (discussion_id); visible to everyone on the page and not deletable via the API."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createComment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and write comments through the Notion connector."
+      })
+    })
+  }
+)

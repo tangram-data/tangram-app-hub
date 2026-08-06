@@ -1,0 +1,386 @@
+openapi: 3.0.3
+info:
+  title: StarRocks Service
+  version: 1.0.0
+paths:
+  /api/v1/clusters:
+    post:
+      operationId: initializeStarRocksCluster
+      tags: [StarRocksService]
+      summary: >-
+        Initialize the workspace's single shared-data StarRocks cluster in the app's k8s cluster
+        asynchronously; poll GET /clusters/{name} for progress.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializeClusterRequest'
+      responses:
+        '200':
+          description: Cluster record in status Creating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}:
+    get:
+      operationId: getStarRocksCluster
+      tags: [StarRocksService]
+      summary: Get StarRocks cluster by name, including its lifecycle status.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Cluster or null when not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteStarRocksCluster
+      tags: [StarRocksService]
+      summary: >-
+        Decommission a StarRocks cluster asynchronously (CR, namespace, provisioned k8s cluster,
+        SQL engine).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Deletion started
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/scale:
+    post:
+      operationId: scaleStarRocksCluster
+      tags: [StarRocksService]
+      summary: >-
+        Update the compute (CN/BE) replica count of an active cluster. Rejected while
+        computeAutoscale is set (the HPA owns the count).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScaleClusterRequest'
+      responses:
+        '200':
+          description: Scaled
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/resources:
+    post:
+      operationId: configureStarRocksCluster
+      tags: [StarRocksService]
+      summary: Update the FE and compute (CN/BE) replica counts and per-pod resources of an active cluster.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourcesRequest'
+      responses:
+        '200':
+          description: Updated
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/endpoints:
+    get:
+      operationId: getStarRocksClusterEndpoints
+      tags: [StarRocksService]
+      summary: FE MySQL/HTTP endpoints of the cluster and the registered SQL engine FN.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Endpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterEndpoints'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/connection-details:
+    get:
+      operationId: getStarRocksClusterConnectionDetails
+      tags: [StarRocksService]
+      summary: FE MySQL host/port and root credentials for the SQL proxy (sensitive).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterConnectionDetails'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances:
+    get:
+      operationId: getStarRocksClusterInstances
+      tags: [StarRocksService]
+      summary: Status of the cluster's FE and compute (CN/BE) pods.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterInstance'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances/{pod}/logs:
+    get:
+      operationId: getStarRocksClusterInstanceLogs
+      tags: [StarRocksService]
+      summary: Tail of one FE/CN/BE pod's logs (default 500 lines, capped at 5000).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - name: pod
+          in: path
+          required: true
+          schema: { type: string }
+        - name: tailLines
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Log tail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceLogs'
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    ClusterName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Error:
+      description: Service error
+      content:
+        application/json:
+          schema: { type: string }
+  schemas:
+    ComponentSpec:
+      type: object
+      required: [replicas, cpuMilli, memoryMi]
+      properties:
+        replicas: { type: integer }
+        cpuMilli: { type: integer }
+        memoryMi: { type: integer }
+    ComputeSpecRequest:
+      type: object
+      description: >-
+        Compute sizing as supplied by clients. replicas may be omitted (or null) when
+        computeAutoscale is set — the HPA owns the count and the autoscale minimum becomes the
+        stored fallback; without autoscaling it is required and must be >= 1.
+      required: [cpuMilli, memoryMi]
+      properties:
+        replicas: { type: integer, nullable: true }
+        cpuMilli: { type: integer }
+        memoryMi: { type: integer }
+    ComputeAutoscaleSpec:
+      type: object
+      description: >-
+        HPA-driven autoscaling of the compute tier (shared-data only). Scale-to-zero is not
+        supported: minReplicas must be >= 1. While set, the compute replica count is HPA-owned and
+        the scale endpoint is rejected.
+      required: [minReplicas, maxReplicas, targetCpuPercent]
+      properties:
+        minReplicas: { type: integer, minimum: 1 }
+        maxReplicas: { type: integer, minimum: 1 }
+        targetCpuPercent: { type: integer, minimum: 1, maximum: 100 }
+    StorageSpec:
+      type: object
+      description: >-
+        Resolved by the service from the app's provisioned bucket (random per-cluster prefix);
+        ignored on input, present on output for shared-data clusters.
+      required: [volumeType, bucket]
+      properties:
+        volumeType:
+          type: string
+          enum: [S3, AZBLOB, ADLS2]
+        bucket: { type: string }
+        prefix: { type: string, nullable: true }
+        endpoint: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        pathStyleAccess: { type: boolean }
+    K8sTarget:
+      oneOf:
+        - $ref: '#/components/schemas/K8sTargetCurrent'
+        - $ref: '#/components/schemas/K8sTargetProvisioned'
+      discriminator:
+        propertyName: type
+        mapping:
+          Current: '#/components/schemas/K8sTargetCurrent'
+          Provisioned: '#/components/schemas/K8sTargetProvisioned'
+    K8sTargetCurrent:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [Current] }
+    K8sTargetProvisioned:
+      type: object
+      required: [type, instanceType, minSize, desiredSize, maxSize, diskSizeGb]
+      properties:
+        type: { type: string, enum: [Provisioned] }
+        instanceType: { type: string }
+        minSize: { type: integer }
+        desiredSize: { type: integer }
+        maxSize: { type: integer }
+        diskSizeGb: { type: integer }
+    StarRocksClusterSpec:
+      type: object
+      required: [name, k8sTarget, mode, fe, compute, exposeFeService]
+      properties:
+        name: { type: string }
+        k8sTarget:
+          $ref: '#/components/schemas/K8sTarget'
+        mode:
+          type: string
+          enum: [SharedData, SharedNothing]
+        feImage: { type: string, nullable: true }
+        computeImage: { type: string, nullable: true }
+        fe:
+          $ref: '#/components/schemas/ComponentSpec'
+        compute:
+          $ref: '#/components/schemas/ComponentSpec'
+        computeDiskGb: { type: integer, nullable: true }
+        storage:
+          allOf:
+            - $ref: '#/components/schemas/StorageSpec'
+          nullable: true
+        exposeFeService: { type: boolean }
+        computeAutoscale:
+          allOf:
+            - $ref: '#/components/schemas/ComputeAutoscaleSpec'
+          nullable: true
+        idleSuspendMinutes:
+          type: integer
+          nullable: true
+          description: >-
+            Scale compute to zero after this many minutes without FE query activity (status
+            Suspended); resumes automatically on the next SQL connection. null = never suspend.
+    StarRocksClusterInfo:
+      type: object
+      required: [name, workspace, spec, status, createdAt]
+      properties:
+        name: { type: string }
+        workspace: { type: string }
+        spec:
+          $ref: '#/components/schemas/StarRocksClusterSpec'
+        status:
+          type: string
+          enum:
+            - Creating
+            - ProvisioningK8s
+            - InstallingOperator
+            - DeployingStarRocks
+            - Active
+            - Degraded
+            - Suspended
+            - Resuming
+            - CreationFailed
+            - Deleting
+            - DeletionFailed
+        statusMessage: { type: string, nullable: true }
+        k8sClusterName: { type: string, nullable: true }
+        sqlEngineFn: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ClusterEndpoints:
+      type: object
+      required: [feMysqlPort]
+      properties:
+        feMysqlHost: { type: string, nullable: true }
+        feMysqlPort: { type: integer }
+        feHttpUrl: { type: string, nullable: true }
+        sqlEngineFn: { type: string, nullable: true }
+    ScaleClusterRequest:
+      type: object
+      required: [computeReplicas]
+      properties:
+        computeReplicas: { type: integer }
+    UpdateResourcesRequest:
+      type: object
+      required: [fe, compute]
+      properties:
+        fe:
+          $ref: '#/components/schemas/ComponentSpec'
+        compute:
+          $ref: '#/components/schemas/ComputeSpecRequest'
+        computeAutoscale:
+          allOf:
+            - $ref: '#/components/schemas/ComputeAutoscaleSpec'
+          nullable: true
+        idleSuspendMinutes: { type: integer, nullable: true }
+    ClusterConnectionDetails:
+      type: object
+      required: [feHost, feMysqlPort, user, catalog]
+      properties:
+        feHost: { type: string }
+        feMysqlPort: { type: integer }
+        user: { type: string }
+        password: { type: string, nullable: true }
+        catalog: { type: string }
+        status:
+          type: string
+          nullable: true
+          description: >-
+            Cluster lifecycle status at fetch time. Fetching the details wakes a Suspended
+            cluster; callers should poll this endpoint until Active before connecting.
+    ClusterInstance:
+      type: object
+      description: One FE/CN/BE pod of a cluster; message carries a waiting reason (e.g. CrashLoopBackOff).
+      required: [name, role, phase, ready, restarts]
+      properties:
+        name: { type: string }
+        role:
+          type: string
+          enum: [fe, cn, be]
+        phase: { type: string }
+        ready: { type: boolean }
+        restarts: { type: integer }
+        startedAt: { type: string, format: date-time, nullable: true }
+        message: { type: string, nullable: true }
+    InstanceLogs:
+      type: object
+      required: [pod, log]
+      properties:
+        pod: { type: string }
+        log: { type: string }
+    InitializeClusterRequest:
+      type: object
+      description: >-
+        Sizing for the workspace's single shared-data cluster (fixed name 'starrocks',
+        deployed into the app's own k8s cluster; storage resolved server-side).
+      required: [fe, compute, exposeFeService]
+      properties:
+        fe:
+          $ref: '#/components/schemas/ComponentSpec'
+        compute:
+          $ref: '#/components/schemas/ComputeSpecRequest'
+        exposeFeService: { type: boolean }
+        computeAutoscale:
+          allOf:
+            - $ref: '#/components/schemas/ComputeAutoscaleSpec'
+          nullable: true
+        idleSuspendMinutes: { type: integer, nullable: true }

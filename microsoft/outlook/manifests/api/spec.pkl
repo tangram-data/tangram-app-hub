@@ -1,0 +1,44 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Outlook connector API spec (mail + calendar — one product, one OAuth
+// connection). All Microsoft 365 APIs are served from the single Microsoft
+// Graph host; everything here lives under /v1.0/me/*.
+endpoint = "https://graph.microsoft.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("graph.microsoft.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+  tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+  // Mail.ReadWrite covers message reads, folders, attachments, and drafts;
+  // Mail.Send covers sendMail; Calendars.ReadWrite covers calendars, events,
+  // and getSchedule. offline_access is what makes Azure AD issue a refresh
+  // token (Microsoft's analog of Google's access_type=offline).
+  scopes = List(
+    "https://graph.microsoft.com/Mail.ReadWrite",
+    "https://graph.microsoft.com/Mail.Send",
+    "https://graph.microsoft.com/Calendars.ReadWrite",
+    "offline_access"
+  )
+  clientIdSecret = "microsoftClientId"
+  clientSecretSecret = "microsoftClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.microsoft/outlook"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

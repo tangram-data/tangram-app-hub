@@ -1,0 +1,14 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "defaultCatalog"
+    required    = true
+    description = "Databricks Unity Catalog default catalog name for this workspace."
+  },
+  new manifest.ConfigField {
+    name        = "workspaceUrl"
+    required    = true
+    description = "Databricks workspace URL (e.g. https://myorg.azuredatabricks.net)."
+  }
+)

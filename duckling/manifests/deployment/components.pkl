@@ -1,0 +1,44 @@
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.databaseClaim.database()
+local dbSecrets = deps.databaseClaim.secrets()
+local storageBucket = deps.storageBucketClaim.bucket()
+
+@deployment.AppComponentMeta {
+  name = "duckling-service-server"
+  recommendedReplica = 3
+  containers = List(new deployment.ContainerMeta {
+    name = "duckling-service-server"
+    image = "ghcr.io/tangram-data/tangram-duckling-app:1.0.0"
+  })
+  observability = new deployment.ComponentObservability {
+    traces = "otlp"
+    metrics = new deployment.OtlpMetrics {}
+  }
+}
+ducklingService: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port = 9898
+    targetPort = 9898
+    protocol = "TCP"
+  }
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports = List(9898)
+      variables = Map(
+        "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
+        "SERVER_PORT", "9898",
+        "DUCK_LAKE_STORAGE_BUCKET", storageBucket.name,
+        "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+        "DUCKLING_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "DUCKLING_JDBC_USER", dbSecrets.user,
+        "DUCKLING_JDBC_PASSWORD",
+        new deployment.SecretValue {
+          value = dbSecrets.password
+        }
+      )
+    }
+  )
+}

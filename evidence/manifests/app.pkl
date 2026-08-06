@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType = "App"
+group = "dev.evidence"
+name = "evidence"
+version = "0.1.0"
+license = "MIT"
+category = "BI"
+tags = List("BI as Code", "Visualisation")
+description = "Evidence is a lightweight framework for building data apps. It's open source and free to get started."
+readme = read("README.md").text

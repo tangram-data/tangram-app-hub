@@ -1,0 +1,19 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/starrocks.svg"
+
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
+
+deployment: ui.UIDeployment = new {
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
+}
+
+resourceTypeIcons {
+  ["StarRocksCluster"] = "static/starrocks.svg"
+}
+resourceTypeUri {
+  ["StarRocksCluster"] = "/clusters/{{names[1]}}"
+}

@@ -1,0 +1,4 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+// mlflow does not currently implement any Tangram integration interfaces.
+implementations: List<integration.IntegrationImplementation> = List()

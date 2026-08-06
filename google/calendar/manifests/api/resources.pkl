@@ -1,0 +1,111 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Calendar"
+    activeVersion = "v1"
+    doc = "A calendar on the connected account's calendar list."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the account's calendars; ids feed the calendarId of event operations (or use \"primary\")."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listCalendars" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List calendars through the Google Calendar connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Event"
+    activeVersion = "v1"
+    doc = "An event on one of the connected account's calendars."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List or search events on a calendar; supports free-text q, a timeMin/timeMax window, and singleEvents+orderBy=startTime for agenda order."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listEvents" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a single event, including times, attendees, and description, by calendarId and eventId."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getEvent" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Create an event. start/end each take {date} (all-day, end exclusive) or {dateTime,timeZone}; sendUpdates=all emails invitations to attendees (default none)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createEvent" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Patch fields of an existing event (only the fields in the body change); sendUpdates=all notifies attendees (default none)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateEvent" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Delete an event; sendUpdates=all sends cancellation emails to attendees (default none)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteEvent" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update", "Delete")
+        description = "Read and manage events through the Google Calendar connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "FreeBusy"
+    activeVersion = "v1"
+    doc = "Busy/free availability information for the connected account's calendars."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Query"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Query busy intervals for one or more calendars over a timeMin/timeMax window — use to find open slots before scheduling."
+          openApiMapping = new resources.OpenApiMapping { operationId = "queryFreeBusy" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Check availability through the Google Calendar connector."
+      })
+    })
+  }
+)

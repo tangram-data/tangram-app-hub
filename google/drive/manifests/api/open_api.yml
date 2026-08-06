@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: Google Drive
+  version: "1.0"
+  description: >
+    Read-only subset of the Google Drive API v3 exposed through the Tangram
+    connector: file discovery, metadata, and Workspace-document export.
+servers:
+  - url: https://www.googleapis.com
+
+paths:
+  /drive/v3/files:
+    get:
+      operationId: listFiles
+      summary: List or search files
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: >
+            Drive search query. Common filters: name contains 'budget',
+            fullText contains 'roadmap', mimeType='application/vnd.google-apps.spreadsheet'
+            (spreadsheets), ...google-apps.document (docs),
+            ...google-apps.presentation (slides), modifiedTime > '2026-01-01T00:00:00',
+            'folderId' in parents, trashed=false. Combine with and/or.
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          required: false
+          description: Sort keys, e.g. modifiedTime desc, name.
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: false
+          description: Files per page (default 100, max 1000).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listFiles response.
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: false
+          description: >
+            Response field mask, e.g.
+            nextPageToken,files(id,name,mimeType,modifiedTime,owners,webViewLink).
+          schema:
+            type: string
+        - name: includeItemsFromAllDrives
+          in: query
+          required: false
+          description: Set true (with supportsAllDrives=true) to include shared-drive files.
+          schema:
+            type: boolean
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Matching files with a nextPageToken when more results exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/File"
+                  nextPageToken:
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /drive/v3/files/{fileId}:
+    get:
+      operationId: getFile
+      summary: Fetch file metadata by id
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The file id (from listFiles or a Drive URL).
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: false
+          description: Field mask, e.g. id,name,mimeType,size,owners,modifiedTime,webViewLink.
+          schema:
+            type: string
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The file's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+        "404":
+          description: File not found.
+
+  /drive/v3/files/{fileId}/export:
+    get:
+      operationId: exportFile
+      summary: Export a Google Workspace document's content
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: Id of a Google Docs, Sheets, or Slides file (not binary uploads).
+          schema:
+            type: string
+        - name: mimeType
+          in: query
+          required: true
+          description: >
+            Target format. Docs: text/plain, text/markdown, application/pdf.
+            Sheets: text/csv (first sheet), application/pdf. Slides: text/plain,
+            application/pdf. Export is capped at 10 MB.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The exported file content in the requested format.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          description: Unsupported export mimeType for this file.
+
+components:
+  schemas:
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mimeType:
+          type: string
+          description: application/vnd.google-apps.* for native Workspace types.
+        modifiedTime:
+          type: string
+        size:
+          type: string
+          description: Bytes, absent for native Workspace documents.
+        owners:
+          type: array
+          items:
+            type: object
+            properties:
+              displayName:
+                type: string
+              emailAddress:
+                type: string
+        webViewLink:
+          type: string
+          description: Browser URL for opening the file.
+        parents:
+          type: array
+          items:
+            type: string

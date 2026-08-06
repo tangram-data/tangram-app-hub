@@ -1,0 +1,29 @@
+import "@tangram-app-manifest/deployment.pkl" as deployment
+
+// The official StarRocks Kubernetes Operator, installed alongside the starrocks-service component
+// so clusters targeting the CURRENT k8s cluster can be reconciled (the service itself only applies
+// StarRocksCluster CRs). For Provisioned targets the operator chart is installed on the new
+// cluster at provision time by the service. Values live in helm_chart_values.pkl.
+charts: List<deployment.HelmChart> = List(
+  new deployment.HelmChart {
+    repo      = "https://starrocks.github.io/starrocks-kubernetes-operator"
+    fullName  = "starrocks/operator"
+    version   = "1.11.5" // latest in the repo index; keep in line with the StarRocks version the service pins
+    // The chart ships the StarRocks CRDs; the operator itself is namespace-scoped
+    // via watchNamespace (namespaced Role/RoleBinding, no hooks).
+    requestedCapabilities = new deployment.HelmRequestedCapabilities {
+      hooks = false
+      crds = true
+      clusterScopedKinds = Set()
+    }
+    components = List()
+    // The service applies StarRocksCluster CRs in its own namespace for the operator to reconcile;
+    // the platform grants these on the app component Role (no more hard-coded per-operator RBAC).
+    crds = List(
+      new deployment.CustomResourceRbac {
+        apiGroup  = "starrocks.com"
+        resources = List("starrocksclusters", "starrocksclusters/status", "starrockswarehouses")
+      }
+    )
+  }
+)

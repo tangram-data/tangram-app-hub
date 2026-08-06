@@ -1,0 +1,232 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Message"
+    activeVersion = "v1"
+    doc = "An email message in the connected account's mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List or search messages; $search for free-text, $filter for structured queries, $top + @odata.nextLink for paging."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listMessages" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a single message by id, including subject, sender, recipients, and body."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getMessage" }
+        },
+        new resources.Action {
+          name = "Send"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Send an email immediately via sendMail; a copy lands in Sent Items unless saveToSentItems=false."
+          openApiMapping = new resources.OpenApiMapping { operationId = "sendMessage" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read, search, and send mail through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Draft"
+    activeVersion = "v1"
+    doc = "A draft message in the connected account's mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Create a draft in the Drafts folder for the user to review and send from Outlook."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDraft" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create")
+        description = "Create mail drafts through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Attachment"
+    activeVersion = "v1"
+    doc = "A file attached to a message in the connected account's mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a message's attachments; fileAttachment entries include base64 contentBytes for files up to ~3MB."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listAttachments" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one attachment by message id and attachment id, including its base64 contentBytes."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAttachment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read mail attachments through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "MailFolder"
+    activeVersion = "v1"
+    doc = "A mail folder (Inbox, Sent Items, custom folders) in the connected account's mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List mail folders; folder ids scope message listing via the parentFolderId filter or well-known names like inbox."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listMailFolders" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List mail folders through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Calendar"
+    activeVersion = "v1"
+    doc = "A calendar in the connected account's mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the account's calendars; ids feed the calendarId of event operations, and isDefaultCalendar=true marks the user's default calendar."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listCalendars" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List calendars through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Event"
+    activeVersion = "v1"
+    doc = "An event on one of the connected account's calendars."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List events in a required startDateTime/endDateTime window via calendarView, which expands recurring events into instances (Graph's analog of Google's singleEvents)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listEvents" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a single event by id, including times, attendees, body, and online-meeting link."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getEvent" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Create an event on a calendar. start/end take {dateTime,timeZone} (dateTime has no offset — timeZone carries the zone); isOnlineMeeting + onlineMeetingProvider=teamsForBusiness attaches a Teams link."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createEvent" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Patch fields of an existing event (PATCH semantics — only the fields present in the body change). Graph emails attendees about the change automatically."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateEvent" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Delete an event by id; attendees receive a cancellation."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteEvent" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update", "Delete")
+        description = "Read and manage events through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Schedule"
+    activeVersion = "v1"
+    doc = "Free/busy availability information for users and resources."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Query"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Query free/busy availability for one or more SMTP addresses over a startTime/endTime window (getSchedule) — use to find open slots before scheduling."
+          openApiMapping = new resources.OpenApiMapping { operationId = "querySchedule" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Check availability through the Outlook connector."
+      })
+    })
+  }
+)

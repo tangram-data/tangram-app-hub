@@ -1,0 +1,48 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Microsoft Teams connector API spec. All Microsoft 365 APIs are served from
+// the single Microsoft Graph host; teams/chats live under /v1.0/me/* and
+// /v1.0/teams/*.
+endpoint = "https://graph.microsoft.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("graph.microsoft.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+  tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+  // Team.ReadBasic.All / Channel.ReadBasic.All cover team and channel
+  // browsing; ChannelMessage.Read.All covers reading channel messages
+  // (admin-consent required in most tenants); ChannelMessage.Send covers
+  // posting to channels; Chat.ReadWrite covers reading and sending 1:1/group
+  // chats. offline_access is what makes Azure AD issue a refresh token
+  // (Microsoft's analog of Google's access_type=offline).
+  scopes = List(
+    "https://graph.microsoft.com/Team.ReadBasic.All",
+    "https://graph.microsoft.com/Channel.ReadBasic.All",
+    "https://graph.microsoft.com/ChannelMessage.Read.All",
+    "https://graph.microsoft.com/ChannelMessage.Send",
+    "https://graph.microsoft.com/Chat.ReadWrite",
+    "offline_access"
+  )
+  clientIdSecret = "microsoftClientId"
+  clientSecretSecret = "microsoftClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.microsoft/teams"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

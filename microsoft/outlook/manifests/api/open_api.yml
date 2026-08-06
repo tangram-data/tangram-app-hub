@@ -1,0 +1,889 @@
+openapi: 3.0.3
+info:
+  title: Outlook (Microsoft Graph)
+  version: "1.0"
+  description: >
+    Subset of the Microsoft Graph mail and calendar APIs exposed through the
+    Tangram connector. All operations act on the connected account (/me).
+servers:
+  - url: https://graph.microsoft.com
+
+paths:
+  /v1.0/me/messages:
+    get:
+      operationId: listMessages
+      summary: List or search messages in the mailbox
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $search
+          in: query
+          required: false
+          description: >
+            Free-text search over from/subject/body, e.g. "quarterly report"
+            or a KQL clause like from:alice@contoso.com. Cannot be combined
+            with $filter or $orderby.
+          schema:
+            type: string
+        - name: $filter
+          in: query
+          required: false
+          description: >
+            OData filter, e.g. isRead eq false, or
+            parentFolderId eq 'inbox' to scope to a folder,
+            or receivedDateTime ge 2026-07-01T00:00:00Z.
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          required: false
+          description: Sort order, e.g. receivedDateTime desc (not with $search).
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: >
+            Comma-separated fields to return, e.g.
+            id,subject,from,receivedDateTime,bodyPreview,isRead. Keep responses
+            small by selecting only what you need.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 10, max 1000).
+          schema:
+            type: integer
+        - name: $skip
+          in: query
+          required: false
+          description: Offset for paging; prefer following @odata.nextLink.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Matching messages with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+                  "@odata.nextLink":
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+    post:
+      operationId: createDraft
+      summary: Create a draft message in the Drafts folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: The created draft, including its id and webLink.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid draft body.
+
+  /v1.0/me/messages/{messageId}:
+    get:
+      operationId: getMessage
+      summary: Fetch one message by id
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          description: The message id returned by listMessages.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return; body is included by default.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The message with headers and body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message not found.
+
+  /v1.0/me/sendMail:
+    post:
+      operationId: sendMessage
+      summary: Send an email immediately
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  $ref: "#/components/schemas/MessageInput"
+                saveToSentItems:
+                  type: boolean
+                  description: Save a copy to Sent Items (default true).
+      responses:
+        "202":
+          description: Accepted — the message was queued for delivery (empty body).
+        "400":
+          description: Invalid message (e.g. no recipients).
+
+  /v1.0/me/messages/{messageId}/attachments:
+    get:
+      operationId: listAttachments
+      summary: List a message's attachments
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            Attachment metadata; fileAttachment entries include base64
+            contentBytes for files up to ~3MB.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Attachment"
+        "404":
+          description: Message not found.
+
+  /v1.0/me/messages/{messageId}/attachments/{attachmentId}:
+    get:
+      operationId: getAttachment
+      summary: Fetch one attachment, including its content
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: attachmentId
+          in: path
+          required: true
+          description: The attachment id from listAttachments.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The attachment with base64 contentBytes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "404":
+          description: Attachment not found.
+
+  /v1.0/me/mailFolders:
+    get:
+      operationId: listMailFolders
+      summary: List mail folders in the mailbox
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 10).
+          schema:
+            type: integer
+        - name: includeHiddenFolders
+          in: query
+          required: false
+          description: Set true to include hidden folders.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Mail folders with ids, names, and unread counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Folder id — usable in a parentFolderId filter.
+                        displayName:
+                          type: string
+                        unreadItemCount:
+                          type: integer
+                        totalItemCount:
+                          type: integer
+                  "@odata.nextLink":
+                    type: string
+  /v1.0/me/calendars:
+    get:
+      operationId: listCalendars
+      summary: List the calendars in the connected account's mailbox
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 10).
+          schema:
+            type: integer
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return, e.g. id,name,isDefaultCalendar.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calendars with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Calendar id — use as calendarId in event operations.
+                        name:
+                          type: string
+                        isDefaultCalendar:
+                          type: boolean
+                          description: True for the user's default calendar.
+                        canEdit:
+                          type: boolean
+                        owner:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            address:
+                              type: string
+                  "@odata.nextLink":
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /v1.0/me/calendars/{calendarId}/calendarView:
+    get:
+      operationId: listEvents
+      summary: List events in a time window, expanding recurrences into instances
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: calendarId
+          in: path
+          required: true
+          description: >
+            Calendar id from listCalendars; the user's default calendar is the
+            entry with isDefaultCalendar=true.
+          schema:
+            type: string
+        - name: startDateTime
+          in: query
+          required: true
+          description: >
+            Start of the window, ISO 8601, e.g. 2026-07-10T00:00:00 or
+            2026-07-10T00:00:00Z. calendarView expands recurring events into
+            instances within the window (Graph's analog of Google's
+            singleEvents).
+          schema:
+            type: string
+        - name: endDateTime
+          in: query
+          required: true
+          description: End of the window, ISO 8601, e.g. 2026-07-17T00:00:00Z.
+          schema:
+            type: string
+        - name: $filter
+          in: query
+          required: false
+          description: OData filter, e.g. contains(subject, 'standup').
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          required: false
+          description: Sort order, e.g. start/dateTime for agenda order.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: >
+            Comma-separated fields to return, e.g.
+            id,subject,start,end,location,organizer. Keep responses small by
+            selecting only what you need.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 10); follow @odata.nextLink for more.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Events in the window with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Event"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Calendar not found.
+
+  /v1.0/me/events/{eventId}:
+    get:
+      operationId: getEvent
+      summary: Fetch one event by id
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event id returned by listEvents.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The event with times, attendees, and online-meeting link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: Event not found.
+    patch:
+      operationId: updateEvent
+      summary: Update fields of an existing event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventPatchInput"
+      responses:
+        "200":
+          description: The updated event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: Event not found.
+    delete:
+      operationId: deleteEvent
+      summary: Delete an event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Event deleted; attendees receive a cancellation.
+        "404":
+          description: Event not found.
+
+  /v1.0/me/calendars/{calendarId}/events:
+    post:
+      operationId: createEvent
+      summary: Create an event on a calendar
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          description: >
+            Calendar id from listCalendars (isDefaultCalendar=true for the
+            user's default calendar).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventCreateInput"
+      responses:
+        "201":
+          description: The created event, including id, webLink, and onlineMeeting.joinUrl when a Teams meeting was requested.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          description: Invalid event body (e.g. missing start/end).
+
+  /v1.0/me/calendar/getSchedule:
+    post:
+      operationId: querySchedule
+      summary: Query free/busy availability for one or more people
+      description: >
+        Graph's free/busy analog — use to find open slots before scheduling.
+        Returns per-address availability plus an availabilityView string of
+        digits (0=free, 1=tentative, 2=busy, 3=out of office, 4=working
+        elsewhere), one digit per availabilityViewInterval slice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schedules, startTime, endTime]
+              properties:
+                schedules:
+                  type: array
+                  description: SMTP addresses to query, e.g. ["alice@contoso.com"]; include the connected user's own address to check yourself.
+                  items:
+                    type: string
+                startTime:
+                  $ref: "#/components/schemas/DateTimeTimeZone"
+                endTime:
+                  $ref: "#/components/schemas/DateTimeTimeZone"
+                availabilityViewInterval:
+                  type: integer
+                  description: Slot size in minutes for the availabilityView, e.g. 30 (default 30).
+      responses:
+        "200":
+          description: Availability per requested address.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        scheduleId:
+                          type: string
+                          description: The queried SMTP address.
+                        availabilityView:
+                          type: string
+                          description: One digit per interval, 0=free 1=tentative 2=busy 3=out of office 4=working elsewhere.
+                        scheduleItems:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              status:
+                                type: string
+                                description: free, tentative, busy, oof, or workingElsewhere.
+                              start:
+                                $ref: "#/components/schemas/DateTimeTimeZone"
+                              end:
+                                $ref: "#/components/schemas/DateTimeTimeZone"
+        "403":
+          description: Forbidden — reading other users' schedules may require the Calendars.Read.Shared scope.
+
+components:
+  schemas:
+    EmailAddress:
+      type: object
+      properties:
+        emailAddress:
+          type: object
+          properties:
+            address:
+              type: string
+            name:
+              type: string
+    Recipient:
+      type: object
+      required: [emailAddress]
+      description: A recipient, e.g. {"emailAddress":{"address":"alice@contoso.com"}}.
+      properties:
+        emailAddress:
+          type: object
+          required: [address]
+          properties:
+            address:
+              type: string
+            name:
+              type: string
+    MessageInput:
+      type: object
+      description: Message fields for drafts and sendMail.
+      properties:
+        subject:
+          type: string
+        body:
+          type: object
+          properties:
+            contentType:
+              type: string
+              enum: [text, html]
+            content:
+              type: string
+        toRecipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipient"
+        ccRecipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipient"
+        bccRecipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipient"
+        attachments:
+          type: array
+          description: >
+            Inline file attachments up to ~3MB total, each
+            {"@odata.type":"#microsoft.graph.fileAttachment","name":...,
+            "contentType":...,"contentBytes":"<base64>"}.
+          items:
+            type: object
+            properties:
+              "@odata.type":
+                type: string
+                enum: ["#microsoft.graph.fileAttachment"]
+              name:
+                type: string
+              contentType:
+                type: string
+              contentBytes:
+                type: string
+                description: Base64-encoded file content.
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        bodyPreview:
+          type: string
+          description: First ~255 characters of the body, plain text.
+        body:
+          type: object
+          properties:
+            contentType:
+              type: string
+              description: text or html.
+            content:
+              type: string
+        from:
+          $ref: "#/components/schemas/EmailAddress"
+        toRecipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailAddress"
+        ccRecipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailAddress"
+        receivedDateTime:
+          type: string
+        isRead:
+          type: boolean
+        isDraft:
+          type: boolean
+        hasAttachments:
+          type: boolean
+        conversationId:
+          type: string
+          description: Thread id shared by messages in the same conversation.
+        webLink:
+          type: string
+          description: Link to the message in Outlook on the web.
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+        "@odata.type":
+          type: string
+          description: "#microsoft.graph.fileAttachment for regular files."
+        name:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+        isInline:
+          type: boolean
+        contentBytes:
+          type: string
+          description: Base64-encoded content (fileAttachment only).
+    DateTimeTimeZone:
+      type: object
+      description: >
+        Graph date-time: dateTime carries NO UTC offset (e.g.
+        2026-07-10T14:00:00) — the timeZone field carries the zone (IANA name
+        like Europe/Paris or Windows name like "Pacific Standard Time").
+      properties:
+        dateTime:
+          type: string
+          description: ISO 8601 local date-time without offset, e.g. 2026-07-10T14:00:00.
+        timeZone:
+          type: string
+          description: Time zone for dateTime, e.g. Europe/Paris or UTC.
+    EventPatchInput:
+      type: object
+      description: >
+        Event fields for update (PATCH semantics — only fields present in the
+        body change).
+      properties: &eventInputProps
+        subject:
+          type: string
+          description: Event title.
+        body:
+          type: object
+          description: Event description.
+          properties:
+            contentType:
+              type: string
+              enum: [text, html]
+            content:
+              type: string
+        start:
+          $ref: "#/components/schemas/DateTimeTimeZone"
+        end:
+          $ref: "#/components/schemas/DateTimeTimeZone"
+        isAllDay:
+          type: boolean
+          description: >
+            For all-day events set true and give start/end as midnight-to-next-
+            midnight, e.g. start 2026-07-10T00:00:00 and end 2026-07-11T00:00:00.
+        location:
+          type: object
+          properties:
+            displayName:
+              type: string
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [emailAddress]
+            properties:
+              emailAddress:
+                type: object
+                required: [address]
+                properties:
+                  address:
+                    type: string
+                  name:
+                    type: string
+              type:
+                type: string
+                enum: [required, optional]
+        isOnlineMeeting:
+          type: boolean
+          description: >
+            Set true with onlineMeetingProvider=teamsForBusiness to attach a
+            Teams meeting; the join link comes back as onlineMeeting.joinUrl.
+        onlineMeetingProvider:
+          type: string
+          enum: [teamsForBusiness]
+        recurrence:
+          type: object
+          description: >
+            Recurrence rule (patternedRecurrence), e.g. weekly on Mondays:
+            {"pattern":{"type":"weekly","interval":1,"daysOfWeek":["monday"]},
+            "range":{"type":"noEnd","startDate":"2026-07-13"}}.
+          properties:
+            pattern:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [daily, weekly, absoluteMonthly, relativeMonthly, absoluteYearly, relativeYearly]
+                interval:
+                  type: integer
+                  description: Repeat every N units of the pattern type (e.g. 2 = every other week).
+                daysOfWeek:
+                  type: array
+                  items:
+                    type: string
+                    enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+            range:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [endDate, noEnd, numbered]
+                startDate:
+                  type: string
+                  description: First occurrence date, YYYY-MM-DD.
+                endDate:
+                  type: string
+                  description: Last occurrence date (range type endDate), YYYY-MM-DD.
+    EventCreateInput:
+      type: object
+      description: Event fields for create; subject, start, and end are required.
+      required: [subject, start, end]
+      properties: *eventInputProps
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        bodyPreview:
+          type: string
+          description: First ~255 characters of the body, plain text.
+        start:
+          $ref: "#/components/schemas/DateTimeTimeZone"
+        end:
+          $ref: "#/components/schemas/DateTimeTimeZone"
+        isAllDay:
+          type: boolean
+        location:
+          type: object
+          properties:
+            displayName:
+              type: string
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              emailAddress:
+                type: object
+                properties:
+                  address:
+                    type: string
+                  name:
+                    type: string
+              type:
+                type: string
+                description: required or optional.
+              status:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    description: none, accepted, declined, or tentativelyAccepted.
+        organizer:
+          type: object
+          properties:
+            emailAddress:
+              type: object
+              properties:
+                address:
+                  type: string
+                name:
+                  type: string
+        isOnlineMeeting:
+          type: boolean
+        onlineMeeting:
+          type: object
+          properties:
+            joinUrl:
+              type: string
+              description: Teams meeting join link, when the event has one.
+        webLink:
+          type: string
+          description: Link to the event in Outlook on the web.
+        seriesMasterId:
+          type: string
+          description: Id of the recurring series master, set on expanded instances.
+        recurrence:
+          type: object
+          description: Recurrence rule (pattern + range) on series masters.

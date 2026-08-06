@@ -1,0 +1,54 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Presentation"
+    activeVersion = "v1"
+    doc = "A Google Slides presentation accessible to the connected account."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a new presentation with a title; returns its presentationId."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPresentation" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch a presentation's slides, layouts, and page elements."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getPresentation" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Apply a batch of edit requests (create slides, insert text/images, styling)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "batchUpdatePresentation" }
+        },
+        new resources.Action {
+          name = "GetPage"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one slide by its page object id, including its page elements."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getPage" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Write")
+        description = "Create, read, and edit presentations through the Slides connector."
+      })
+    })
+  }
+)

@@ -1,0 +1,45 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Google Drive connector API spec. Read-only: file discovery (list/search),
+// metadata, and content export for the Workspace document types.
+// Unlike the other Google APIs, Drive v3 is served from www.googleapis.com —
+// drive.googleapis.com returns Google's HTML 404 for /drive/v3/* paths.
+endpoint = "https://www.googleapis.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("www.googleapis.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+  tokenUrl = "https://oauth2.googleapis.com/token"
+  revocationUrl = "https://oauth2.googleapis.com/revoke"
+  // drive.readonly is a restricted scope (like Gmail); the non-restricted
+  // drive.file scope cannot discover existing files, so it is useless here.
+  scopes = List("https://www.googleapis.com/auth/drive.readonly")
+  clientIdSecret = "googleClientId"
+  clientSecretSecret = "googleClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.google/drive"
+  tokenAuthMethod = "ClientSecretPost"
+  // Google only issues a refresh token with access_type=offline, and only
+  // re-issues one on re-consent — hence prompt=consent.
+  additionalAuthorizeParams = List(
+    new oauthTypes.AuthorizeParam { name = "access_type"; value = "offline" },
+    new oauthTypes.AuthorizeParam { name = "prompt"; value = "consent" }
+  )
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

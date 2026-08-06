@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "teams"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/teams-api-overview"
+category = "communication"
+tags = List("microsoft", "teams", "chat", "messaging", "graph", "oauth")
+description = "Microsoft Teams connector: browse teams and channels, read and send channel and chat messages via Microsoft Graph."
+readme      = read("README.md").text

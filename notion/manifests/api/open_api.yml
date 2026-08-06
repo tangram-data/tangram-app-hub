@@ -1,0 +1,609 @@
+openapi: 3.0.3
+info:
+  title: Notion
+  version: "1.0"
+  description: >
+    Subset of the Notion public API (version 2022-06-28) exposed through the
+    Tangram connector. All operations act on pages, databases, and users the
+    connected integration has been granted access to — a page must be shared
+    with the integration (or live under a shared page) to be visible.
+servers:
+  - url: https://api.notion.com
+
+paths:
+  /v1/search:
+    post:
+      operationId: search
+      summary: Search pages and databases shared with the integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: Text to match against page and database titles. Omit to list everything accessible.
+                filter:
+                  type: object
+                  description: Restrict results to only pages or only databases.
+                  properties:
+                    property:
+                      type: string
+                      enum: [object]
+                    value:
+                      type: string
+                      enum: [page, database]
+                sort:
+                  type: object
+                  properties:
+                    direction:
+                      type: string
+                      enum: [ascending, descending]
+                    timestamp:
+                      type: string
+                      enum: [last_edited_time]
+                start_cursor:
+                  type: string
+                  description: next_cursor from a previous response.
+                page_size:
+                  type: integer
+                  description: Results per page (default and max 100).
+      responses:
+        "200":
+          description: Matching pages and databases with pagination cursors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "401":
+          description: Unauthorized (token invalid or revoked).
+
+  /v1/pages/{page_id}:
+    get:
+      operationId: getPage
+      summary: Retrieve a page's properties (not its content blocks)
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Page id (UUID, with or without dashes) from search, a database query, or a Notion URL.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The page object; body content requires getBlockChildren on the same id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "404":
+          description: Page not found or not shared with the integration.
+    patch:
+      operationId: updatePage
+      summary: Update a page's properties, or archive/restore it
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                properties:
+                  type: object
+                  description: >
+                    Property values to change, keyed by property name. Same
+                    shape as on create; only the listed properties change.
+                archived:
+                  type: boolean
+                  description: true moves the page to trash; false restores it.
+                icon:
+                  $ref: "#/components/schemas/IconInput"
+      responses:
+        "200":
+          description: The updated page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "404":
+          description: Page not found.
+
+  /v1/pages:
+    post:
+      operationId: createPage
+      summary: Create a page under a parent page or as a database item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [properties]
+              properties:
+                parent:
+                  type: object
+                  description: 'One of {"page_id": "..."} or {"database_id": "..."}. Omit entirely to create a private workspace-level page (supported for OAuth connections).'
+                  properties:
+                    page_id:
+                      type: string
+                    database_id:
+                      type: string
+                properties:
+                  type: object
+                  description: >
+                    For a page parent, only the title is allowed:
+                    {"title": {"title": [{"type": "text", "text": {"content": "My page"}}]}}.
+                    For a database parent, keys are the database's property
+                    names and values match each property's type — read the
+                    schema with getDatabase first.
+                children:
+                  type: array
+                  description: Optional content blocks (max 100 per request; append more with appendBlockChildren).
+                  items:
+                    $ref: "#/components/schemas/BlockInput"
+                icon:
+                  $ref: "#/components/schemas/IconInput"
+      responses:
+        "200":
+          description: The created page (id, url).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "400":
+          description: Invalid parent or properties (e.g. mismatch with the database schema).
+
+  /v1/blocks/{block_id}/children:
+    get:
+      operationId: getBlockChildren
+      summary: List a block's child blocks (a page's content)
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          description: Block id, or a page id to read the page's top-level content.
+          schema:
+            type: string
+        - name: start_cursor
+          in: query
+          required: false
+          description: next_cursor from a previous response.
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          description: Blocks per page (max 100).
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: >
+            Child blocks in order. Blocks with has_children=true (toggles,
+            nested lists, tables) need a further getBlockChildren on their id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "404":
+          description: Block not found.
+    patch:
+      operationId: appendBlockChildren
+      summary: Append content blocks to a page or block
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          description: Page id (append to the page body) or block id.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [children]
+              properties:
+                children:
+                  type: array
+                  description: Blocks to append (max 100 per request).
+                  items:
+                    $ref: "#/components/schemas/BlockInput"
+                after:
+                  type: string
+                  description: Existing child block id to insert after (default appends at the end).
+      responses:
+        "200":
+          description: The appended blocks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "400":
+          description: Invalid block payload.
+
+  /v1/blocks/{block_id}:
+    patch:
+      operationId: updateBlock
+      summary: Update a block's content in place
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          description: Block id from getBlockChildren.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                Key matching the block's existing type (the type cannot be
+                changed), holding the fields to replace — e.g.
+                {"paragraph": {"rich_text": [...]}} or
+                {"to_do": {"checked": true}}. rich_text is replaced
+                wholesale, not merged. archived=true/false trashes/restores
+                the block.
+              properties:
+                archived:
+                  type: boolean
+      responses:
+        "200":
+          description: The updated block.
+        "400":
+          description: Invalid payload or key not matching the block's type.
+        "404":
+          description: Block not found.
+    delete:
+      operationId: deleteBlock
+      summary: Move a block (or a whole page) to trash
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          description: Block id from getBlockChildren, or a page id to trash the page.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The block, now archived (restorable from Notion's trash or via updatePage archived=false for pages).
+        "404":
+          description: Block not found.
+
+  /v1/databases/{database_id}:
+    get:
+      operationId: getDatabase
+      summary: Retrieve a database's schema (property names and types)
+      parameters:
+        - name: database_id
+          in: path
+          required: true
+          description: Database id from search or a Notion URL.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The database with its title and properties schema — read this before creating or filtering items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Database"
+        "404":
+          description: Database not found or not shared with the integration.
+
+  /v1/databases/{database_id}/query:
+    post:
+      operationId: queryDatabase
+      summary: Query a database's items with filters and sorts
+      parameters:
+        - name: database_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  description: >
+                    Notion filter object keyed by property name and type, e.g.
+                    {"property": "Status", "select": {"equals": "Done"}};
+                    combine with {"and": [...]} / {"or": [...]}. Omit to return
+                    all items.
+                sorts:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      property:
+                        type: string
+                      timestamp:
+                        type: string
+                        enum: [created_time, last_edited_time]
+                      direction:
+                        type: string
+                        enum: [ascending, descending]
+                start_cursor:
+                  type: string
+                page_size:
+                  type: integer
+                  description: Items per page (max 100).
+      responses:
+        "200":
+          description: Matching items (pages) with pagination cursors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "404":
+          description: Database not found.
+
+  /v1/databases:
+    post:
+      operationId: createDatabase
+      summary: Create a database under a parent page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parent, properties]
+              properties:
+                parent:
+                  type: object
+                  required: [page_id]
+                  properties:
+                    type:
+                      type: string
+                      enum: [page_id]
+                    page_id:
+                      type: string
+                title:
+                  type: array
+                  description: 'Optional database title as rich text, e.g. [{"type": "text", "text": {"content": "Tasks"}}].'
+                  items:
+                    $ref: "#/components/schemas/RichTextInput"
+                properties:
+                  type: object
+                  description: >
+                    Property schema keyed by property name, e.g.
+                    {"Name": {"title": {}}, "Status": {"select": {"options":
+                    [{"name": "Todo"}, {"name": "Done"}]}}, "Due": {"date": {}}}.
+                    Exactly one property must be the title type.
+      responses:
+        "200":
+          description: The created database (id, url).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Database"
+        "400":
+          description: Invalid schema (e.g. no title property).
+
+  /v1/users:
+    get:
+      operationId: listUsers
+      summary: List the workspace's users (for people mentions and property values)
+      parameters:
+        - name: start_cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          description: Users per page (max 100).
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Users (people and bots) with id, name, and type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "403":
+          description: The integration lacks the user-information capability.
+
+  /v1/comments:
+    get:
+      operationId: listComments
+      summary: List open comments on a page or block
+      parameters:
+        - name: block_id
+          in: query
+          required: true
+          description: Page id or block id whose comments to list.
+          schema:
+            type: string
+        - name: start_cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Comments with their discussion_id (reply target), author, and rich_text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedList"
+        "403":
+          description: The integration lacks the read-comments capability.
+    post:
+      operationId: createComment
+      summary: Comment on a page, or reply to an existing discussion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Exactly one of parent or discussion_id must be set — Notion rejects a comment with neither (or both) targets.
+              required: [rich_text]
+              properties:
+                parent:
+                  type: object
+                  description: 'New top-level comment: {"page_id": "..."}. Mutually exclusive with discussion_id.'
+                  properties:
+                    page_id:
+                      type: string
+                discussion_id:
+                  type: string
+                  description: Reply to an existing discussion (from listComments). Mutually exclusive with parent.
+                rich_text:
+                  type: array
+                  description: Comment body as rich text.
+                  items:
+                    $ref: "#/components/schemas/RichTextInput"
+      responses:
+        "200":
+          description: The created comment.
+        "403":
+          description: The integration lacks the insert-comments capability.
+
+components:
+  schemas:
+    RichTextInput:
+      type: object
+      description: 'One rich-text span: {"type": "text", "text": {"content": "...", "link": {"url": "https://..."}?}, "annotations": {...}?}. Max 2000 characters of content per span.'
+      properties:
+        type:
+          type: string
+          enum: [text]
+        text:
+          type: object
+          required: [content]
+          properties:
+            content:
+              type: string
+            link:
+              type: object
+              properties:
+                url:
+                  type: string
+        annotations:
+          type: object
+          properties:
+            bold:
+              type: boolean
+            italic:
+              type: boolean
+            strikethrough:
+              type: boolean
+            underline:
+              type: boolean
+            code:
+              type: boolean
+            color:
+              type: string
+    IconInput:
+      type: object
+      description: 'Page icon, e.g. {"type": "emoji", "emoji": "📝"}.'
+      properties:
+        type:
+          type: string
+          enum: [emoji]
+        emoji:
+          type: string
+    BlockInput:
+      type: object
+      description: >
+        One content block. Set "type" and a matching key, whose value holds
+        "rich_text" (an array of RichTextInput) plus type-specific fields.
+        Examples:
+        {"type": "paragraph", "paragraph": {"rich_text": [...]}};
+        {"type": "heading_2", "heading_2": {"rich_text": [...]}};
+        {"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [...]}};
+        {"type": "numbered_list_item", ...}; {"type": "to_do", "to_do":
+        {"rich_text": [...], "checked": false}}; {"type": "quote", ...};
+        {"type": "code", "code": {"rich_text": [...], "language": "python"}};
+        {"type": "divider", "divider": {}};
+        {"type": "bookmark", "bookmark": {"url": "https://..."}}.
+      properties:
+        type:
+          type: string
+    Page:
+      type: object
+      properties:
+        object:
+          type: string
+        id:
+          type: string
+        created_time:
+          type: string
+        last_edited_time:
+          type: string
+        archived:
+          type: boolean
+        url:
+          type: string
+          description: Link to the page in the Notion UI.
+        parent:
+          type: object
+          description: 'Direct parent: {"type": "page_id"|"database_id"|"block_id"|"workspace", ...}.'
+        properties:
+          type: object
+          description: >
+            Property values keyed by property name. The title lives under the
+            property whose value has type "title" (named "title" on plain
+            pages) as an array of rich-text spans with plain_text.
+    Database:
+      type: object
+      properties:
+        object:
+          type: string
+        id:
+          type: string
+        url:
+          type: string
+        title:
+          type: array
+          description: Rich-text spans; join plain_text for the display title.
+          items:
+            type: object
+        properties:
+          type: object
+          description: Schema keyed by property name; each value has a "type" (title, rich_text, select, multi_select, date, people, checkbox, number, status, ...).
+        archived:
+          type: boolean
+    PaginatedList:
+      type: object
+      properties:
+        object:
+          type: string
+          description: Always "list".
+        results:
+          type: array
+          description: Page, database, block, user, or comment objects depending on the operation.
+          items:
+            type: object
+        next_cursor:
+          type: string
+          nullable: true
+          description: Pass as start_cursor to fetch the next page; null when has_more is false.
+        has_more:
+          type: boolean

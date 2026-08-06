@@ -1,0 +1,17 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+snowflakeImport = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = manifest.TANGRAM_OS_CORE_APP
+    name    = "app-resource-import"
+    version = "v1"
+  }
+  implementationType = "com.snowflake/snowflake"
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.snowflake.SnowflakeResourceImport"
+    lib       = new Dynamic { name = "snowflake-import"; version = "1.0.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(snowflakeImport)

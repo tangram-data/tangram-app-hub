@@ -1,0 +1,11 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+// Tangram derives the public route and installation namespace. The component's
+// AppComponentServiceSpec produces this concrete Service name and Service port.
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "catalog-service"
+  port = 9494
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open_api.yml"

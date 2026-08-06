@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+appType    = "App"   // Tangram deploys and manages Airflow via Helm
+group      = "org.apache"
+name       = "airflow"
+version    = "0.1.0"
+license    = "Apache-2.0"
+category   = "Workflow Platform"
+description = "Apache Airflow — programmatically author, schedule, and monitor workflows."
+readme     = read("README.md").text
+tags       = List("airflow", "workflow", "dag", "orchestration")

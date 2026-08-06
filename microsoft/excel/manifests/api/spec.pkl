@@ -1,0 +1,42 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Excel connector API spec. All Microsoft 365 APIs are served from the
+// single Microsoft Graph host; the workbook API lives under
+// /v1.0/me/drive/items/{itemId}/workbook/*.
+endpoint = "https://graph.microsoft.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("graph.microsoft.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map (
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+  tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+  // Files.ReadWrite covers the whole workbook API — range updates and table
+  // row adds write to the file, so read-only file access is not enough.
+  // offline_access is what makes Azure AD issue a refresh token (Microsoft's
+  // analog of Google's access_type=offline).
+  scopes = List(
+    "https://graph.microsoft.com/Files.ReadWrite",
+    "offline_access"
+  )
+  clientIdSecret = "microsoftClientId"
+  clientSecretSecret = "microsoftClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.microsoft/excel"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

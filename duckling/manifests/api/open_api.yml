@@ -1,0 +1,1013 @@
+openapi: 3.1.0
+info:
+  title: Duckling Service
+  version: 1.0.0
+paths:
+  /api/v1/ducklings:
+    get:
+      tags:
+        - DucklingService
+      summary: List all duckling instances with pagination
+      operationId: listDucklingInstances
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DucklingInstance'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    post:
+      tags:
+        - DucklingService
+      summary: Create a DuckDB deployment
+      operationId: createDucklingInstance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDucklingConfig'
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/ducklings/{instance}:
+    get:
+      tags:
+        - DucklingService
+      summary: Get Duckling Instance by name.
+      operationId: getDucklingInstance
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DucklingInstance'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    put:
+      tags:
+        - DucklingService
+      summary: Update a duckling instance config
+      operationId: updateDucklingInstance
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDucklingConfig'
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    delete:
+      tags:
+        - DucklingService
+      summary: Remove a Duckling instance
+      operationId: removeDucklingInstance
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/ducklings/{instance}/status:
+    get:
+      tags:
+        - DucklingService
+      summary: Get Duckling Instance Status by name.
+      operationId: getInstanceStatus
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceStatus'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/ducklings/{instance}/stop:
+    post:
+      tags:
+        - DucklingService
+      summary: Stop a duckling instance
+      operationId: stopDucklingInstance
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/ducklings/{instance}/start:
+    post:
+      tags:
+        - DucklingService
+      summary: Start a duckling instance
+      operationId: startDucklingInstance
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/duck-lakes:
+    get:
+      tags:
+        - DuckLakeService
+      summary: List Duck Lake
+      operationId: listDuckLake
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DuckLake'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    post:
+      tags:
+        - DuckLakeService
+      summary: Create a Duck Lake
+      operationId: createDuckLake
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDuckLake'
+        required: true
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/duck-lakes/{name}:
+    get:
+      tags:
+        - DuckLakeService
+      summary: Get Duck Lake by name
+      operationId: getDuckLake
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuckLake'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+    delete:
+      tags:
+        - DuckLakeService
+      summary: Delete Duck Lake
+      operationId: deleteDuckLake
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/duck-lakes/{name}/connection-info:
+    get:
+      tags:
+        - DuckLakeService
+      summary: 'Get Duck Lake storage folder and catalog Postgresql DB connection
+        info: including Postgresql catalog DB host and catalog DB port, database name,
+        user and password.'
+      operationId: getDuckLakeConnectionInfo
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuckLakeConnectionInfo'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/duck-lakes/{duckLake}/schemas/{schemaName}/tables/{tableName}:
+    get:
+      tags:
+        - DuckLakeService
+      summary: 'Get Duck Lake table details: columns, table size stats.'
+      operationId: getDuckLakeTable
+      parameters:
+        - name: duckLake
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: schemaName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tableName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuckLakeTableInfo'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+  /api/v1/duck-lakes/{duckLake}/schemas/{schemaName}/views/{viewName}:
+    get:
+      tags:
+        - DuckLakeService
+      summary: 'Get Duck Lake view details: view definition sql and columns.'
+      operationId: getDuckLakeView
+      parameters:
+        - name: duckLake
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: schemaName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: viewName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuckLakeViewInfo'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessError'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalError'
+components:
+  schemas:
+    Action:
+      type: string
+      enum:
+        - Create
+        - Stop
+        - Restart
+        - Remove
+    AuthenticationError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    BusinessError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
+    CreateDuckLake:
+      required:
+        - name
+      type: object
+      properties:
+        name:
+          type: string
+        storageBucket:
+          type: string
+    CreateDucklingConfig:
+      required:
+        - instanceName
+        - memory
+        - cpu
+        - description
+      type: object
+      properties:
+        instanceName:
+          type: string
+        memory:
+          type: integer
+          format: int32
+        cpu:
+          type: integer
+          format: int32
+        idleTimeoutMinutes:
+          type: integer
+          format: int32
+        description:
+          type: string
+    DuckLake:
+      required:
+        - name
+        - storageFolder
+      type: object
+      properties:
+        name:
+          type: string
+        storageFolder:
+          type: string
+    DuckLakeCatalogDB:
+      required:
+        - host
+        - port
+        - name
+        - user
+        - password
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          format: int32
+        name:
+          type: string
+        user:
+          type: string
+        password:
+          type: string
+    DuckLakeConnectionInfo:
+      required:
+        - storageFolder
+        - catalogDB
+      type: object
+      properties:
+        storageFolder:
+          type: string
+        catalogDB:
+          $ref: '#/components/schemas/DuckLakeCatalogDB'
+    DuckLakeTableColumn:
+      required:
+        - name
+        - columnType
+        - nullable
+      type: object
+      properties:
+        name:
+          type: string
+        columnType:
+          type: string
+        nullable:
+          type: boolean
+        default:
+          type: string
+    DuckLakeTableInfo:
+      required:
+        - name
+        - schema
+        - stats
+      type: object
+      properties:
+        name:
+          type: string
+        schema:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DuckLakeTableColumn'
+        stats:
+          $ref: '#/components/schemas/DuckLakeTableStats'
+    DuckLakeTableStats:
+      required:
+        - recordCount
+        - fileSizeBytes
+      type: object
+      properties:
+        recordCount:
+          type: integer
+          format: int64
+        fileSizeBytes:
+          type: integer
+          format: int64
+    DuckLakeViewDefinition:
+      required:
+        - dialect
+        - sql
+      type: object
+      properties:
+        dialect:
+          type: string
+        sql:
+          type: string
+    DuckLakeViewInfo:
+      required:
+        - name
+        - schema
+        - definition
+      type: object
+      properties:
+        name:
+          type: string
+        schema:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DuckLakeTableColumn'
+        definition:
+          $ref: '#/components/schemas/DuckLakeViewDefinition'
+    DucklingInstance:
+      required:
+        - name
+        - cpu
+        - memory
+        - description
+        - status
+        - lastAction
+      type: object
+      properties:
+        name:
+          type: string
+        cpu:
+          type: integer
+          format: int32
+        memory:
+          type: integer
+          format: int32
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/InstanceStatus'
+        lastAction:
+          $ref: '#/components/schemas/Action'
+        idleTimeoutMinutes:
+          type: [integer, "null"]
+          format: int32
+    Failed:
+      required:
+        - errorMsg
+      type: object
+      properties:
+        errorMsg:
+          type: string
+    InstanceStatus:
+      oneOf:
+        - $ref: '#/components/schemas/Failed'
+        - $ref: '#/components/schemas/Running'
+        - $ref: '#/components/schemas/Starting'
+        - $ref: '#/components/schemas/Stopped'
+        - $ref: '#/components/schemas/Stopping'
+        - $ref: '#/components/schemas/Unknown'
+    NotFoundError:
+      required:
+        - resourceType
+        - id
+        - errorType
+      type: object
+      properties:
+        resourceType:
+          type: string
+        id:
+          type: string
+        errorType:
+          type: string
+    Running:
+      type: object
+    Starting:
+      type: object
+    Stopped:
+      type: object
+    Stopping:
+      type: object
+    TechnicalError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorStack:
+          type: string
+        errorType:
+          type: string
+    UnauthorizedError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    Unknown:
+      type: object
+    UpdateDucklingConfig:
+      type: object
+      properties:
+        memory:
+          type: integer
+          format: int32
+        cpu:
+          type: integer
+          format: int32
+        idleTimeoutMinutes:
+          type: integer
+          format: int32
+        description:
+          type: string

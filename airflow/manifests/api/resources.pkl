@@ -1,0 +1,644 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local DAGType      = new resources.ResourceType { app = appRef; name = "DAG" }
+local DagRunType   = new resources.ResourceType { app = appRef; name = "DagRun" }
+local TaskInstType = new resources.ResourceType { app = appRef; name = "TaskInstance" }
+
+local Describe = "Describe"
+local Read     = "Read"
+local Write    = "Write"
+local Create   = "Create"
+local Delete   = "Delete"
+local Admin    = "Admin"
+local Execute  = "Execute"
+
+local Stateless    = "Stateless"
+local Reversible   = "Reversible"
+local Irreversible = "Irreversible"
+
+// ---------------------------------------------------------------------------
+// Asset  (workspace-scoped, read-only)
+// ---------------------------------------------------------------------------
+
+Asset = new resources.ResourceTypeDefinition {
+  name = "Asset"
+  doc  = "An Airflow data asset. Represents a dataset URI that DAGs produce or consume."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all registered assets."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_assets" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific asset."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_asset" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// DAG  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+DAG = new resources.ResourceTypeDefinition {
+  name = "DAG"
+  doc  = "An Airflow DAG (Directed Acyclic Graph). A workflow definition loaded from a Python file."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        skipAudit  = true   // high-frequency UI polling; not meaningful to audit
+        doc = "Lists all DAGs in the environment."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dags" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns DAG metadata (schedule, tags, is_paused)."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag" }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates DAG attributes — primarily used to pause or unpause a DAG."
+        openApiMapping = new resources.OpenApiMapping { operationId = "patch_dag" }
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Removes the DAG and all its run history from Airflow's metadata database. The DAG file itself is not deleted."
+        openApiMapping = new resources.OpenApiMapping { operationId = "delete_dag" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// DagRun  (DAG-scoped)
+// ---------------------------------------------------------------------------
+
+DagRun = new resources.ResourceTypeDefinition {
+  name = "DagRun"
+  doc  = "A single execution instance of a DAG."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        skipAudit  = true
+        doc = "Lists DAG runs for a specific DAG."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_runs" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific DAG run."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_run" }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Triggers a new manual DAG run."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "trigger_dag_run"
+          resourceNameTemplate = "[{{parameters.dag_id}}, {{evaluateLater('ifEmpty(requestBody.dag_run_id, responseBody.dag_run_id, requestBody.dag_run_id)')}}]"
+        }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates a DAG run (e.g. mark as success or failed)."
+        openApiMapping = new resources.OpenApiMapping { operationId = "patch_dag_run" }
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Deletes a DAG run and all its task instance records."
+        openApiMapping = new resources.OpenApiMapping { operationId = "delete_dag_run" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Backfill  (DAG-scoped)
+// ---------------------------------------------------------------------------
+
+Backfill = new resources.ResourceTypeDefinition {
+  name = "Backfill"
+  doc  = "An Airflow backfill. Triggers runs for historical intervals of a DAG."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists backfills for a DAG."
+        openApiMapping = new resources.OpenApiMapping { operationId = "list_backfills" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific backfill."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_backfill" }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new backfill for the specified date range."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "create_backfill"
+          resourceName = List(new resources.BodyField { path = "dag_id" })
+        }
+      },
+      new resources.Action {
+        name       = "Pause"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Pauses a running backfill."
+        openApiMapping = new resources.OpenApiMapping { operationId = "pause_backfill" }
+      },
+      new resources.Action {
+        name       = "Unpause"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = true
+        doc = "Resumes a paused backfill."
+        openApiMapping = new resources.OpenApiMapping { operationId = "unpause_backfill" }
+      },
+      new resources.Action {
+        name       = "Cancel"
+        privilege  = Admin
+        effect     = Irreversible
+        idempotent = true
+        doc = "Cancels a backfill. Completed task instances are not re-run."
+        openApiMapping = new resources.OpenApiMapping { operationId = "cancel_backfill" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Connection  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Connection = new resources.ResourceTypeDefinition {
+  name = "Connection"
+  doc  = "An Airflow connection. Stores credentials and endpoint info for external systems."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all connections."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_connections" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns a connection's details. Passwords are masked."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_connection" }
+      },
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new connection."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "post_connection"
+          resourceName = List(new resources.BodyField { path = "connection_id" })
+        }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Write
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates a connection's configuration."
+        openApiMapping = new resources.OpenApiMapping { operationId = "patch_connection" }
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Deletes a connection. Any DAGs referencing it will fail."
+        openApiMapping = new resources.OpenApiMapping { operationId = "delete_connection" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Task  (DAG-scoped, read-only)
+// ---------------------------------------------------------------------------
+
+Task = new resources.ResourceTypeDefinition {
+  name = "Task"
+  doc  = "An Airflow task. A node in a DAG definition (read-only, defined in the DAG file)."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all tasks in a DAG."
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific task definition."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// TaskInstance  (DagRun-scoped)
+// ---------------------------------------------------------------------------
+
+TaskInstance = new resources.ResourceTypeDefinition {
+  name = "TaskInstance"
+  doc  = "A single execution of a task within a DAG run."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DagRunType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists task instances for a DAG run."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_task_instances" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific task instance."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_task_instance" }
+      },
+      new resources.Action {
+        name       = "Update"
+        privilege  = Admin
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates a task instance state (e.g. mark as success, failed, or clear for retry)."
+        openApiMapping = new resources.OpenApiMapping { operationId = "patch_task_instance" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// ExtraLinks  (TaskInstance-scoped, read-only)
+// ---------------------------------------------------------------------------
+
+ExtraLinks = new resources.ResourceTypeDefinition {
+  name = "ExtraLinks"
+  doc  = "Extra links attached to a task instance — custom URLs to external dashboards or logs."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = TaskInstType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns extra links for a task instance."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_extra_links" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// XCom  (TaskInstance-scoped, read-only)
+// ---------------------------------------------------------------------------
+
+XCom = new resources.ResourceTypeDefinition {
+  name = "XCom"
+  doc  = "An Airflow XCom record. Cross-task communication value pushed by a task instance."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = TaskInstType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists XCom records for a task instance."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_xcom_entries" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns a specific XCom value."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_xcom_entry" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Config, DagReport, DagSource, DagStats, DagVersion, DagWarning, EventLog,
+// ImportError, Job  — read-only informational resources
+// ---------------------------------------------------------------------------
+
+Config = new resources.ResourceTypeDefinition {
+  name = "Config"
+  doc  = "Airflow runtime configuration (read-only, non-sensitive values only)."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the Airflow configuration (non-sensitive sections only)."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_config" }
+      }
+    )
+  })
+}
+
+DagReport = new resources.ResourceTypeDefinition {
+  name = "DagReport"
+  doc  = "A report of DAG parsing results for a given file."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns DAG parsing report details."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_details" }
+      }
+    )
+  })
+}
+
+DagSource = new resources.ResourceTypeDefinition {
+  name = "DagSource"
+  doc  = "The Python source file of a DAG."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Get"
+        privilege  = Read
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the Python source content of the DAG file."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_source" }
+      }
+    )
+  })
+}
+
+DagStats = new resources.ResourceTypeDefinition {
+  name = "DagStats"
+  doc  = "Aggregated run statistics for a DAG."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns run count statistics (success, failed, running) for a DAG."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_stats" }
+      }
+    )
+  })
+}
+
+DagVersion = new resources.ResourceTypeDefinition {
+  name = "DagVersion"
+  doc  = "A versioned snapshot of a DAG definition."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all historical versions of a DAG definition."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_versions" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns a specific DAG definition version."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_dag_version" }
+      }
+    )
+  })
+}
+
+DagWarning = new resources.ResourceTypeDefinition {
+  name = "DagWarning"
+  doc  = "A warning generated during DAG parsing or validation."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = DAGType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists DAG parsing warnings."
+        openApiMapping = new resources.OpenApiMapping { operationId = "list_dag_warnings" }
+      }
+    )
+  })
+}
+
+EventLog = new resources.ResourceTypeDefinition {
+  name = "EventLog"
+  doc  = "An Airflow audit log entry recording a user or system action."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists audit log entries."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_event_logs" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns a specific audit log entry."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_event_log" }
+      }
+    )
+  })
+}
+
+ImportError = new resources.ResourceTypeDefinition {
+  name = "ImportError"
+  doc  = "A DAG import error recorded when Airflow fails to parse a DAG file."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists all DAG import errors."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_import_errors" }
+      },
+      new resources.Action {
+        name       = "Get"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details for a specific import error."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_import_error" }
+      }
+    )
+  })
+}
+
+Job = new resources.ResourceTypeDefinition {
+  name = "Job"
+  doc  = "An Airflow job — a running scheduler, triggerer, or worker process."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = Describe
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists running Airflow jobs (scheduler, triggerer, worker heartbeats)."
+        openApiMapping = new resources.OpenApiMapping { operationId = "get_jobs" }
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  Asset, DAG, DagRun, Backfill, Connection,
+  Task, TaskInstance, ExtraLinks, XCom,
+  Config, DagReport, DagSource, DagStats, DagVersion, DagWarning,
+  EventLog, ImportError, Job
+)

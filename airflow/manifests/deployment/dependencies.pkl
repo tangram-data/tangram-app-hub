@@ -1,0 +1,10 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// Exact shared claim classes; there is no App- or Helm-specific wrapper.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}
+
+loggingBucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "loggingBucket"
+}

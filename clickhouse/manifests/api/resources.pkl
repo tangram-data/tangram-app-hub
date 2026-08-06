@@ -1,0 +1,319 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local DatabaseType = new resources.ResourceType { app = appRef; name = "Database" }
+
+local Stateless    = resources.Effect.Stateless
+local Reversible   = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+// ---------------------------------------------------------------------------
+// Engine  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Engine = new resources.ResourceTypeDefinition {
+  name = "Engine"
+  doc  = "A ClickHouse SQL engine instance. Provides compute for SQL queries and DML."
+  activeVersion = "v1"
+  superType     = resources.SQL_ENGINE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Use"
+        effect     = Stateless
+        idempotent = true
+        doc = "Sets the active ClickHouse engine for the current session."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Database  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Database = new resources.ResourceTypeDefinition {
+  name = "Database"
+  doc  = "A ClickHouse database. Namespace containing tables and views."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new ClickHouse database."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single database by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists databases on the engine."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns details about the database."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the database and all its objects. Cannot be undone."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "A ClickHouse table."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new table with the given DDL."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single table by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists tables in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads rows from the table."
+      },
+      new resources.Action {
+        name       = "Insert"
+        effect     = Reversible
+        idempotent = false
+        doc = "Appends rows to the table."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters table schema or properties (add/drop column, modify settings)."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the table."
+      },
+      new resources.Action {
+        name       = "Update"
+        effect     = Reversible
+        idempotent = false
+        doc = "Updates rows matching a predicate (ALTER TABLE ... UPDATE)."
+      },
+      new resources.Action {
+        name       = "Delete"
+        effect     = Reversible
+        idempotent = true
+        doc = "Deletes rows matching a predicate (ALTER TABLE ... DELETE)."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and table metadata."
+      },
+      new resources.Action {
+        name       = "Read"
+        effect     = Stateless
+        idempotent = true
+        doc = "Authorization marker for read access to the table."
+      },
+      new resources.Action {
+        name       = "Write"
+        effect     = Reversible
+        idempotent = false
+        doc = "Authorization marker for write access to the table."
+      },
+      new resources.Action {
+        name       = "GenerateTempCredential"
+        effect     = Stateless
+        idempotent = false
+        doc = "Generates a temporary credential for direct access to the table."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// View  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc  = "A ClickHouse view. Named SQL query stored in the database."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single view by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists views in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Executes the view's SQL definition and returns results."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the view. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters the view SQL definition or properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the view."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns the view column list and SQL definition."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// MaterializedView  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+MaterializedView = new resources.ResourceTypeDefinition {
+  name = "MaterializedView"
+  doc  = "A ClickHouse materialized view. Pre-computed query result maintained on insert."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = Reversible
+        idempotent = false
+        doc = "Creates a new materialized view with a SQL definition."
+      },
+      new resources.Action {
+        name       = "Get"
+        effect     = Stateless
+        idempotent = true
+        doc = "Gets a single materialized view by name."
+      },
+      new resources.Action {
+        name       = "List"
+        effect     = Stateless
+        idempotent = true
+        doc = "Lists materialized views in the parent database."
+      },
+      new resources.Action {
+        name       = "Select"
+        effect     = Stateless
+        idempotent = true
+        doc = "Reads the pre-computed result set."
+      },
+      new resources.Action {
+        name                 = "Drop"
+        effect               = Irreversible
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the materialized view. Cannot be undone."
+      },
+      new resources.Action {
+        name       = "Alter"
+        effect     = Reversible
+        idempotent = false
+        doc = "Alters materialized view properties."
+      },
+      new resources.Action {
+        name       = "Rename"
+        effect     = Reversible
+        idempotent = false
+        doc = "Renames the materialized view."
+      },
+      new resources.Action {
+        name       = "Describe"
+        effect     = Stateless
+        idempotent = true
+        doc = "Returns column definitions and the SQL definition."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  Engine, Database, Table, View, MaterializedView
+)

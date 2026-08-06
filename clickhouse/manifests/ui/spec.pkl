@@ -1,0 +1,26 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+// names[] layout for resource URI templates:
+//   names[0] = workspace name (implicit scope, always present)
+//   names[1] = database name
+//   names[2] = table / view name
+
+logo = "static/logo.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+resourceTypeIcons {
+  ["Engine"]           = "static/logo.png"
+  ["Database"]         = "static/logo.png"
+  ["Table"]            = "static/logo.png"
+  ["View"]             = "static/logo.png"
+  ["MaterializedView"] = "static/logo.png"
+}
+
+resourceTypeUri {
+  ["Database"]         = "/databases/{{names[1]}}"
+  ["Table"]            = "/databases/{{names[1]}}/tables/{{names[2]}}"
+  ["View"]             = "/databases/{{names[1]}}/views/{{names[2]}}"
+  ["MaterializedView"] = "/databases/{{names[1]}}/mviews/{{names[2]}}"
+}

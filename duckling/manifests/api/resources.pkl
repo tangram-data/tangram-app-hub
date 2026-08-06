@@ -1,0 +1,389 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as duckling_app
+
+local Stateless = resources.Effect.Stateless
+local Reversible = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+Instance = new resources.ResourceTypeDefinition {
+  name = "Instance"
+  doc = "Duckling Instance"
+  activeVersion = "v2"
+  superType = resources.SQL_ENGINE_TYPE
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v2"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List Duckling instances."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listDucklingInstances"
+        }
+      },
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createDucklingInstance"
+          resourceName = List(new resources.BodyField { path = "instanceName" })
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getDucklingInstance"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      },
+      new resources.Action {
+        name = "Update"
+        effect = Reversible
+        idempotent = false
+        doc = "Update a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "updateDucklingInstance"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      },
+      new resources.Action {
+        name = "Start"
+        effect = Reversible
+        idempotent = false
+        doc = "Start a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "startDucklingInstance"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      },
+      new resources.Action {
+        name = "Stop"
+        effect = Reversible
+        idempotent = true
+        doc = "Stop a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "stopDucklingInstance"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        doc = "Delete a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "removeDucklingInstance"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      },
+      new resources.Action {
+        name = "GetStatus"
+        effect = Stateless
+        idempotent = true
+        skipAudit = true
+        doc = "Get the status of a Duckling instance."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getInstanceStatus"
+          resourceName = List(new resources.PathParam { name = "instance" })
+        }
+      }
+    )
+  })
+}
+
+DuckLake = new resources.ResourceTypeDefinition {
+  name = "DuckLake"
+  doc = "Duck Lake"
+  activeVersion = "v1"
+  superType = resources.CATALOG_TYPE
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List Duck Lakes."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listDuckLake"
+        }
+      },
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a Duck Lake."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createDuckLake"
+          resourceName = List(new resources.BodyField { path = "name" })
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a Duck Lake."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getDuckLake"
+          resourceName = List(new resources.PathParam { name = "name" })
+        }
+      },
+      new resources.Action {
+        name = "GetConnectionInfo"
+        effect = Stateless
+        idempotent = true
+        doc = "Get connection info for a Duck Lake."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getDuckLakeConnectionInfo"
+          resourceName = List(new resources.PathParam { name = "name" })
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        doc = "Delete a Duck Lake."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteDuckLake"
+          resourceName = List(new resources.PathParam { name = "name" })
+        }
+      },
+      new resources.Action {
+        name = "ExpireSnapshot"
+        effect = Irreversible
+        idempotent = false
+        doc = "Expire snapshots."
+      },
+      new resources.Action {
+        name = "MergeAdjacentFiles"
+        effect = Reversible
+        idempotent = false
+        doc = "Merge adjacent files."
+      },
+      new resources.Action {
+        name = "CleanupOldFiles"
+        effect = Irreversible
+        idempotent = false
+        doc = "Cleanup old files."
+      }
+    )
+  })
+}
+
+DuckLakeType = new resources.ResourceType {
+  app = new manifest.AppName {
+    group = duckling_app.group
+    name = duckling_app.name
+  }
+  name = DuckLake.name
+}
+
+Schema = new resources.ResourceTypeDefinition {
+  name = "Schema"
+  doc = "Duck Lake Schema"
+  activeVersion = "v1"
+  superType = resources.DATABASE_TYPE
+  scopeType = DuckLakeType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List schemas."
+      },
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a schema."
+      },
+      new resources.Action {
+        name = "Drop"
+        effect = Irreversible
+        idempotent = true
+        doc = "Drop a schema."
+      }
+    )
+  })
+}
+
+SchemaType = new resources.ResourceType {
+  app = new manifest.AppName {
+    group = duckling_app.group
+    name = duckling_app.name
+  }
+  name = Schema.name
+}
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc = "Duck Lake Table"
+  activeVersion = "v1"
+  superType = resources.DATASET_TYPE
+  scopeType = SchemaType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List tables."
+      },
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a table."
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a table."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getDuckLakeTable"
+          resourceName = List(
+            new resources.PathParam { name = "duckLake" },
+            new resources.PathParam { name = "schemaName" },
+            new resources.PathParam { name = "tableName" }
+          )
+        }
+      },
+      new resources.Action {
+        name = "Alter"
+        effect = Reversible
+        idempotent = false
+        doc = "Alter a table."
+      },
+      new resources.Action {
+        name = "Select"
+        effect = Stateless
+        idempotent = true
+        doc = "Select from a table."
+      },
+      new resources.Action {
+        name = "Insert"
+        effect = Reversible
+        idempotent = false
+        doc = "Insert into a table."
+      },
+      new resources.Action {
+        name = "Update"
+        effect = Reversible
+        idempotent = false
+        doc = "Update a table."
+      },
+      new resources.Action {
+        name = "Merge"
+        effect = Reversible
+        idempotent = false
+        doc = "Merge into a table."
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Reversible
+        idempotent = false
+        doc = "Delete from a table."
+      },
+      new resources.Action {
+        name = "Drop"
+        effect = Irreversible
+        idempotent = true
+        doc = "Drop a table."
+      },
+      new resources.Action {
+        name = "Rename"
+        effect = Reversible
+        idempotent = false
+        doc = "Rename a table."
+      }
+    )
+  })
+}
+
+View = new resources.ResourceTypeDefinition {
+  name = "View"
+  doc = "Duck Lake View"
+  activeVersion = "v1"
+  superType = resources.DATASET_TYPE
+  scopeType = SchemaType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List views."
+      },
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a view."
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a view."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getDuckLakeView"
+          resourceName = List(
+            new resources.PathParam { name = "duckLake" },
+            new resources.PathParam { name = "schemaName" },
+            new resources.PathParam { name = "viewName" }
+          )
+        }
+      },
+      new resources.Action {
+        name = "Alter"
+        effect = Reversible
+        idempotent = false
+        doc = "Alter a view."
+      },
+      new resources.Action {
+        name = "Select"
+        effect = Stateless
+        idempotent = true
+        doc = "Select from a view."
+      },
+      new resources.Action {
+        name = "Drop"
+        effect = Irreversible
+        idempotent = true
+        doc = "Drop a view."
+      },
+      new resources.Action {
+        name = "Rename"
+        effect = Reversible
+        idempotent = false
+        doc = "Rename a view."
+      }
+    )
+  })
+}
+
+types = List(Instance, DuckLake, Schema, Table, View)

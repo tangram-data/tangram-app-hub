@@ -1,0 +1,63 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Spreadsheet"
+    activeVersion = "v1"
+    doc = "A Google Sheets spreadsheet accessible to the connected account."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a new spreadsheet with a title; returns its spreadsheetId and URL."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createSpreadsheet" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch spreadsheet metadata: sheet names, ids, and dimensions."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getSpreadsheet" }
+        },
+        new resources.Action {
+          name = "ReadValues"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read cell values from a range in A1 notation (e.g. Sheet1!A1:D10)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getValues" }
+        },
+        new resources.Action {
+          name = "UpdateValues"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Overwrite cell values in a range. Existing values in the range are replaced."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateValues" }
+        },
+        new resources.Action {
+          name = "AppendValues"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Append rows after the last row of the table that contains the given range."
+          openApiMapping = new resources.OpenApiMapping { operationId = "appendValues" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Write")
+        description = "Create spreadsheets and read/write cell values through the Sheets connector."
+      })
+    })
+  }
+)

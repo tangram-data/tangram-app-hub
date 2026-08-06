@@ -1,0 +1,101 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Worksheet"
+    activeVersion = "v1"
+    doc = "A worksheet (tab) inside a workbook in OneDrive or a SharePoint library. driveId + itemId come from the onedrive connector (parentReference.driveId) or sharepoint_list_drive."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a workbook's worksheets with their ids, names, positions, and visibility."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listWorksheets" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List worksheets through the Excel connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Range"
+    activeVersion = "v1"
+    doc = "A rectangular cell range in a worksheet, addressed in A1 notation."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read a range's values, formulas, and text by A1 address (e.g. A1:D20)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getRange" }
+        },
+        new resources.Action {
+          name = "GetUsed"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read the worksheet's used range — the smallest rectangle containing all non-empty cells — to read a sheet without knowing its size."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getUsedRange" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Overwrite a range's cell values with a row-major values array whose dimensions match the address; strings starting with = are treated as formulas."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateRange" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Update")
+        description = "Read and update workbook ranges through the Excel connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Table"
+    activeVersion = "v1"
+    doc = "An Excel table (ListObject) inside a workbook."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a workbook's tables with their ids, names, and styles."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listTables" }
+        },
+        new resources.Action {
+          name = "AddRows"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Append rows at the end of a table; the table grows to fit and existing rows are never overwritten."
+          openApiMapping = new resources.OpenApiMapping { operationId = "addTableRows" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "List tables and append rows through the Excel connector."
+      })
+    })
+  }
+)

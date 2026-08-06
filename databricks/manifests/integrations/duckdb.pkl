@@ -1,0 +1,16 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = integration.TANGRAM_SQL_APP
+    name    = "queryable/duckdb"
+    version = "v1"
+  }
+  implementationType = "com.databricks/databricks/Table/v1"
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.databricks.sql.duckdb.DatabricksTableDuckDbQuerySupport"
+    lib       = new Dynamic { name = "databricks-duckdb"; version = "1.0.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable)

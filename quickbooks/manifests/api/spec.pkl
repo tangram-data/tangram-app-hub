@@ -1,0 +1,55 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// QuickBooks Online Accounting API. Every upstream path is scoped to the
+// connected company file via `/v3/company/{realmId}/...`; the realmId is the
+// OAuth tenant captured at connect time, substituted per-operation through
+// `x-tangram-upstream.path` in open_api.yml — client-facing paths stay
+// tenant-free.
+//
+// Production host by default; installs may override to the Intuit sandbox
+// (sandbox-quickbooks.api.intuit.com) for development companies.
+endpoint = "https://quickbooks.api.intuit.com"
+endpointOverridable = true
+endpointRequired = false
+endpointHostAllowlist = List("quickbooks.api.intuit.com", "sandbox-quickbooks.api.intuit.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    // QBO answers in XML unless JSON is requested explicitly.
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://appcenter.intuit.com/connect/oauth2"
+  tokenUrl = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+  revocationUrl = "https://developer.api.intuit.com/v2/oauth2/tokens/revoke"
+  scopes = List("com.intuit.quickbooks.accounting")
+  clientIdSecret = "quickbooksClientId"
+  clientSecretSecret = "quickbooksClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.intuit/quickbooks"
+  // Intuit requires client_id:client_secret as an HTTP Basic header on the
+  // token endpoint.
+  tokenAuthMethod = "ClientSecretBasic"
+  // The company file (realm) id arrives as ?realmId=... on the OAuth callback
+  // and feeds every `{{oauth.tenantId}}` upstream path.
+  tenant = new oauthTypes.CallbackParam { name = "realmId" }
+  // Intuit's authorization-code flow for confidential clients does not
+  // support PKCE.
+  pkce = false
+  // Access tokens live 1h, refresh tokens ~100 days and rotate on use.
+  refreshWindowSeconds = 600
+  // Bookkeeping is a workspace concern: one shared connection to the
+  // corporate company file by default; PerUser stays available for
+  // accountants who each connect their own Intuit login.
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "WorkspaceShared"
+    allowedAtInstall = List("WorkspaceShared", "PerUser")
+  }
+}

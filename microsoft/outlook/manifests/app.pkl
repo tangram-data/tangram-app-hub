@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "outlook"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/mail-api-overview"
+category = "communication"
+tags = List("microsoft", "outlook", "email", "calendar", "events", "scheduling", "graph", "oauth")
+description = "Outlook connector: search, read, draft, and send email; list calendars, manage events, and check availability via Microsoft Graph."
+readme      = read("README.md").text

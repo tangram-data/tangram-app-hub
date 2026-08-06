@@ -1,0 +1,571 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as tangram
+import "../app.pkl" as app
+
+local appRef           = new manifest.AppName { group = app.group; name = app.name }
+local ExperimentType   = new tangram.ResourceType { app = appRef; name = "Experiment" }
+
+// ---------------------------------------------------------------------------
+// Experiment (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Experiment = new tangram.ResourceTypeDefinition {
+  name = "Experiment"
+  doc  = "An MLflow experiment — a group of related Runs."
+  activeVersion = "v1"
+  scopeType     = tangram.WORKSPACE_TYPE
+  versions = List(new tangram.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new tangram.Action {
+        name       = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a new experiment. Server assigns experiment_id."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "createExperiment"
+          resourceName = List(new tangram.BodyField { path = "name" })
+          resourceId   = new tangram.ResponseField { path = "experiment_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists experiments in the workspace."
+        openApiMapping = new tangram.OpenApiMapping { operationId = "searchExperiments" }
+      },
+      new tangram.Action {
+        name       = "Get"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns an experiment by ID or by name."
+        openApiMappings = List(
+          new tangram.OpenApiMapping {
+            operationId = "getExperiment"
+            resourceId  = new tangram.QueryParam { name = "experiment_id" }
+          },
+          new tangram.OpenApiMapping {
+            operationId  = "getExperimentByName"
+            resourceName = List(new tangram.QueryParam { name = "experiment_name" })
+          }
+        )
+      },
+      new tangram.Action {
+        name       = "Delete"
+        effect     = "Reversible"   // mlflow uses soft-delete; experiments can be restored
+        idempotent = true
+        doc = "Soft-deletes an experiment. Recoverable via Restore."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "deleteExperiment"
+          resourceId  = new tangram.BodyField { path = "experiment_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Restore"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Restores a soft-deleted experiment."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "restoreExperiment"
+          resourceId  = new tangram.BodyField { path = "experiment_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Rename"
+        privilege  = "Admin"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Renames an experiment."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "updateExperiment"
+          resourceId  = new tangram.BodyField { path = "experiment_id" }
+          newName     = new tangram.BodyField { path = "new_name" }
+        }
+      },
+      new tangram.Action {
+        name       = "SetTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Sets or updates a tag on an experiment."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "setExperimentTag"
+          resourceId  = new tangram.BodyField { path = "experiment_id" }
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Run (Experiment-scoped)
+// ---------------------------------------------------------------------------
+
+Run = new tangram.ResourceTypeDefinition {
+  name = "Run"
+  doc  = "An MLflow run — a single execution of training/evaluation code, capturing parameters, metrics, and artifacts."
+  activeVersion = "v1"
+  scopeType     = ExperimentType
+  versions = List(new tangram.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new tangram.Action {
+        name       = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Starts a new run under an experiment. The run name is server-assigned when omitted."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "createRun"
+          // Raw template — composes the parent experiment's display name (resolved via
+          // experiment_id) with a run name that may not be known until after the upstream
+          // service responds. Typed extractors can't express the function-call chain.
+          resourceNameTemplate = "[{{getNameById(requestBody.experiment_id)}}, {{evaluateLater('ifEmpty(requestBody.run_name, responseBody.run.info.run_name, requestBody.run_name + \\'-\\' + responseBody.run.info.run_id)')}}]"
+          resourceId           = new tangram.ResponseField { path = "run.info.run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Delete"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Soft-deletes a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "deleteRun"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Restore"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Restores a soft-deleted run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "restoreRun"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Get"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a run by ID."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "getRun"
+          resourceId  = new tangram.QueryParam { name = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Update"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Updates run status / end_time / name."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "updateRun"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "Search"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Searches runs across experiments matching a filter."
+        openApiMapping = new tangram.OpenApiMapping { operationId = "searchRuns" }
+      },
+      new tangram.Action {
+        name       = "LogMetric"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Logs a single metric value for a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "logMetric"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "LogBatch"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Logs a batch of metrics, params, and tags."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "logBatch"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "LogParam"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Logs a single parameter for a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "logParam"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "GetMetricHistory"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns the time series of values for a given metric on a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "getMetricHistory"
+          resourceId  = new tangram.QueryParam { name = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "LogModel"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Records a model artifact reference against the run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "logModel"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "LogInputs"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Records input dataset references against the run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "logInputs"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "SetTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Sets or updates a tag on a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "setRunTag"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "DeleteTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Removes a tag from a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "deleteRunTag"
+          resourceId  = new tangram.BodyField { path = "run_id" }
+        }
+      },
+      new tangram.Action {
+        name       = "ListArtifacts"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists artifact paths logged against a run."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId = "listArtifacts"
+          // Raw template — mlflow accepts either `run_id` or the legacy `run_uuid`;
+          // typed extractors can't express the fallback chain.
+          resourceIdTemplate = "{{ifNotEmpty(parameters.run_id, parameters.run_id, parameters.run_uuid)}}"
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Artifact (workspace-scoped) — list-only marker type; HTTP listing is exposed
+// via Run.ListArtifacts which carries the actual openApiMapping.
+// ---------------------------------------------------------------------------
+
+Artifact = new tangram.ResourceTypeDefinition {
+  name = "Artifact"
+  doc  = "Files produced by a run (models, plots, datasets)."
+  activeVersion = "v1"
+  scopeType     = tangram.WORKSPACE_TYPE
+  versions = List(new tangram.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new tangram.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists artifacts. Listing is performed via Run.ListArtifacts; no direct HTTP endpoint on the Artifact type."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// RegisteredModel (workspace-scoped) — model-registry entry; named by `name`
+// ---------------------------------------------------------------------------
+
+RegisteredModel = new tangram.ResourceTypeDefinition {
+  name = "RegisteredModel"
+  doc  = "A named entry in the model registry. Owns a chain of ModelVersions."
+  activeVersion = "v1"
+  scopeType     = tangram.WORKSPACE_TYPE
+  versions = List(new tangram.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new tangram.Action {
+        name       = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Registers a new model name."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "createRegisteredModel"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "Get"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a registered model by name."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "getRegisteredModel"
+          resourceName = List(new tangram.QueryParam { name = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "Rename"
+        privilege  = "Admin"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Renames a registered model."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "renameRegisteredModel"
+          resourceName = List(new tangram.BodyField { path = "name" })
+          newName      = new tangram.BodyField { path = "new_name" }
+        }
+      },
+      new tangram.Action {
+        name       = "Update"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Updates a registered model's description."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "updateRegisteredModel"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "Delete"
+        effect     = "Irreversible"
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Deletes a registered model and all its versions."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "deleteRegisteredModel"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "Search"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Searches registered models matching a filter."
+        openApiMapping = new tangram.OpenApiMapping { operationId = "searchRegisteredModels" }
+      },
+      new tangram.Action {
+        name       = "SetTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Sets or updates a tag on a registered model."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "setRegisteredModelTag"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "DeleteTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Removes a tag from a registered model."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "deleteRegisteredModelTag"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "SetAlias"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Assigns an alias to a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "setRegisteredModelAlias"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "DeleteAlias"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Removes an alias from a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "deleteRegisteredModelAlias"
+          resourceName = List(new tangram.BodyField { path = "name" })
+        }
+      },
+      new tangram.Action {
+        name       = "GetLatest"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns the latest model versions for a registered model."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId  = "getLatestModelVersions"
+          resourceName = List(new tangram.QueryParam { name = "name" })
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// ModelVersion (workspace-scoped)
+//
+// Resource name is a composite "<name>:<version>" or "<name>:<alias>" — colon-joined
+// into a single segment. Typed extractors render comma-joined segments, so the
+// composite form is expressed via raw template overrides.
+// ---------------------------------------------------------------------------
+
+ModelVersion = new tangram.ResourceTypeDefinition {
+  name = "ModelVersion"
+  doc  = "A specific version of a RegisteredModel."
+  activeVersion = "v1"
+  scopeType     = tangram.WORKSPACE_TYPE
+  versions = List(new tangram.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new tangram.Action {
+        name       = "CreateVersion"
+        privilege  = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a new version of a registered model."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "createModelVersion"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "Get"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a model version by name+version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "getModelVersion"
+          resourceNameTemplate = "[{{parameters.name}}:{{parameters.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "Update"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Updates a model version's description."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "updateModelVersion"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "Delete"
+        effect     = "Irreversible"
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Deletes a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "deleteModelVersion"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "Search"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Searches model versions matching a filter."
+        openApiMapping = new tangram.OpenApiMapping { operationId = "searchModelVersions" }
+      },
+      new tangram.Action {
+        name       = "SetTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Sets or updates a tag on a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "setModelVersionTag"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "DeleteTag"
+        privilege  = "Write"
+        effect     = "Reversible"
+        idempotent = true
+        doc = "Removes a tag from a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "deleteModelVersionTag"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "GetByAlias"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a model version identified by name+alias."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "getModelVersionByAlias"
+          resourceNameTemplate = "[{{parameters.name}}:{{parameters.alias}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "GetDownloadUri"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a download URI for the artifact files of a model version."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "getModelVersionDownloadUri"
+          resourceNameTemplate = "[{{parameters.name}}:{{parameters.version}}]"
+        }
+      },
+      new tangram.Action {
+        name       = "TransitionStage"
+        privilege  = "Admin"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Transitions a model version between stages (Staging, Production, Archived)."
+        openApiMapping = new tangram.OpenApiMapping {
+          operationId          = "transitionModelVersionStage"
+          resourceNameTemplate = "[{{requestBody.name}}:{{requestBody.version}}]"
+        }
+      }
+    )
+  })
+}
+
+types: List<tangram.ResourceTypeDefinition> = List(Experiment, Run, Artifact, RegisteredModel, ModelVersion)

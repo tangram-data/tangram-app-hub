@@ -1,0 +1,42 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/iceberg/Table/v1"
+local viewType  = "ai.tangram/iceberg/View/v1"
+
+// Views are read-only at the SQL level — no Insert/Update/Delete
+local tableCommandMapping = Map(
+  "Select", List("Read"),
+  "Insert", List("Write"),
+  "Update", List("Write"),
+  "Delete", List("Write"),
+  "Drop",   List("Delete"),
+  "Create", List("Create"),
+  "Rename", List("Rename"),
+  "Alter",  List("UpdateMetadata")
+)
+
+local viewCommandMapping = Map(
+  "Select", List("Read"),
+  "Drop",   List("Delete"),
+  "Create", List("Create"),
+  "Rename", List("Rename"),
+  "Alter",  List("UpdateMetadata")
+)
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = integration.SQL_QUERYABLE
+  implementationType = tableType
+  implementationSpec = new integration.TangramSQLQueryableSpec {
+    sqlCommandPrivilegeMapping = tableCommandMapping
+  }.toDynamic()
+}
+
+viewQueryable = new integration.IntegrationImplementation {
+  interface          = integration.SQL_QUERYABLE
+  implementationType = viewType
+  implementationSpec = new integration.TangramSQLQueryableSpec {
+    sqlCommandPrivilegeMapping = viewCommandMapping
+  }.toDynamic()
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, viewQueryable)

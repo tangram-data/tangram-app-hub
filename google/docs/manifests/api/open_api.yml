@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: Google Docs
+  version: "1.0"
+  description: Subset of the Google Docs API v1 exposed through the Tangram connector.
+servers:
+  - url: https://docs.googleapis.com
+
+paths:
+  /v1/documents:
+    post:
+      operationId: createDocument
+      summary: Create a new document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Title of the new document.
+      responses:
+        "200":
+          description: The created document with its documentId.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /v1/documents/{documentId}:
+    get:
+      operationId: getDocument
+      summary: Fetch a document's structured content
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          description: The document id from its URL.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The full document, including body content as structural elements.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Document not found.
+
+  /v1/documents/{documentId}:batchUpdate:
+    post:
+      operationId: batchUpdateDocument
+      summary: Apply edit requests to a document
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  description: >
+                    Docs API request objects applied in order, e.g.
+                    {"insertText": {"location": {"index": 1}, "text": "Hello"}} or
+                    {"replaceAllText": {"containsText": {"text": "{{name}}"}, "replaceText": "Alice"}}.
+                  items:
+                    type: object
+                writeControl:
+                  type: object
+                  description: Optional revision guard (requiredRevisionId).
+      responses:
+        "200":
+          description: Per-request replies in the same order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documentId:
+                    type: string
+                  replies:
+                    type: array
+                    items:
+                      type: object
+
+components:
+  schemas:
+    Document:
+      type: object
+      properties:
+        documentId:
+          type: string
+        title:
+          type: string
+        revisionId:
+          type: string
+        body:
+          type: object
+          description: Structural elements holding the document text.

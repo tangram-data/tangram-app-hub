@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.notion"
+name = "notion"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.notion.com"
+category = "productivity"
+tags = List("notion", "pages", "databases", "wiki", "notes", "oauth")
+description = "Notion connector: search the workspace, read and write pages and blocks, query databases, and manage comments."
+readme      = read("README.md").text
