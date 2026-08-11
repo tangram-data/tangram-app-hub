@@ -40,7 +40,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Irreversible"
           idempotent = false
           requiresConfirmation = true
-          doc = "Send an email as the connected account. The body is a base64url-encoded RFC 2822 message."
+          doc = "Send an email as the connected account from readable recipient, subject, text/HTML, and attachment fields."
           openApiMapping = new resources.OpenApiMapping { operationId = "sendMessage" }
         }
       )
@@ -89,7 +89,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = false
-          doc = "Create a draft without sending it. The message is a base64url-encoded RFC 2822 message."
+          doc = "Create a draft without sending it from readable recipient, subject, text/HTML, and attachment fields."
           openApiMapping = new resources.OpenApiMapping { operationId = "createDraft" }
         }
       )

@@ -78,7 +78,8 @@ Two sandboxed components ship with the app (`manifests/ui/components.pkl`), cata
 `com.google/gmail/mail-composer`:
 
 - **mail-viewer** — renders a message by `messageId` via the `Message.Get` binding. HTML bodies go through a strict allowlist sanitizer
-  (no scripts, styles, images, or event handlers; http(s)/mailto links only). Lists and downloads attachments via `Attachment.Get`;
+  (no scripts, styles, remote/data/SVG images, or event handlers; http(s)/mailto links only). Referenced `cid:` PNG/JPEG/GIF/WebP parts are
+  fetched through `Attachment.Get`, signature/size/dimension checked, and displayed from bounded local data URLs. Lists and downloads attachments;
   a Reply button emits a `reply` output (`to`/`subject`/`threadId`) for wiring to the composer.
 - **mail-composer** — agent-assisted compose: an agent prefills `to`/`cc`/`subject`/`body`/`threadId` via render inputs, the user edits and
   optionally attaches local files (capped at ~3.5 MB), and Send goes through the confirmation-gated `Message.Send` binding (Save draft uses
