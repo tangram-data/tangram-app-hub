@@ -1,17 +1,16 @@
 // Compose-and-send form over the connector's Message.Send / Draft.Create
 // actions. An agent prefills the fields via render inputs; the user can edit
 // everything (and attach files) before sending. Send is confirmation-gated by
-// the host. Attachments are read locally via FileReader and embedded as
-// multipart/mixed parts in the raw RFC 2822 payload — Gmail's JSON `raw` field
-// caps the total message at a few MB, guarded below.
+// the host. Attachments are read locally via FileReader; Tangram's connector
+// request adapter creates the provider-specific RFC 822 / MIME payload.
 import { DeleteOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Alert, Button, Divider, Input, Space, Typography } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 
 const tangram = (window as any).tangram;
 
-// Total attachment bytes allowed; base64 inflates ~4/3 and the JSON raw field
-// tops out around 5 MB, so guard well under it.
+// Keep the interactive composer responsive and confirmation payloads compact.
+// The server adapter separately enforces its own decoded-attachment ceiling.
 const MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024;
 
 function b64Bytes(bytes: Uint8Array): string {
@@ -23,75 +22,29 @@ function b64Bytes(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-function b64Utf8(s: string): string {
-  return b64Bytes(new TextEncoder().encode(s));
-}
-
-// UTF-8-safe base64; Gmail wants the URL-safe alphabet without padding.
-function b64UrlUtf8(s: string): string {
-  return b64Utf8(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-// Header values are single-line by construction — CR/LF here is header
-// injection (inputs may be agent- or upstream-supplied, not just typed).
-function headerValue(s: string): string {
-  return s.replace(/[\r\n]+/g, " ").trim();
-}
-
-// Filenames land inside quoted header parameters.
-function headerFilename(s: string): string {
-  return headerValue(s).replace(/["\\]/g, "_");
-}
-
-// RFC 2045 caps encoded lines at 76 chars.
-function wrap76(b64: string): string {
-  return b64.replace(/(.{76})/g, "$1\r\n");
-}
-
 type Attachment = { name: string; mimeType: string; bytes: Uint8Array };
 
-// RFC 2822 message: UTF-8 subject via encoded-word, base64 text body, and —
-// when files are attached — a multipart/mixed envelope.
-function buildRaw(
+function actionBody(
   fields: { to: string; cc: string; subject: string; body: string },
   attachments: Attachment[],
-): string {
-  const headers = [
-    `To: ${headerValue(fields.to)}`,
-    ...(fields.cc.trim() ? [`Cc: ${headerValue(fields.cc)}`] : []),
-    `Subject: =?UTF-8?B?${b64Utf8(headerValue(fields.subject))}?=`,
-    "MIME-Version: 1.0",
-  ];
-  const textPart = [
-    'Content-Type: text/plain; charset="UTF-8"',
-    "Content-Transfer-Encoding: base64",
-    "",
-    wrap76(b64Utf8(fields.body)),
-  ];
-  if (attachments.length === 0) {
-    return b64UrlUtf8([...headers, ...textPart].join("\r\n"));
-  }
-  const boundary = `tangram_${Date.now().toString(36)}`;
-  const lines = [
-    ...headers,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    "",
-    `--${boundary}`,
-    ...textPart,
-  ];
-  attachments.forEach((att) => {
-    const name = headerFilename(att.name);
-    lines.push(
-      `--${boundary}`,
-      `Content-Type: ${att.mimeType || "application/octet-stream"}; name="${name}"`,
-      `Content-Disposition: attachment; filename="${name}"`,
-      "Content-Transfer-Encoding: base64",
-      "",
-      wrap76(b64Bytes(att.bytes)),
-    );
-  });
-  lines.push(`--${boundary}--`);
-  return b64UrlUtf8(lines.join("\r\n"));
+  threadId: string,
+) {
+  return {
+    to: [fields.to],
+    ...(fields.cc.trim() ? { cc: [fields.cc] } : {}),
+    subject: fields.subject,
+    text: fields.body,
+    ...(threadId.trim() ? { threadId } : {}),
+    ...(attachments.length
+      ? {
+          attachments: attachments.map((attachment) => ({
+            filename: attachment.name,
+            contentType: attachment.mimeType || "application/octet-stream",
+            contentBase64: b64Bytes(attachment.bytes),
+          })),
+        }
+      : {}),
+  };
 }
 
 function formatSize(bytes: number): string {
@@ -212,10 +165,9 @@ export default function MailComposer() {
       return;
     }
     setStatus({ kind: "busy", what: "send" });
-    const raw = buildRaw({ to, cc, subject, body }, attachments);
     tangram
       .performAction({ resourceType: "Message", action: "Send" }, {
-        requestBody: threadId.trim() ? { raw, threadId } : { raw },
+        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId),
       })
       .then((m: { id?: string; threadId?: string }) => {
         setStatus({
@@ -250,10 +202,10 @@ export default function MailComposer() {
 
   function saveDraft() {
     setStatus({ kind: "busy", what: "draft" });
-    const raw = buildRaw({ to, cc, subject, body }, attachments);
-    const message = threadId.trim() ? { raw, threadId } : { raw };
     tangram
-      .performAction({ resourceType: "Draft", action: "Create" }, { requestBody: { message } })
+      .performAction({ resourceType: "Draft", action: "Create" }, {
+        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId),
+      })
       .then(() => setStatus({ kind: "drafted" }))
       .catch((e: unknown) =>
         setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) }),

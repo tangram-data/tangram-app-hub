@@ -98,23 +98,17 @@ paths:
     post:
       operationId: sendMessage
       summary: Send an email as the connected account
+      x-tangram-request-adapter:
+        name: rfc822-base64url
+        targetPath: raw
+        copy:
+          threadId: threadId
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [raw]
-              properties:
-                raw:
-                  type: string
-                  description: >
-                    The complete email as a base64url-encoded RFC 2822 message
-                    (headers To/Subject/Content-Type followed by a blank line
-                    and the body).
-                threadId:
-                  type: string
-                  description: Set to reply within an existing thread.
+              $ref: "#/components/schemas/EmailRequest"
       responses:
         "200":
           description: The sent message (id, threadId, labelIds).
@@ -162,23 +156,17 @@ paths:
     post:
       operationId: createDraft
       summary: Create a draft without sending it
+      x-tangram-request-adapter:
+        name: rfc822-base64url
+        targetPath: message.raw
+        copy:
+          threadId: message.threadId
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [message]
-              properties:
-                message:
-                  type: object
-                  required: [raw]
-                  properties:
-                    raw:
-                      type: string
-                      description: The draft email as a base64url-encoded RFC 2822 message.
-                    threadId:
-                      type: string
+              $ref: "#/components/schemas/EmailRequest"
       responses:
         "200":
           description: The created draft with its id.
@@ -218,6 +206,60 @@ paths:
 
 components:
   schemas:
+    EmailRequest:
+      type: object
+      required: [to]
+      properties:
+        to:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: Recipient addresses. Each item may include a display name.
+        cc:
+          type: array
+          items:
+            type: string
+          description: Carbon-copy recipient addresses.
+        bcc:
+          type: array
+          items:
+            type: string
+          description: Blind-carbon-copy recipient addresses.
+        replyTo:
+          type: array
+          items:
+            type: string
+          description: Reply-To addresses, when different from the connected account.
+        subject:
+          type: string
+          default: ""
+        text:
+          type: string
+          default: ""
+          description: Plain-text message body.
+        html:
+          type: string
+          description: Optional HTML alternative. When present, text remains the plain-text fallback.
+        threadId:
+          type: string
+          description: Set to reply or draft within an existing Gmail thread.
+        attachments:
+          type: array
+          description: Attachments whose content is standard base64 (not base64url).
+          items:
+            type: object
+            required: [filename, contentBase64]
+            properties:
+              filename:
+                type: string
+              contentType:
+                type: string
+                default: application/octet-stream
+              contentBase64:
+                type: string
+                format: byte
+
     Message:
       type: object
       properties:

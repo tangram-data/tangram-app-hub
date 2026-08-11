@@ -9,8 +9,8 @@ exposes the mailbox behind the OAuth connection as agent tools. All operations a
 |------|--------|-------|
 | `gmail_list_message` | `Message.List` | Search with a Gmail query string (same syntax as the Gmail search box); filter by label ids from `gmail_list_label`. |
 | `gmail_get_message` | `Message.Get` | Full message: headers, body, MIME parts. |
-| `gmail_send_message` | `Message.Send` | **Confirmation-gated** (irreversible). Body is a base64url-encoded RFC 2822 message in the `raw` field. |
-| `gmail_create_draft` | `Draft.Create` | Same `raw` format, saved instead of sent. |
+| `gmail_send_message` | `Message.Send` | **Confirmation-gated** (irreversible). Accepts normal `to`/`cc`/`bcc`/`subject`/`text`/`html` fields and optional attachments. |
+| `gmail_create_draft` | `Draft.Create` | Accepts the same readable email fields, saved instead of sent. |
 | `gmail_get_attachment` | `Attachment.Get` | Fetch attachment content (base64url) by `messageId` + `attachmentId` from `getMessage`'s MIME parts. |
 | `gmail_list_label` | `Label.List` | System and user labels. |
 
@@ -81,7 +81,8 @@ Two sandboxed components ship with the app (`manifests/ui/components.pkl`), cata
   (no scripts, styles, images, or event handlers; http(s)/mailto links only). Lists and downloads attachments via `Attachment.Get`;
   a Reply button emits a `reply` output (`to`/`subject`/`threadId`) for wiring to the composer.
 - **mail-composer** — agent-assisted compose: an agent prefills `to`/`cc`/`subject`/`body`/`threadId` via render inputs, the user edits and
-  optionally attaches local files (embedded as `multipart/mixed`, capped at ~3.5 MB — Gmail's JSON `raw` limit), and Send goes through the
-  confirmation-gated `Message.Send` binding (Save draft uses `Draft.Create`). Header values are CR/LF-sanitized against injection.
+  optionally attaches local files (capped at ~3.5 MB), and Send goes through the confirmation-gated `Message.Send` binding (Save draft uses
+  `Draft.Create`). The connector boundary turns those readable fields into standards-compliant MIME and Gmail's base64url `raw` envelope;
+  callers never construct provider-specific email payloads.
   The draft fields are exposed via the SDK's `provideState`, so an agent can read the user's in-progress edits
   (`tangram_get_component_state`) and refine them by re-rendering the same instance — attachments stay local and survive the re-render.
