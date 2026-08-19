@@ -26,7 +26,12 @@ charts: List<deployment.HelmChart> = List(
     crds = List(
       new deployment.CustomResourceRbac {
         apiGroup  = "kafka.strimzi.io"
-        resources = List("kafkas", "kafkanodepools", "kafkatopics", "kafkausers")
+        resources = List("kafkas", "kafkanodepools")
+        verbs     = List("create", "get", "list", "update", "delete")
+      },
+      new deployment.CustomResourceRbac {
+        apiGroup  = "kafka.strimzi.io"
+        resources = List("kafkatopics", "kafkausers")
         // deletecollection: teardown deletes topics/users by label selector (a collection DELETE).
         verbs     = List("create", "get", "list", "update", "delete", "deletecollection")
       }
