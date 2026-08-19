@@ -1,0 +1,42 @@
+import "dependencies.pkl" as deps
+import "@tangram-app-manifest/deployment.pkl" as deployment
+import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+
+local database = deps.databaseClaim.database()
+local dbSecrets = deps.databaseClaim.secrets()
+
+@deployment.AppComponentMeta {
+  name = "kafka-service"
+  recommendedReplica = 1
+  containers = List(new deployment.ContainerMeta {
+    name = "kafka-server"
+    image = "ghcr.io/tangram-data/tangram-kafka-server:0.1.0"
+  })
+  observability = new deployment.ComponentObservability {
+    traces = "otlp"
+    metrics = new deployment.OtlpMetrics {}
+  }
+}
+kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+  service = new deployment.AppComponentServiceSpec {
+    port = 9899
+    targetPort = 9899
+    protocol = "TCP"
+  }
+  containers = List(
+    new deployment.AppContainerSpec {
+      ports = List(9899)
+      variables = Map(
+        "SERVER_PORT", "9899",
+        "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
+        "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
+        "KAFKA_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "KAFKA_APP_JDBC_USER", dbSecrets.user,
+        "KAFKA_APP_JDBC_PASSWORD", new deployment.SecretValue {
+          value = dbSecrets.password
+        }
+      )
+    }
+  )
+}

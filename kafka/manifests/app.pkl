@@ -1,0 +1,11 @@
+manifestSpecVersion = "v1"
+
+appType = "App"
+group = "ai.tangram"
+name = "kafka"
+version = "0.1.0"
+license = "Apache-2.0 license"
+category = "Big Data"
+tags = List("Kafka", "Streaming", "Messaging")
+description = "Apache Kafka cluster management app: provision and operate Strimzi-managed KRaft Kafka clusters on Kubernetes."
+readme = read("README.md").text

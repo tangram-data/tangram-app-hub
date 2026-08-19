@@ -1,0 +1,7 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// App state (cluster records) lives in a platform-managed PostgreSQL database. Kafka's own data
+// lives on the broker/controller persistent volumes the operator provisions — no bucket claim.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}

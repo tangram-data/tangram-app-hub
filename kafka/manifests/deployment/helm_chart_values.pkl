@@ -1,0 +1,6 @@
+// Values for the tangram-strimzi operator chart (see helm_charts.pkl). The operator scopes itself
+// to its release namespace via the Kubernetes downward API (STRIMZI_NAMESPACE = pod namespace), so
+// no namespace value needs to be injected here; the chart defaults are used as-is.
+values = new Dynamic {
+  logLevel = "INFO"
+}

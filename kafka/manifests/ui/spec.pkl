@@ -1,0 +1,19 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/kafka.svg"
+
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
+
+deployment: ui.UIDeployment = new {
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
+}
+
+resourceTypeIcons {
+  ["KafkaCluster"] = "static/kafka.svg"
+}
+resourceTypeUri {
+  ["KafkaCluster"] = "/clusters/{{names[1]}}"
+}

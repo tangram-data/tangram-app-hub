@@ -1,0 +1,257 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef = new manifest.AppName { group = app.group; name = app.name }
+local KafkaClusterType = new resources.ResourceType { app = appRef; name = "KafkaCluster" }
+
+local Stateless = resources.Effect.Stateless
+local Reversible = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+// ---------------------------------------------------------------------------
+// KafkaCluster  (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+KafkaCluster = new resources.ResourceTypeDefinition {
+  name = "KafkaCluster"
+  doc  = "Strimzi-managed Apache Kafka cluster (KRaft) on Kubernetes"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Initialize the workspace's single Kafka cluster (asynchronous, fixed name)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "initializeKafkaCluster"
+          resourceNameTemplate = "[kafka]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get a Kafka cluster by name, including lifecycle status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Decommission a Kafka cluster (asynchronous): topics, users, node pools, brokers and their disks."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteKafkaCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Scale"
+        effect = Reversible
+        idempotent = true
+        doc = "Update the broker replica count (scale-down requires Cruise Control)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "scaleKafkaCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Configure"
+        effect = Reversible
+        idempotent = true
+        doc = "Update per-pod resources of the controller/broker pools and the broker replica count."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "configureKafkaCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetEndpoints"
+        effect = Stateless
+        idempotent = true
+        doc = "Internal and external bootstrap servers of the cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaClusterEndpoints"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstances"
+        effect = Stateless
+        idempotent = true
+        doc = "Status of the cluster's controller, broker and entity-operator pods."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaClusterInstances"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstanceLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Tail of one pod's logs (debugging aid)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaClusterInstanceLogs"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetConnectionDetails"
+        effect = Stateless
+        idempotent = true
+        doc = "Bootstrap servers and admin SCRAM credentials for connecting clients."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaClusterConnectionDetails"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Topic  (KafkaCluster-scoped)
+// ---------------------------------------------------------------------------
+
+Topic = new resources.ResourceTypeDefinition {
+  name = "Topic"
+  doc  = "A Kafka topic, managed declaratively through a Strimzi KafkaTopic resource."
+  activeVersion = "v1"
+  scopeType = KafkaClusterType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Creates a topic with partitions, replicas and config."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createKafkaTopic"
+          resourceNameTemplate = "[{{parameters.name}}, {{requestBody.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Describe one topic (partitions, replicas, config, readiness)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaTopic"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List the cluster's topics with their reconciliation state."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaTopics"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Configure"
+        effect = Reversible
+        idempotent = true
+        doc = "Update a topic's partition count (grow-only) and/or config."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "updateKafkaTopic"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete a topic and its data. Cannot be undone."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteKafkaTopic"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "Read"
+        effect = Stateless
+        idempotent = true
+        doc = "Authorization marker for consuming from the topic."
+      },
+      new resources.Action {
+        name = "Write"
+        effect = Reversible
+        idempotent = false
+        doc = "Authorization marker for producing to the topic."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// User  (KafkaCluster-scoped)
+// ---------------------------------------------------------------------------
+
+User = new resources.ResourceTypeDefinition {
+  name = "User"
+  doc  = "A SCRAM-authenticated Kafka user, managed through a Strimzi KafkaUser resource."
+  activeVersion = "v1"
+  scopeType = KafkaClusterType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Creates a SCRAM user; the User Operator materializes its credential secret."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createKafkaUser"
+          resourceNameTemplate = "[{{parameters.name}}, {{requestBody.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List the cluster's users with their reconciliation state."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaUsers"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete a user and its credentials (the admin user is protected)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteKafkaUser"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.user}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetCredentials"
+        effect = Stateless
+        idempotent = true
+        doc = "Bootstrap servers and the user's SCRAM credentials — sensitive."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaUserCredentials"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.user}}]"
+        }
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  KafkaCluster, Topic, User
+)

@@ -1,0 +1,36 @@
+import "@tangram-app-manifest/deployment.pkl" as deployment
+
+// tangram-strimzi: the Strimzi Cluster Operator repackaged for namespace-confined installs
+// (Role-only RBAC — no ClusterRoles/ClusterRoleBindings; rack awareness and NodePort listeners
+// intentionally unsupported). Chart source lives in the tangram-apps repo under
+// tangram-kafka/charts/tangram-strimzi and is published to the tangram Helm repo. The operator
+// watches exactly the app's namespace (STRIMZI_NAMESPACE = its own pod namespace), where the
+// kafka-service applies Kafka/KafkaNodePool/KafkaTopic/KafkaUser CRs for it to reconcile.
+charts: List<deployment.HelmChart> = List(
+  new deployment.HelmChart {
+    repo      = "https://tangram-data.github.io/helm-charts"
+    fullName  = "tangram/tangram-strimzi"
+    version   = "0.1.0" // wraps Strimzi 1.1.0
+    // The chart vendors the Strimzi CRDs (cluster-scoped by nature, applied by the platform);
+    // everything else it renders is namespaced — no hooks, no cluster-scoped kinds.
+    requestedCapabilities = new deployment.HelmRequestedCapabilities {
+      hooks = false
+      crds = true
+      clusterScopedKinds = Set()
+    }
+    components = List()
+    // The kafka-service applies these CRs in its own namespace; the platform grants them on the
+    // app component Role.
+    crds = List(
+      new deployment.CustomResourceRbac {
+        apiGroup  = "kafka.strimzi.io"
+        resources = List(
+          "kafkas", "kafkas/status",
+          "kafkanodepools", "kafkanodepools/status",
+          "kafkatopics", "kafkatopics/status",
+          "kafkausers", "kafkausers/status"
+        )
+      }
+    )
+  }
+)

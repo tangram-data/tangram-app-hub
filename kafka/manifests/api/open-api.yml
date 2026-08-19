@@ -1,0 +1,602 @@
+openapi: 3.0.3
+info:
+  title: Kafka Service
+  version: 1.0.0
+paths:
+  /api/v1/clusters:
+    post:
+      operationId: initializeKafkaCluster
+      tags: [KafkaService]
+      summary: >-
+        Initialize the workspace's single Kafka cluster (KRaft, Strimzi-managed) in the app's
+        namespace asynchronously; poll GET /clusters/{name} for progress.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializeClusterRequest'
+      responses:
+        '200':
+          description: Cluster record in status Creating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KafkaClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}:
+    get:
+      operationId: getKafkaCluster
+      tags: [KafkaService]
+      summary: Get Kafka cluster by name, including its lifecycle status.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Cluster or null when not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KafkaClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteKafkaCluster
+      tags: [KafkaService]
+      summary: >-
+        Decommission a Kafka cluster asynchronously (topics, users, node pools, brokers and their
+        disks are garbage-collected by the operator).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Deletion started
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/scale:
+    post:
+      operationId: scaleKafkaCluster
+      tags: [KafkaService]
+      summary: Update the broker replica count (scale-down requires Cruise Control).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScaleClusterRequest'
+      responses:
+        '200':
+          description: Scale applied; the operator rolls it out
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/resources:
+    post:
+      operationId: configureKafkaCluster
+      tags: [KafkaService]
+      summary: Update per-pod resources of both node pools and the broker replica count.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourcesRequest'
+      responses:
+        '200':
+          description: Resource update applied; the operator rolls it out
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/endpoints:
+    get:
+      operationId: getKafkaClusterEndpoints
+      tags: [KafkaService]
+      summary: Internal and external bootstrap servers of the cluster.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Bootstrap endpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterEndpoints'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/connection-details:
+    get:
+      operationId: getKafkaClusterConnectionDetails
+      tags: [KafkaService]
+      summary: Bootstrap servers and admin SCRAM credentials (GetConnectionDetails action).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Connection details including credentials — sensitive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterConnectionDetails'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances:
+    get:
+      operationId: getKafkaClusterInstances
+      tags: [KafkaService]
+      summary: Status of the cluster's controller, broker and entity-operator pods.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Pod statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterInstance'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances/{pod}/logs:
+    get:
+      operationId: getKafkaClusterInstanceLogs
+      tags: [KafkaService]
+      summary: Tail of one pod's logs (default 500 lines, capped at 5000).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - name: pod
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tailLines
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log tail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceLogs'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics:
+    post:
+      operationId: createKafkaTopic
+      tags: [KafkaService]
+      summary: Create a topic (KafkaTopic CR, reconciled by the Topic Operator).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTopicRequest'
+      responses:
+        '200':
+          description: Topic record (reconciliation pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listKafkaTopics
+      tags: [KafkaService]
+      summary: List the cluster's topics with their reconciliation state.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopicInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}:
+    get:
+      operationId: getKafkaTopic
+      tags: [KafkaService]
+      summary: Describe one topic (partitions, replicas, config, readiness).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Topic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: updateKafkaTopic
+      tags: [KafkaService]
+      summary: Update a topic's partition count (grow-only) and/or config.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTopicRequest'
+      responses:
+        '200':
+          description: Updated topic record (reconciliation pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteKafkaTopic
+      tags: [KafkaService]
+      summary: Delete a topic and its data.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Topic deletion requested
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/users:
+    post:
+      operationId: createKafkaUser
+      tags: [KafkaService]
+      summary: >-
+        Create a SCRAM user (KafkaUser CR; the User Operator materializes its credential secret).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: User record (reconciliation pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listKafkaUsers
+      tags: [KafkaService]
+      summary: List the cluster's users with their reconciliation state.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/users/{user}:
+    delete:
+      operationId: deleteKafkaUser
+      tags: [KafkaService]
+      summary: Delete a user (the admin user is protected).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/UserName'
+      responses:
+        '200':
+          description: User deletion requested
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/users/{user}/credentials:
+    get:
+      operationId: getKafkaUserCredentials
+      tags: [KafkaService]
+      summary: Bootstrap servers and the user's SCRAM credentials.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/UserName'
+      responses:
+        '200':
+          description: Connection details including credentials — sensitive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterConnectionDetails'
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    ClusterName:
+      name: name
+      in: path
+      required: true
+      schema:
+        type: string
+    TopicName:
+      name: topic
+      in: path
+      required: true
+      schema:
+        type: string
+    UserName:
+      name: user
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Error:
+      description: Service error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+  schemas:
+    ComponentSpec:
+      type: object
+      required: [replicas, cpuMilli, memoryMi]
+      properties:
+        replicas:
+          type: integer
+        cpuMilli:
+          type: integer
+        memoryMi:
+          type: integer
+    InitializeClusterRequest:
+      type: object
+      required: [controllers, brokers]
+      properties:
+        controllers:
+          allOf:
+            - $ref: '#/components/schemas/ComponentSpec'
+          description: Controller node pool sizing; replicas must be 1 or 3 (KRaft quorum).
+        brokers:
+          allOf:
+            - $ref: '#/components/schemas/ComponentSpec'
+          description: Broker node pool sizing.
+        controllerDiskGb:
+          type: integer
+          nullable: true
+          description: Per-controller persistent disk (default 10 GiB); immutable after creation.
+        brokerDiskGb:
+          type: integer
+          nullable: true
+          description: Per-broker persistent disk (default 100 GiB); immutable after creation.
+        kafkaVersion:
+          type: string
+          nullable: true
+          description: Kafka version handed to Strimzi; omitted = operator default.
+        exposeExternalListener:
+          type: boolean
+          default: false
+          description: Expose an external SCRAM listener via LoadBalancer (port 9094).
+        enableCruiseControl:
+          type: boolean
+          default: false
+          description: >-
+            Deploy Cruise Control with auto-rebalance on broker scale events. Required for broker
+            scale-down. Set at creation.
+    KafkaClusterSpec:
+      type: object
+      required: [name, controllers, brokers, controllerDiskGb, brokerDiskGb, exposeExternalListener]
+      properties:
+        name:
+          type: string
+        kafkaVersion:
+          type: string
+          nullable: true
+        controllers:
+          $ref: '#/components/schemas/ComponentSpec'
+        brokers:
+          $ref: '#/components/schemas/ComponentSpec'
+        controllerDiskGb:
+          type: integer
+        brokerDiskGb:
+          type: integer
+        exposeExternalListener:
+          type: boolean
+        enableCruiseControl:
+          type: boolean
+    KafkaClusterInfo:
+      type: object
+      required: [name, workspace, spec, status, createdAt]
+      properties:
+        name:
+          type: string
+        workspace:
+          type: string
+        spec:
+          $ref: '#/components/schemas/KafkaClusterSpec'
+        status:
+          type: string
+          enum:
+            - Creating
+            - InstallingOperator
+            - DeployingKafka
+            - Active
+            - Degraded
+            - CreationFailed
+            - Deleting
+            - DeletionFailed
+        statusMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    ScaleClusterRequest:
+      type: object
+      required: [brokerReplicas]
+      properties:
+        brokerReplicas:
+          type: integer
+    UpdateResourcesRequest:
+      type: object
+      required: [controllers, brokers]
+      properties:
+        controllers:
+          allOf:
+            - $ref: '#/components/schemas/ComponentSpec'
+          description: Controller replicas are immutable; only cpu/memory may change.
+        brokers:
+          $ref: '#/components/schemas/ComponentSpec'
+    ClusterEndpoints:
+      type: object
+      properties:
+        internalBootstrap:
+          type: string
+          nullable: true
+          description: In-cluster bootstrap for the SCRAM-authenticated internal listener (port 9092).
+        externalBootstrap:
+          type: string
+          nullable: true
+          description: LoadBalancer bootstrap of the external listener, when exposed and assigned.
+    ClusterConnectionDetails:
+      type: object
+      required: [bootstrapServers, securityProtocol, saslMechanism, user]
+      properties:
+        bootstrapServers:
+          type: string
+        securityProtocol:
+          type: string
+          description: SASL_PLAINTEXT
+        saslMechanism:
+          type: string
+          description: SCRAM-SHA-512
+        user:
+          type: string
+        password:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+          description: Cluster lifecycle status at fetch time.
+    ClusterInstance:
+      type: object
+      required: [name, role, phase, ready, restarts]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          description: controller | broker | entity-operator
+        phase:
+          type: string
+        ready:
+          type: boolean
+        restarts:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        message:
+          type: string
+          nullable: true
+          description: Waiting reason (e.g. CrashLoopBackOff).
+    InstanceLogs:
+      type: object
+      required: [pod, log]
+      properties:
+        pod:
+          type: string
+        log:
+          type: string
+    CreateTopicRequest:
+      type: object
+      required: [name, partitions]
+      properties:
+        name:
+          type: string
+          description: Kafka topic name (1-249 chars of [a-zA-Z0-9._-]).
+        partitions:
+          type: integer
+        replicas:
+          type: integer
+          nullable: true
+          description: Defaults to the cluster's default replication factor.
+        config:
+          type: object
+          additionalProperties:
+            type: string
+          description: Raw topic configs (e.g. retention.ms).
+    UpdateTopicRequest:
+      type: object
+      properties:
+        partitions:
+          type: integer
+          nullable: true
+          description: New partition count; can only grow.
+        config:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+          description: Full replacement config; omitted keeps the current config.
+    TopicInfo:
+      type: object
+      required: [name, config, ready]
+      properties:
+        name:
+          type: string
+        partitions:
+          type: integer
+          nullable: true
+        replicas:
+          type: integer
+          nullable: true
+        config:
+          type: object
+          additionalProperties:
+            type: string
+        ready:
+          type: boolean
+        message:
+          type: string
+          nullable: true
+    CreateUserRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: >-
+            At most 64 chars, starting with a lower case letter, containing only lower case
+            letters, digits or '-'.
+    UserInfo:
+      type: object
+      required: [name, ready]
+      properties:
+        name:
+          type: string
+        ready:
+          type: boolean
+        message:
+          type: string
+          nullable: true
