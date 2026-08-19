@@ -35,7 +35,9 @@ kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         "KAFKA_APP_JDBC_USER", dbSecrets.user,
         "KAFKA_APP_JDBC_PASSWORD", new deployment.SecretValue {
           value = dbSecrets.password
-        }
+        },
+        // Strimzi Kafka image + the Tangram IAM authorizer plugin (tangram-kafka/broker-image).
+        "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.0"
       )
     }
   )

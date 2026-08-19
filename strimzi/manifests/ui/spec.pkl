@@ -15,6 +15,7 @@ deployment: ui.UIDeployment = new {
 
 resourceTypeIcons {
   ["KafkaCluster"] = "static/kafka.svg"
+  ["Topic"] = "static/kafka.svg"
 }
 resourceTypeUri {
   ["KafkaCluster"] = "/clusters/{{names[1]}}"

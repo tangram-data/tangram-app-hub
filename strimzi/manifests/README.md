@@ -18,6 +18,11 @@ Provision and operate Apache Kafka clusters on Kubernetes through a namespace-co
   auto-rebalances partitions off removed brokers.
 - **Connectivity**: an in-cluster SCRAM listener (port 9092) always; an external LoadBalancer
   listener (port 9094) when `exposeExternalListener` is set.
+- **Tangram-native access (port 9095)**: clients authenticate with their own Tangram auth token
+  over SASL/OAUTHBEARER — no Kafka credentials needed — and topic reads/writes are authorized by
+  Tangram IAM (`Topic#Read` / `Topic#Write` grants on the topic resources). Brokers introspect
+  tokens against the app service and enforce decisions through a custom authorizer baked into the
+  broker image; sessions re-authenticate periodically so revoked/expired tokens age out.
 
 ## Limitations
 
