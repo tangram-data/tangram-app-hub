@@ -20,16 +20,14 @@ charts: List<deployment.HelmChart> = List(
     }
     components = List()
     // The kafka-service applies these CRs in its own namespace; the platform grants them on the
-    // app component Role.
+    // app component Role. Least-privilege: the service creates/gets/lists/updates/deletes the main
+    // resources only (status is read through the main-resource GET, never the status subresource;
+    // no watch/patch).
     crds = List(
       new deployment.CustomResourceRbac {
         apiGroup  = "kafka.strimzi.io"
-        resources = List(
-          "kafkas", "kafkas/status",
-          "kafkanodepools", "kafkanodepools/status",
-          "kafkatopics", "kafkatopics/status",
-          "kafkausers", "kafkausers/status"
-        )
+        resources = List("kafkas", "kafkanodepools", "kafkatopics", "kafkausers")
+        verbs     = List("create", "get", "list", "update", "delete")
       }
     )
   }

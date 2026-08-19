@@ -38,7 +38,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/KafkaClusterInfo'
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/KafkaClusterInfo'
         default:
           $ref: '#/components/responses/Error'
     delete:
@@ -347,15 +349,13 @@ components:
       schema:
         type: string
   responses:
+    # Platform convention (same as the other app packages): Tapir serializes ServiceError to a
+    # plain string body on the error channel.
     Error:
       description: Service error
       content:
         application/json:
-          schema:
-            type: object
-            properties:
-              message:
-                type: string
+          schema: { type: string }
   schemas:
     ComponentSpec:
       type: object
