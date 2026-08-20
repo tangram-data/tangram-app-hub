@@ -513,6 +513,12 @@ components:
         createdAt:
           type: string
           format: date-time
+        runtimeKafkaVersion:
+          type: string
+          nullable: true
+          description: >-
+            The Kafka version the cluster actually runs (operator-reported); spec.kafkaVersion is
+            null when the operator default is used.
     ScaleClusterRequest:
       type: object
       required: [brokerReplicas]
