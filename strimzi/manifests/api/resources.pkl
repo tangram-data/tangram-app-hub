@@ -189,7 +189,31 @@ Topic = new resources.ResourceTypeDefinition {
         name = "Write"
         effect = Reversible
         idempotent = false
-        doc = "Authorization marker for producing to the topic."
+        doc = "Produce to the topic: post a single JSON message through the app's admin producer. Also the authorization marker for producing with Kafka clients."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "produceKafkaTopicMessage"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "SetSchema"
+        effect = Reversible
+        idempotent = false
+        doc = "Create or update the topic's Tangram schema (the declared shape of its JSON messages), saved as a dataset schema in the core data catalog."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "setKafkaTopicSchema"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetSchema"
+        effect = Stateless
+        idempotent = true
+        doc = "Latest registered Tangram schema of the topic."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaTopicSchema"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
       }
     )
   })

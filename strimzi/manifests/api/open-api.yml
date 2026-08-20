@@ -258,6 +258,70 @@ paths:
           description: Topic deletion requested
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/schema:
+    post:
+      operationId: setKafkaTopicSchema
+      tags: [KafkaService]
+      summary: >-
+        Create or update the topic's Tangram schema (the declared shape of its JSON messages),
+        saved as a dataset schema in the core data catalog.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTopicSchemaRequest'
+      responses:
+        '200':
+          description: Registered schema with its catalog version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicSchemaInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: getKafkaTopicSchema
+      tags: [KafkaService]
+      summary: Latest registered Tangram schema of the topic.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Latest schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicSchemaInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/messages:
+    post:
+      operationId: produceKafkaTopicMessage
+      tags: [KafkaService]
+      summary: Post a single JSON message to the topic (admin producer, internal listener).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProduceMessageRequest'
+      responses:
+        '200':
+          description: Broker acknowledgement metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduceMessageResult'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/users:
     post:
       operationId: createKafkaUser
@@ -580,6 +644,73 @@ components:
         message:
           type: string
           nullable: true
+    TopicSchemaField:
+      type: object
+      required: [name, dataType]
+      properties:
+        name:
+          type: string
+        dataType:
+          type: string
+          description: Logical field type (e.g. string, long, double, boolean, timestamp, json).
+        nullable:
+          type: boolean
+          default: true
+        doc:
+          type: string
+          nullable: true
+    SetTopicSchemaRequest:
+      type: object
+      required: [fields]
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicSchemaField'
+          description: Field names must be unique; order becomes the catalog field ordering.
+    TopicSchemaInfo:
+      type: object
+      required: [topic, version, fields]
+      properties:
+        topic:
+          type: string
+        version:
+          type: integer
+          description: Dataset schema version in the core data catalog (0 for the first registration).
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicSchemaField'
+    ProduceMessageRequest:
+      type: object
+      required: [value]
+      properties:
+        value:
+          description: Arbitrary JSON message body, produced verbatim to the topic.
+        key:
+          type: string
+          nullable: true
+          description: Optional record key (determines the partition).
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Optional Kafka record headers.
+    ProduceMessageResult:
+      type: object
+      required: [topic, partition, offset, timestampMs]
+      properties:
+        topic:
+          type: string
+        partition:
+          type: integer
+        offset:
+          type: integer
+          format: int64
+        timestampMs:
+          type: integer
+          format: int64
+          description: Broker append timestamp; -1 when the broker did not report one.
     CreateUserRequest:
       type: object
       required: [name]
