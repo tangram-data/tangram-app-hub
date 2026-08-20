@@ -1,8 +1,8 @@
 import "@tangram-app-manifest/ui.pkl" as ui
 
-// Official Strimzi icon (CNCF artwork): the app is the Strimzi operator experience. The
-// KafkaCluster resource keeps the Kafka mark — the resource is a Kafka cluster.
-logo = "static/strimzi.svg"
+// The app is the Kafka operator experience, so it carries the Kafka mark (Strimzi is the
+// implementation detail).
+logo = "static/kafka.svg"
 
 uiPattern = new ui.UriPattern {
   pattern = ".*"
