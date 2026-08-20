@@ -125,6 +125,7 @@ Topic = new resources.ResourceTypeDefinition {
   doc  = "A Kafka topic, managed declaratively through a Strimzi KafkaTopic resource."
   activeVersion = "v1"
   scopeType = KafkaClusterType
+  superType = resources.DATASET_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true
     actions = List(
