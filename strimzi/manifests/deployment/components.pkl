@@ -10,7 +10,7 @@ local dbSecrets = deps.databaseClaim.secrets()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "kafka-server"
-    image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.3"
+    image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.4"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
