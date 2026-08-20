@@ -24,6 +24,17 @@ Provision and operate Apache Kafka clusters on Kubernetes through a namespace-co
   tokens against the app service and enforce decisions through a custom authorizer baked into the
   broker image; sessions re-authenticate periodically so revoked/expired tokens age out.
 
+  Client config (the token is a Biscuit, not a JWT — both `oauth.access.token.is.jwt=false` and the
+  strimzi client login callback are required):
+
+  ```properties
+  security.protocol=SASL_PLAINTEXT
+  sasl.mechanism=OAUTHBEARER
+  sasl.login.callback.handler.class=io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+  sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+    oauth.access.token="<TANGRAM_TOKEN>" oauth.access.token.is.jwt="false" ;
+  ```
+
 ## Limitations
 
 The operator runs namespace-scoped with Role-only RBAC, so rack awareness and NodePort listeners
