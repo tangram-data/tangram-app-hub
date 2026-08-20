@@ -27,7 +27,9 @@ charts: List<deployment.HelmChart> = List(
       new deployment.CustomResourceRbac {
         apiGroup  = "kafka.strimzi.io"
         resources = List("kafkas", "kafkanodepools")
-        verbs     = List("create", "get", "list", "update", "delete")
+        // patch: the metrics-lane startup reconciliation merge-patches ONLY the exporter config
+        // and scrape template metadata onto live CRs instead of re-applying the full spec.
+        verbs     = List("create", "get", "list", "update", "patch", "delete")
       },
       new deployment.CustomResourceRbac {
         apiGroup  = "kafka.strimzi.io"
