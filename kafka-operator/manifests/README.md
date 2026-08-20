@@ -1,4 +1,4 @@
-# Strimzi
+# Kafka Operator
 
 Provision and operate Apache Kafka clusters on Kubernetes through a namespace-confined
 [Strimzi](https://strimzi.io) Cluster Operator (KRaft mode — no ZooKeeper).

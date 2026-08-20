@@ -2,10 +2,10 @@ manifestSpecVersion = "v1"
 
 appType = "App"
 group = "ai.tangram"
-name = "strimzi"
+name = "kafka-operator"
 version = "0.1.7"
 license = "Apache-2.0 license"
 category = "Big Data"
 tags = List("Strimzi", "Kafka", "Streaming", "Messaging")
-description = "Strimzi operator app: provision and operate KRaft Apache Kafka clusters, topics and users on Kubernetes."
+description = "Kafka operator app: provision and operate KRaft Apache Kafka clusters and topics on Kubernetes (Strimzi-based)."
 readme = read("README.md").text
