@@ -10,7 +10,7 @@ local dbSecrets = deps.databaseClaim.secrets()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "kafka-server"
-    image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.1"
+    image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.2"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
@@ -36,11 +36,12 @@ kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         "KAFKA_APP_JDBC_PASSWORD", new deployment.SecretValue {
           value = dbSecrets.password
         },
-        // Tangram-token lane (OAUTHBEARER listener + IAM authorizer), OFF by default. To enable,
-        // set KAFKA_TANGRAM_TOKEN_LANE_ENABLED=true AND point KAFKA_BROKER_IMAGE at the broker image
-        // that carries the authorizer (tangram-kafka/broker-image). Left off until the OAuth
-        // listener form is verified end to end; clusters run on the SCRAM lane meanwhile.
-        "KAFKA_TANGRAM_TOKEN_LANE_ENABLED", "false"
+        // Tangram-token lane (OAUTHBEARER listener + IAM authorizer): clients authenticate with
+        // their Tangram token and topic access is decided by Tangram IAM. Needs the broker image
+        // that carries the authorizer + strimzi-oauth libs (tangram-kafka/broker-image); its Kafka
+        // base MUST match the Kafka version the operator serves.
+        "KAFKA_TANGRAM_TOKEN_LANE_ENABLED", "true",
+        "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.0"
       )
     }
   )
