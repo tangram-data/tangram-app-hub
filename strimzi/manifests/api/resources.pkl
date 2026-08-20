@@ -220,63 +220,6 @@ Topic = new resources.ResourceTypeDefinition {
   })
 }
 
-// ---------------------------------------------------------------------------
-// User  (KafkaCluster-scoped)
-// ---------------------------------------------------------------------------
-
-User = new resources.ResourceTypeDefinition {
-  name = "User"
-  doc  = "A SCRAM-authenticated Kafka user, managed through a Strimzi KafkaUser resource."
-  activeVersion = "v1"
-  scopeType = KafkaClusterType
-  versions = List(new resources.ResourceTypeVersion {
-    version = "v1"; served = true
-    actions = List(
-      new resources.Action {
-        name = "Create"
-        effect = Reversible
-        idempotent = false
-        doc = "Creates a SCRAM user; the User Operator materializes its credential secret."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "createKafkaUser"
-          resourceNameTemplate = "[{{parameters.name}}, {{requestBody.name}}]"
-        }
-      },
-      new resources.Action {
-        name = "List"
-        effect = Stateless
-        idempotent = true
-        doc = "List the cluster's users with their reconciliation state."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "listKafkaUsers"
-          resourceNameTemplate = "[{{parameters.name}}]"
-        }
-      },
-      new resources.Action {
-        name = "Delete"
-        effect = Irreversible
-        idempotent = true
-        requiresConfirmation = true
-        doc = "Delete a user and its credentials (the admin user is protected)."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "deleteKafkaUser"
-          resourceNameTemplate = "[{{parameters.name}}, {{parameters.user}}]"
-        }
-      },
-      new resources.Action {
-        name = "GetCredentials"
-        effect = Stateless
-        idempotent = true
-        doc = "Bootstrap servers and the user's SCRAM credentials — sensitive."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "getKafkaUserCredentials"
-          resourceNameTemplate = "[{{parameters.name}}, {{parameters.user}}]"
-        }
-      }
-    )
-  })
-}
-
 types: List<resources.ResourceTypeDefinition> = List(
-  KafkaCluster, Topic, User
+  KafkaCluster, Topic
 )

@@ -322,76 +322,6 @@ paths:
                 $ref: '#/components/schemas/ProduceMessageResult'
         default:
           $ref: '#/components/responses/Error'
-  /api/v1/clusters/{name}/users:
-    post:
-      operationId: createKafkaUser
-      tags: [KafkaService]
-      summary: >-
-        Create a SCRAM user (KafkaUser CR; the User Operator materializes its credential secret).
-      parameters:
-        - $ref: '#/components/parameters/ClusterName'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserRequest'
-      responses:
-        '200':
-          description: User record (reconciliation pending)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserInfo'
-        default:
-          $ref: '#/components/responses/Error'
-    get:
-      operationId: listKafkaUsers
-      tags: [KafkaService]
-      summary: List the cluster's users with their reconciliation state.
-      parameters:
-        - $ref: '#/components/parameters/ClusterName'
-      responses:
-        '200':
-          description: Users
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserInfo'
-        default:
-          $ref: '#/components/responses/Error'
-  /api/v1/clusters/{name}/users/{user}:
-    delete:
-      operationId: deleteKafkaUser
-      tags: [KafkaService]
-      summary: Delete a user (the admin user is protected).
-      parameters:
-        - $ref: '#/components/parameters/ClusterName'
-        - $ref: '#/components/parameters/UserName'
-      responses:
-        '200':
-          description: User deletion requested
-        default:
-          $ref: '#/components/responses/Error'
-  /api/v1/clusters/{name}/users/{user}/credentials:
-    get:
-      operationId: getKafkaUserCredentials
-      tags: [KafkaService]
-      summary: Bootstrap servers and the user's SCRAM credentials.
-      parameters:
-        - $ref: '#/components/parameters/ClusterName'
-        - $ref: '#/components/parameters/UserName'
-      responses:
-        '200':
-          description: Connection details including credentials — sensitive
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClusterConnectionDetails'
-        default:
-          $ref: '#/components/responses/Error'
 components:
   parameters:
     ClusterName:
@@ -402,12 +332,6 @@ components:
         type: string
     TopicName:
       name: topic
-      in: path
-      required: true
-      schema:
-        type: string
-    UserName:
-      name: user
       in: path
       required: true
       schema:
@@ -717,23 +641,3 @@ components:
           type: integer
           format: int64
           description: Broker append timestamp; -1 when the broker did not report one.
-    CreateUserRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          description: >-
-            At most 64 chars, starting with a lower case letter, containing only lower case
-            letters, digits or '-'.
-    UserInfo:
-      type: object
-      required: [name, ready]
-      properties:
-        name:
-          type: string
-        ready:
-          type: boolean
-        message:
-          type: string
-          nullable: true
