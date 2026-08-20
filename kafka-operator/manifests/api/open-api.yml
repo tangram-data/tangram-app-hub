@@ -299,6 +299,25 @@ paths:
                 $ref: '#/components/schemas/TopicSchemaInfo'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/stats:
+    get:
+      operationId: getKafkaTopicStats
+      tags: [KafkaService]
+      summary: >-
+        Live per-partition offsets, retained-record estimate and log sizes, fetched from the
+        brokers.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Per-partition stats with topic totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicStats'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics/{topic}/messages:
     post:
       operationId: produceKafkaTopicMessage
@@ -626,6 +645,58 @@ components:
           additionalProperties:
             type: string
           description: Optional Kafka record headers.
+    TopicPartitionStats:
+      type: object
+      required: [partition, replicas, inSyncReplicas, earliestOffset, latestOffset, messageEstimate]
+      properties:
+        partition:
+          type: integer
+        leader:
+          type: integer
+          nullable: true
+          description: Broker id of the partition leader; null while leaderless.
+        replicas:
+          type: integer
+        inSyncReplicas:
+          type: integer
+        earliestOffset:
+          type: integer
+          format: int64
+        latestOffset:
+          type: integer
+          format: int64
+        messageEstimate:
+          type: integer
+          format: int64
+          description: >-
+            latestOffset - earliestOffset: upper bound on retained records (deletion and compaction
+            shrink the real count below it).
+        leaderSizeBytes:
+          type: integer
+          format: int64
+          nullable: true
+          description: On-disk log size of the leader replica.
+    TopicStats:
+      type: object
+      required: [topic, partitions, totalMessageEstimate, totalLeaderSizeBytes, totalReplicatedSizeBytes]
+      properties:
+        topic:
+          type: string
+        partitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicPartitionStats'
+        totalMessageEstimate:
+          type: integer
+          format: int64
+        totalLeaderSizeBytes:
+          type: integer
+          format: int64
+          description: Logical topic size (leader replicas only).
+        totalReplicatedSizeBytes:
+          type: integer
+          format: int64
+          description: Full on-disk footprint across all replicas.
     ProduceMessageResult:
       type: object
       required: [topic, partition, offset, timestampMs]

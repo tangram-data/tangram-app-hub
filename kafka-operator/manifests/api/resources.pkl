@@ -215,6 +215,16 @@ Topic = new resources.ResourceTypeDefinition {
           operationId = "getKafkaTopicSchema"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
         }
+      },
+      new resources.Action {
+        name = "GetStats"
+        effect = Stateless
+        idempotent = true
+        doc = "Live per-partition offsets, retained-record estimate and log sizes, fetched from the brokers."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaTopicStats"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
       }
     )
   })
