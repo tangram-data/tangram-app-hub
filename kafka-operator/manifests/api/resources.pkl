@@ -127,7 +127,7 @@ Topic = new resources.ResourceTypeDefinition {
   scopeType = KafkaClusterType
   superType = resources.DATASET_TYPE
   versions = List(new resources.ResourceTypeVersion {
-    version = "v1"; served = true
+    version = "v1"; served = true; superTypeVersion = "v1"
     // Grantable per-topic roles; bound to consumers such as the per-job service accounts that
     // StarRocks routine loads provision for the token listener.
     presetRoles = List(
