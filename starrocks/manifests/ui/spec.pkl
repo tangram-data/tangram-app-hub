@@ -13,7 +13,10 @@ deployment: ui.UIDeployment = new {
 
 resourceTypeIcons {
   ["StarRocksCluster"] = "static/starrocks.svg"
+  ["RoutineLoad"] = "static/starrocks.svg"
 }
 resourceTypeUri {
   ["StarRocksCluster"] = "/clusters/{{names[1]}}"
+  // RoutineLoad names = [workspace, database, job]; the ingestion section lists all jobs.
+  ["RoutineLoad"] = "/?section=ingestion"
 }

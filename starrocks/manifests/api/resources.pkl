@@ -112,6 +112,46 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
           operationId = "getStarRocksClusterConnectionDetails"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
+      },
+      new resources.Action {
+        name = "ListDatabases"
+        effect = Stateless
+        idempotent = true
+        doc = "List the cluster's user databases (default catalog); used by the routine-load creation UI."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksDatabases"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListTables"
+        effect = Stateless
+        idempotent = true
+        doc = "List a database's tables; used by the routine-load creation UI."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksTables"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "DescribeTable"
+        effect = Stateless
+        idempotent = true
+        doc = "A table's column definitions (DESC); used by the routine-load column-mapping UI."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "describeStarRocksTable"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListRoutineLoads"
+        effect = Stateless
+        idempotent = true
+        doc = "List routine load jobs across all databases of the cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listAllStarRocksRoutineLoads"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
       }
     )
   })
@@ -399,6 +439,93 @@ MaterializedView = new resources.ResourceTypeDefinition {
   })
 }
 
+// ---------------------------------------------------------------------------
+// RoutineLoad  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+RoutineLoad = new resources.ResourceTypeDefinition {
+  name = "RoutineLoad"
+  doc  = "A StarRocks routine load job that continuously ingests messages from a Kafka topic into a table."
+  activeVersion = "v1"
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a routine load job from a no-SQL description; the server renders and executes CREATE ROUTINE LOAD."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}, {{requestBody.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Preview"
+        effect = Stateless
+        idempotent = true
+        doc = "Render the CREATE ROUTINE LOAD statement for a request without executing it."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "previewStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get one routine load job, including state, per-partition progress, statistics and error diagnostics."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}, {{parameters.job}}]"
+        }
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List the database's routine load jobs with state, progress and statistics."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksRoutineLoads"
+          resourceNameTemplate = "[{{parameters.database}}]"
+        }
+      },
+      new resources.Action {
+        name = "Pause"
+        effect = Reversible
+        idempotent = true
+        doc = "Pause the routine load job; resuming continues from the recorded offsets."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "pauseStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}, {{parameters.job}}]"
+        }
+      },
+      new resources.Action {
+        name = "Resume"
+        effect = Reversible
+        idempotent = true
+        doc = "Resume a paused routine load job from its recorded offsets."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "resumeStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}, {{parameters.job}}]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Stop the routine load job permanently (STOP ROUTINE LOAD); it cannot be resumed."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "stopStarRocksRoutineLoad"
+          resourceNameTemplate = "[{{parameters.database}}, {{parameters.job}}]"
+        }
+      }
+    )
+  })
+}
+
 types: List<resources.ResourceTypeDefinition> = List(
-  StarRocksCluster, Database, Table, View, MaterializedView
+  StarRocksCluster, Database, Table, View, MaterializedView, RoutineLoad
 )

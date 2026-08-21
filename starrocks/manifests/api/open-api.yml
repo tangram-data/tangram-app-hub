@@ -166,10 +166,221 @@ paths:
                 $ref: '#/components/schemas/InstanceLogs'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases:
+    get:
+      operationId: listStarRocksDatabases
+      tags: [StarRocksService]
+      summary: List the cluster's user databases (default catalog).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Databases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksDatabaseList'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/tables:
+    get:
+      operationId: listStarRocksTables
+      tags: [StarRocksService]
+      summary: List the database's tables.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+      responses:
+        '200':
+          description: Tables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksTableList'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/tables/{table}/schema:
+    get:
+      operationId: describeStarRocksTable
+      tags: [StarRocksService]
+      summary: The table's columns (DESC), for the routine-load column-mapping form.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+        - name: table
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Table columns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksTableSchema'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/routine-loads:
+    get:
+      operationId: listAllStarRocksRoutineLoads
+      tags: [StarRocksService]
+      summary: List routine load jobs across all databases of the cluster.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Routine load jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadList'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/routine-loads:
+    post:
+      operationId: createStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: >-
+        Create a routine load job that continuously ingests a Kafka topic into a table; the server
+        renders and executes the CREATE ROUTINE LOAD statement.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoutineLoadRequest'
+      responses:
+        '200':
+          description: Created routine load job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listStarRocksRoutineLoads
+      tags: [StarRocksService]
+      summary: List the database's routine load jobs with state, progress and statistics.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+      responses:
+        '200':
+          description: Routine load jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadList'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/routine-loads/preview:
+    post:
+      operationId: previewStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: Render the CREATE ROUTINE LOAD statement for the request without executing it.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoutineLoadRequest'
+      responses:
+        '200':
+          description: Rendered SQL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadSqlPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/routine-loads/{job}:
+    get:
+      operationId: getStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: Get one routine load job, including progress, statistics and error diagnostics.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+        - $ref: '#/components/parameters/JobName'
+      responses:
+        '200':
+          description: Routine load job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: stopStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: Stop the routine load job permanently (STOP ROUTINE LOAD); it cannot be resumed.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+        - $ref: '#/components/parameters/JobName'
+      responses:
+        '200':
+          description: Stopped
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/routine-loads/{job}/pause:
+    post:
+      operationId: pauseStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: Pause the routine load job; resume continues from the recorded offsets.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+        - $ref: '#/components/parameters/JobName'
+      responses:
+        '200':
+          description: Paused routine load job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/databases/{database}/routine-loads/{job}/resume:
+    post:
+      operationId: resumeStarRocksRoutineLoad
+      tags: [StarRocksService]
+      summary: Resume a paused routine load job from its recorded offsets.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/DatabaseName'
+        - $ref: '#/components/parameters/JobName'
+      responses:
+        '200':
+          description: Resumed routine load job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineLoadInfo'
+        default:
+          $ref: '#/components/responses/Error'
 components:
   parameters:
     ClusterName:
       name: name
+      in: path
+      required: true
+      schema: { type: string }
+    DatabaseName:
+      name: database
+      in: path
+      required: true
+      schema: { type: string }
+    JobName:
+      name: job
       in: path
       required: true
       schema: { type: string }
@@ -384,3 +595,177 @@ components:
             - $ref: '#/components/schemas/ComputeAutoscaleSpec'
           nullable: true
         idleSuspendMinutes: { type: integer, nullable: true }
+    KafkaRoutineLoadSource:
+      type: object
+      description: >-
+        Kafka source of a routine load job. `properties` entries are rendered as
+        `property.<key>` data-source properties (e.g. security.protocol, sasl.mechanism,
+        sasl.username, sasl.password).
+      required: [brokerList, topic]
+      properties:
+        brokerList:
+          type: string
+          description: Comma-separated host:port list, reachable from the StarRocks compute nodes.
+        topic: { type: string }
+        partitions:
+          type: array
+          items: { type: integer }
+          description: Explicit partition subscription; empty consumes all partitions.
+        offsets:
+          type: array
+          items: { type: string }
+          description: >-
+            Start position per subscribed partition (parallel to partitions): a numeric offset,
+            OFFSET_BEGINNING or OFFSET_END.
+        defaultOffsets:
+          type: string
+          nullable: true
+          description: Start position for all partitions (OFFSET_BEGINNING or OFFSET_END).
+        properties:
+          type: object
+          additionalProperties: { type: string }
+    CreateRoutineLoadRequest:
+      type: object
+      description: >-
+        No-SQL description of a CREATE ROUTINE LOAD statement; the server renders and executes
+        the SQL against the cluster FE.
+      required: [name, table, kafka]
+      properties:
+        name: { type: string }
+        table: { type: string }
+        format:
+          type: string
+          enum: [json, csv, avro]
+          default: json
+        columns:
+          type: array
+          items: { type: string }
+          description: >-
+            Column mapping in source order — plain column names or derivations like
+            `event_day = from_unixtime(ts)`. Empty maps by name.
+        whereFilter:
+          type: string
+          nullable: true
+          description: Optional row filter expression (WHERE clause).
+        targetPartitions:
+          type: array
+          items: { type: string }
+        columnSeparator: { type: string, nullable: true }
+        rowDelimiter: { type: string, nullable: true }
+        jsonPaths:
+          type: array
+          items: { type: string }
+        jsonRoot: { type: string, nullable: true }
+        stripOuterArray: { type: boolean, nullable: true }
+        jobProperties:
+          type: object
+          additionalProperties: { type: string }
+          description: >-
+            Job PROPERTIES pass-through (desired_concurrent_number, max_batch_interval,
+            max_error_number, ...).
+        kafka:
+          $ref: '#/components/schemas/KafkaRoutineLoadSource'
+    RoutineLoadSqlPreview:
+      type: object
+      required: [sql]
+      properties:
+        sql: { type: string }
+    RoutineLoadStatistics:
+      type: object
+      description: Cumulative counters from the job's Statistic JSON, as reported by SHOW ROUTINE LOAD.
+      properties:
+        loadedRows: { type: integer, format: int64 }
+        errorRows: { type: integer, format: int64 }
+        totalRows: { type: integer, format: int64 }
+        unselectedRows: { type: integer, format: int64 }
+        receivedBytes: { type: integer, format: int64 }
+        taskExecuteTimeMs: { type: integer, format: int64 }
+        committedTaskNum: { type: integer, format: int64 }
+        abortedTaskNum: { type: integer, format: int64 }
+        loadRowsRate: { type: integer, format: int64, nullable: true }
+        receivedBytesRate: { type: integer, format: int64, nullable: true }
+    RoutineLoadInfo:
+      type: object
+      description: >-
+        One routine load job as reported by SHOW ROUTINE LOAD. progress and latestSourcePosition
+        map Kafka partition -> consumed/newest offset (values may be symbolic, e.g. OFFSET_ZERO).
+      required: [name, database, table, state, dataSourceType]
+      properties:
+        name: { type: string }
+        database: { type: string }
+        table: { type: string }
+        state:
+          type: string
+          enum: [NEED_SCHEDULE, RUNNING, PAUSED, UNSTABLE, STOPPED, CANCELLED, UNKNOWN]
+        createTime: { type: string, nullable: true }
+        pauseTime: { type: string, nullable: true }
+        endTime: { type: string, nullable: true }
+        dataSourceType: { type: string }
+        kafkaTopic: { type: string, nullable: true }
+        currentTaskNum: { type: integer, nullable: true }
+        jobProperties:
+          type: object
+          additionalProperties: { type: string }
+        dataSourceProperties:
+          type: object
+          additionalProperties: { type: string }
+        customProperties:
+          type: object
+          additionalProperties: { type: string }
+        statistics:
+          allOf:
+            - $ref: '#/components/schemas/RoutineLoadStatistics'
+          nullable: true
+        progress:
+          type: object
+          additionalProperties: { type: string }
+        timestampProgress:
+          type: object
+          additionalProperties: { type: string }
+        latestSourcePosition:
+          type: object
+          additionalProperties: { type: string }
+        reasonOfStateChanged: { type: string, nullable: true }
+        errorLogUrls: { type: string, nullable: true }
+        trackingSql: { type: string, nullable: true }
+        otherMsg: { type: string, nullable: true }
+    RoutineLoadList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutineLoadInfo'
+    StarRocksDatabaseList:
+      type: object
+      required: [databases]
+      properties:
+        databases:
+          type: array
+          items: { type: string }
+    StarRocksTableList:
+      type: object
+      required: [tables]
+      properties:
+        tables:
+          type: array
+          items: { type: string }
+    StarRocksTableColumn:
+      type: object
+      required: [name, dataType, nullable, key]
+      properties:
+        name: { type: string }
+        dataType: { type: string }
+        nullable: { type: boolean }
+        key: { type: boolean }
+        defaultValue: { type: string, nullable: true }
+        extra: { type: string, nullable: true }
+    StarRocksTableSchema:
+      type: object
+      required: [columns]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/StarRocksTableColumn'

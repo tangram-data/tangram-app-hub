@@ -68,3 +68,16 @@ minutes), then queries run normally.
 
 The Active cluster is registered as a SQL engine. Connect through the Tangram SQL proxy with any
 PostgreSQL client and select the engine to run SQL against StarRocks.
+
+## Kafka ingestion (routine loads)
+
+The Ingestion tab creates and manages StarRocks routine load jobs — continuous ingestion from a
+Kafka topic into a table — without writing SQL. A form describes the job (target database/table,
+brokers, topic, start offset, JSON/CSV mapping, optional row filter and Kafka client properties
+such as SASL credentials); the app renders the `CREATE ROUTINE LOAD` statement (previewable) and
+executes it on the cluster FE. Each created job is registered as a `RoutineLoad` resource in the
+workspace resource registry.
+
+The job list shows live state (`RUNNING`, `PAUSED`, `UNSTABLE`, ...), loaded/error row counters,
+and per-partition consumed offsets with lag against the newest source offsets. Jobs can be paused
+and resumed in place; stopping a job is permanent and removes its registry entry.
