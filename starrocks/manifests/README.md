@@ -84,7 +84,9 @@ Two source kinds are supported:
   grants it the topic's `reader` role, and configures the consumer against the cluster's
   IAM-authorized token listener (SASL/OAUTHBEARER via the kafka app's OAuth token endpoint).
   Requires the kafka-operator token lane to be enabled; stopping the job deletes the service
-  account. The creator needs permission to assign the topic's roles.
+  account. The creator needs permission to assign the topic's roles — when they lack it, creation
+  fails with the service-account name so a workspace admin can bind the topic's `reader` role to
+  that account; retrying afterwards reuses the account and proceeds.
 - **External Kafka** — explicit broker list, topic and optional Kafka client properties
   (e.g. SASL credentials), passed through to the consumer.
 
