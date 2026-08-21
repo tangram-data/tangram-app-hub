@@ -287,6 +287,26 @@ SinkConnector = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "GetInstances"
+        effect = Stateless
+        idempotent = true
+        doc = "Status of the sink's Connect worker pods."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSinkConnectorInstances"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstanceLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Tail of one Connect worker pod's logs (debugging aid)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSinkConnectorInstanceLogs"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
+        }
+      },
+      new resources.Action {
         name = "Pause"
         effect = Reversible
         idempotent = true
