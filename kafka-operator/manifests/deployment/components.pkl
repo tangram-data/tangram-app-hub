@@ -41,7 +41,8 @@ kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         // that carries the authorizer + strimzi-oauth libs (tangram-kafka/broker-image); its Kafka
         // base MUST match the Kafka version the operator serves.
         "KAFKA_TANGRAM_TOKEN_LANE_ENABLED", "true",
-        "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.0",
+        // 1.0.1 adds the static confinement of Iceberg-sink worker principals in the authorizer.
+        "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.1",
         // Default Connect worker image with the Iceberg sink connector baked in
         // (tangram-kafka/connect-image); Iceberg sinks require it unless the caller supplies a
         // trusted custom image.
