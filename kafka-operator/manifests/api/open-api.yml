@@ -920,6 +920,9 @@ components:
         - $ref: '#/components/schemas/CustomSinkKind'
       discriminator:
         propertyName: type
+        mapping:
+          IcebergSink: '#/components/schemas/IcebergSinkKind'
+          Custom: '#/components/schemas/CustomSinkKind'
     CreateSinkConnectorRequest:
       type: object
       required: [name, topics, connector]
