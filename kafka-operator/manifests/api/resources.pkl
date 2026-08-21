@@ -245,12 +245,12 @@ Topic = new resources.ResourceTypeDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// IcebergSink  (KafkaCluster-scoped)
+// SinkConnector  (KafkaCluster-scoped)
 // ---------------------------------------------------------------------------
 
-IcebergSink = new resources.ResourceTypeDefinition {
-  name = "IcebergSink"
-  doc  = "A managed Kafka Connect job continuously committing topics into a table of the workspace's Tangram Iceberg catalog, running as a per-job IAM service account."
+SinkConnector = new resources.ResourceTypeDefinition {
+  name = "SinkConnector"
+  doc  = "A managed Kafka Connect sink job consuming topics as a per-job IAM service account. Kinds: the platform-integrated Iceberg sink (commits into the workspace's Tangram Iceberg catalog) or a custom connector class."
   activeVersion = "v1"
   scopeType = KafkaClusterType
   versions = List(new resources.ResourceTypeVersion {
@@ -260,9 +260,9 @@ IcebergSink = new resources.ResourceTypeDefinition {
         name = "Create"
         effect = Reversible
         idempotent = false
-        doc = "Create an Iceberg sink job (asynchronous). A user-supplied customImage MUST be one the caller built or fully trusts — it runs inside the app namespace with access to the job's credentials."
+        doc = "Create a sink connector job (asynchronous): the integrated Iceberg sink or a custom connector class. A user-supplied customImage MUST be one the caller built or fully trusts — it runs inside the app namespace with access to the job's credentials."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "createKafkaIcebergSink"
+          operationId = "createKafkaSinkConnector"
           resourceNameTemplate = "[{{parameters.name}}, {{requestBody.name}}]"
         }
       },
@@ -270,9 +270,9 @@ IcebergSink = new resources.ResourceTypeDefinition {
         name = "Get"
         effect = Stateless
         idempotent = true
-        doc = "Describe one Iceberg sink job, including its live connector tasks."
+        doc = "Describe one sink connector job, including its live connector tasks."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "getKafkaIcebergSink"
+          operationId = "getKafkaSinkConnector"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
         }
       },
@@ -280,9 +280,9 @@ IcebergSink = new resources.ResourceTypeDefinition {
         name = "List"
         effect = Stateless
         idempotent = true
-        doc = "List the cluster's Iceberg sink jobs with their live Connect state."
+        doc = "List the cluster's sink connector jobs with their live Connect state."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "listKafkaIcebergSinks"
+          operationId = "listKafkaSinkConnectors"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },
@@ -292,7 +292,7 @@ IcebergSink = new resources.ResourceTypeDefinition {
         idempotent = true
         doc = "Pause the sink's connector (consumption and commits stop; state is kept)."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "pauseKafkaIcebergSink"
+          operationId = "pauseKafkaSinkConnector"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
         }
       },
@@ -302,7 +302,7 @@ IcebergSink = new resources.ResourceTypeDefinition {
         idempotent = true
         doc = "Resume a paused sink connector."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "resumeKafkaIcebergSink"
+          operationId = "resumeKafkaSinkConnector"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
         }
       },
@@ -311,9 +311,9 @@ IcebergSink = new resources.ResourceTypeDefinition {
         effect = Irreversible
         idempotent = true
         requiresConfirmation = true
-        doc = "Delete the sink job (asynchronous): Connect resources, secrets, per-job service account and internal topics. Already-committed Iceberg data is kept."
+        doc = "Delete the sink job (asynchronous): Connect resources, secrets, per-job service account and internal topics. Already-delivered data is kept."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "deleteKafkaIcebergSink"
+          operationId = "deleteKafkaSinkConnector"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.sink}}]"
         }
       }
@@ -322,5 +322,5 @@ IcebergSink = new resources.ResourceTypeDefinition {
 }
 
 types: List<resources.ResourceTypeDefinition> = List(
-  KafkaCluster, Topic, IcebergSink
+  KafkaCluster, Topic, SinkConnector
 )
