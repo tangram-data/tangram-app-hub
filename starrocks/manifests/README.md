@@ -73,10 +73,20 @@ PostgreSQL client and select the engine to run SQL against StarRocks.
 
 The Ingestion tab creates and manages StarRocks routine load jobs — continuous ingestion from a
 Kafka topic into a table — without writing SQL. A form describes the job (target database/table,
-brokers, topic, start offset, JSON/CSV mapping, optional row filter and Kafka client properties
-such as SASL credentials); the app renders the `CREATE ROUTINE LOAD` statement (previewable) and
-executes it on the cluster FE. Each created job is registered as a `RoutineLoad` resource in the
-workspace resource registry.
+source, start offset, JSON/CSV mapping, optional row filter); the app renders the
+`CREATE ROUTINE LOAD` statement (previewable) and executes it on the cluster FE. Each created job
+is registered as a `RoutineLoad` resource in the workspace resource registry.
+
+Two source kinds are supported:
+
+- **Tangram Kafka** — pick a topic of the workspace's Tangram-managed Kafka (the
+  `ai.tangram/kafka-operator` app). The app provisions a dedicated service account for the job,
+  grants it the topic's `reader` role, and configures the consumer against the cluster's
+  IAM-authorized token listener (SASL/OAUTHBEARER via the kafka app's OAuth token endpoint).
+  Requires the kafka-operator token lane to be enabled; stopping the job deletes the service
+  account. The creator needs permission to assign the topic's roles.
+- **External Kafka** — explicit broker list, topic and optional Kafka client properties
+  (e.g. SASL credentials), passed through to the consumer.
 
 The job list shows live state (`RUNNING`, `PAUSED`, `UNSTABLE`, ...), loaded/error row counters,
 and per-partition consumed offsets with lag against the newest source offsets. Jobs can be paused

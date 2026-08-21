@@ -489,6 +489,19 @@ components:
           type: string
           nullable: true
           description: LoadBalancer bootstrap of the external listener, when exposed and assigned.
+        tokenBootstrap:
+          type: string
+          nullable: true
+          description: >-
+            In-cluster bootstrap of the Tangram-token listener (port 9095, SASL/OAUTHBEARER,
+            IAM-authorized); null when the token lane is not enabled.
+        tokenEndpointUrl:
+          type: string
+          nullable: true
+          description: >-
+            Namespace-qualified OAuth client_credentials token endpoint for OIDC consumers
+            (e.g. StarRocks routine loads): a Tangram service-account token is presented as
+            client_secret and returned as the access token.
     ClusterConnectionDetails:
       type: object
       required: [bootstrapServers, securityProtocol, saslMechanism, user]

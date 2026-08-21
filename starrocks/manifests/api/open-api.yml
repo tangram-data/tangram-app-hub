@@ -220,6 +220,22 @@ paths:
                 $ref: '#/components/schemas/StarRocksTableSchema'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/tangram-kafka/topics:
+    get:
+      operationId: listStarRocksTangramKafkaTopics
+      tags: [StarRocksService]
+      summary: Topics of the workspace's Tangram-managed Kafka, for the routine-load source picker.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Tangram Kafka topics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TangramKafkaTopicList'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/routine-loads:
     get:
       operationId: listAllStarRocksRoutineLoads
@@ -624,12 +640,40 @@ components:
         properties:
           type: object
           additionalProperties: { type: string }
+    TangramKafkaSource:
+      type: object
+      description: >-
+        A topic of the workspace's Tangram-managed Kafka (kafka-operator app). The server resolves
+        the token-listener bootstrap and provisions a per-job service account granted read access
+        on the topic; its token authenticates the consumer.
+      required: [topic]
+      properties:
+        topic: { type: string }
+        defaultOffsets:
+          type: string
+          nullable: true
+          description: OFFSET_BEGINNING, OFFSET_END (default), or a numeric Kafka offset.
+    TangramKafkaTopic:
+      type: object
+      required: [name, rn]
+      properties:
+        name: { type: string }
+        rn: { type: string }
+    TangramKafkaTopicList:
+      type: object
+      required: [topics]
+      properties:
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/TangramKafkaTopic'
     CreateRoutineLoadRequest:
       type: object
       description: >-
         No-SQL description of a CREATE ROUTINE LOAD statement; the server renders and executes
-        the SQL against the cluster FE.
-      required: [name, table, kafka]
+        the SQL against the cluster FE. Exactly one of kafka (external cluster) or tangramKafka
+        (the workspace's Tangram-managed Kafka) must be set.
+      required: [name, table]
       properties:
         name: { type: string }
         table: { type: string }
@@ -664,7 +708,13 @@ components:
             Job PROPERTIES pass-through (desired_concurrent_number, max_batch_interval,
             max_error_number, ...).
         kafka:
-          $ref: '#/components/schemas/KafkaRoutineLoadSource'
+          allOf:
+            - $ref: '#/components/schemas/KafkaRoutineLoadSource'
+          nullable: true
+        tangramKafka:
+          allOf:
+            - $ref: '#/components/schemas/TangramKafkaSource'
+          nullable: true
     RoutineLoadSqlPreview:
       type: object
       required: [sql]

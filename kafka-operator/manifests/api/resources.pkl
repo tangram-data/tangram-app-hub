@@ -128,6 +128,20 @@ Topic = new resources.ResourceTypeDefinition {
   superType = resources.DATASET_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true
+    // Grantable per-topic roles; bound to consumers such as the per-job service accounts that
+    // StarRocks routine loads provision for the token listener.
+    presetRoles = List(
+      new resources.Role {
+        name = "reader"
+        permissions = List("Read")
+        description = "Consume messages from the topic."
+      },
+      new resources.Role {
+        name = "writer"
+        permissions = List("Read", "Write")
+        description = "Produce to and consume from the topic."
+      }
+    )
     actions = List(
       new resources.Action {
         name = "Create"

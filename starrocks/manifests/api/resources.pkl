@@ -152,6 +152,16 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
           operationId = "listAllStarRocksRoutineLoads"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
+      },
+      new resources.Action {
+        name = "ListTangramKafkaTopics"
+        effect = Stateless
+        idempotent = true
+        doc = "Topics of the workspace's Tangram-managed Kafka (kafka-operator app), for the routine-load source picker."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksTangramKafkaTopics"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
       }
     )
   })
