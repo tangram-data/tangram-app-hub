@@ -36,6 +36,12 @@ charts: List<deployment.HelmChart> = List(
         resources = List("kafkatopics", "kafkausers")
         // deletecollection: teardown deletes topics/users by label selector (a collection DELETE).
         verbs     = List("create", "get", "list", "update", "delete", "deletecollection")
+      },
+      new deployment.CustomResourceRbac {
+        apiGroup  = "kafka.strimzi.io"
+        resources = List("kafkaconnects", "kafkaconnectors")
+        // patch: pause/resume merge-patches only the connector's spec.state.
+        verbs     = List("create", "get", "list", "update", "patch", "delete")
       }
     )
   }

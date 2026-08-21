@@ -341,6 +341,114 @@ paths:
                 $ref: '#/components/schemas/ProduceMessageResult'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/iceberg-sinks:
+    post:
+      operationId: createKafkaIcebergSink
+      tags: [KafkaService]
+      summary: >-
+        Create an Iceberg sink job: a managed Kafka Connect pipeline committing the topics into the
+        workspace's Iceberg catalog as a per-job IAM service account. A user-supplied customImage
+        MUST be one you built or fully trust — it runs inside the app namespace with access to the
+        job's credentials.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIcebergSinkRequest'
+      responses:
+        '200':
+          description: Sink record in status Creating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergSinkInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listKafkaIcebergSinks
+      tags: [KafkaService]
+      summary: List the cluster's Iceberg sink jobs with their live Connect state.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Sink jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IcebergSinkInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/iceberg-sinks/{sink}:
+    get:
+      operationId: getKafkaIcebergSink
+      tags: [KafkaService]
+      summary: Describe one Iceberg sink job, including its connector tasks.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SinkName'
+      responses:
+        '200':
+          description: Sink job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergSinkInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteKafkaIcebergSink
+      tags: [KafkaService]
+      summary: >-
+        Delete the sink job asynchronously: its Connect resources, secrets, per-job service account
+        and internal topics. Already-committed Iceberg data is kept.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SinkName'
+      responses:
+        '200':
+          description: Deletion started
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/iceberg-sinks/{sink}/pause:
+    post:
+      operationId: pauseKafkaIcebergSink
+      tags: [KafkaService]
+      summary: Pause the sink's connector (consumption and commits stop; state is kept).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SinkName'
+      responses:
+        '200':
+          description: Sink job after the pause
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergSinkInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/iceberg-sinks/{sink}/resume:
+    post:
+      operationId: resumeKafkaIcebergSink
+      tags: [KafkaService]
+      summary: Resume a paused sink connector.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SinkName'
+      responses:
+        '200':
+          description: Sink job after the resume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcebergSinkInfo'
+        default:
+          $ref: '#/components/responses/Error'
 components:
   parameters:
     ClusterName:
@@ -351,6 +459,12 @@ components:
         type: string
     TopicName:
       name: topic
+      in: path
+      required: true
+      schema:
+        type: string
+    SinkName:
+      name: sink
       in: path
       required: true
       schema:
@@ -725,3 +839,171 @@ components:
           type: integer
           format: int64
           description: Broker append timestamp; -1 when the broker did not report one.
+    RegistryCredential:
+      type: object
+      required: [server, username, password]
+      description: >-
+        Registry credential for pulling a private custom worker image. Written to a pull secret;
+        never persisted in the sink's spec.
+      properties:
+        server:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+    SinkCustomImage:
+      type: object
+      required: [image]
+      description: >-
+        A user-supplied Connect worker image replacing the Tangram-built default. WARNING — trust
+        required: the image runs inside the Kafka app's namespace with access to the worker's
+        credentials and the sink job's service-account token. Only use images you built or fully
+        trust; Tangram cannot verify their contents.
+      properties:
+        image:
+          type: string
+        registryCredential:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RegistryCredential'
+    CreateIcebergSinkRequest:
+      type: object
+      required: [name, topics, icebergDatabase, icebergTable]
+      properties:
+        name:
+          type: string
+          description: At most 40 chars; lower case letters, digits and dashes.
+        topics:
+          type: array
+          items:
+            type: string
+          description: Source topics of the managed cluster, consumed as the job's service account.
+        icebergDatabase:
+          type: string
+        icebergTable:
+          type: string
+        autoCreateTable:
+          type: boolean
+          default: true
+        evolveSchema:
+          type: boolean
+          default: true
+        tasksMax:
+          type: integer
+          default: 1
+        workers:
+          type: integer
+          default: 1
+          description: Connect worker pods.
+        commitIntervalSeconds:
+          type: integer
+          default: 60
+        initialOffset:
+          type: string
+          default: latest
+          description: Where a fresh job starts on the topics — latest or earliest.
+        cpuMilli:
+          type: integer
+          default: 500
+        memoryMi:
+          type: integer
+          default: 1024
+        customImage:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/SinkCustomImage'
+        connectorProps:
+          type: object
+          additionalProperties:
+            type: string
+          description: Extra Iceberg sink connector properties (connection/security keys rejected).
+    IcebergSinkSpec:
+      type: object
+      required: [name, topics, icebergDatabase, icebergTable]
+      properties:
+        name:
+          type: string
+        topics:
+          type: array
+          items:
+            type: string
+        icebergDatabase:
+          type: string
+        icebergTable:
+          type: string
+        autoCreateTable:
+          type: boolean
+        evolveSchema:
+          type: boolean
+        tasksMax:
+          type: integer
+        workers:
+          type: integer
+        commitIntervalSeconds:
+          type: integer
+        initialOffset:
+          type: string
+        cpuMilli:
+          type: integer
+        memoryMi:
+          type: integer
+        customImage:
+          type: string
+          nullable: true
+        customImagePullSecret:
+          type: boolean
+        connectorProps:
+          type: object
+          additionalProperties:
+            type: string
+    SinkTaskInfo:
+      type: object
+      required: [id, state]
+      properties:
+        id:
+          type: integer
+        state:
+          type: string
+        workerId:
+          type: string
+          nullable: true
+        trace:
+          type: string
+          nullable: true
+    IcebergSinkInfo:
+      type: object
+      required: [name, workspace, cluster, spec, status, createdAt]
+      properties:
+        name:
+          type: string
+        workspace:
+          type: string
+        cluster:
+          type: string
+        spec:
+          $ref: '#/components/schemas/IcebergSinkSpec'
+        status:
+          type: string
+          enum: [Creating, Active, Degraded, CreationFailed, Deleting, DeletionFailed]
+        statusMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        connectReady:
+          type: boolean
+        connectorState:
+          type: string
+          nullable: true
+          description: Live Connect runtime state (RUNNING/PAUSED/FAILED/...) once deployed.
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SinkTaskInfo'
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Non-fatal provisioning warnings (failed grants, custom-image trust notice).
