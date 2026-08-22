@@ -269,7 +269,11 @@ Topic = new resources.ResourceTypeDefinition {
         // Potentially high-frequency data-plane operation: one audit row per produced message
         // would flood audit_entries (authorization is still enforced; only the log is skipped).
         skipAudit = true
-        doc = "Produce to the topic: post a single message through the app's admin producer, encoded per the topic's declared format. Also the authorization marker for producing with Kafka clients."
+        doc = "Produce to the topic: post a single message or a batch through the app's shared producer, encoded per the topic's declared format. Also the authorization marker for producing with Kafka clients."
+        openApiMappings = List(new resources.OpenApiMapping {
+          operationId = "produceKafkaTopicMessagesBatch"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        })
         openApiMapping = new resources.OpenApiMapping {
           operationId = "produceKafkaTopicMessage"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"

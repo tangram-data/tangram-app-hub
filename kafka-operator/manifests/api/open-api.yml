@@ -302,6 +302,32 @@ paths:
                 $ref: '#/components/schemas/TopicSchemaInfo'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/messages/batch:
+    post:
+      operationId: produceKafkaTopicMessagesBatch
+      tags: [KafkaService]
+      summary: >-
+        High-frequency ingestion: post up to 1000 messages in one call over a shared producer,
+        each encoded per the topic's declared format. One authorization check per batch; the
+        action skips per-call audit.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProduceMessagesBatchRequest'
+      responses:
+        '200':
+          description: Batch outcome with per-message failures by request index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduceMessagesBatchResult'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics/{topic}/stats:
     get:
       operationId: getKafkaTopicStats
@@ -1016,6 +1042,38 @@ components:
           type: string
           nullable: true
           description: The topic's latest registered Avro schema (subject `<topic>-value`), when one exists.
+    ProduceMessagesBatchRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/ProduceMessageRequest'
+    ProduceMessagesBatchResult:
+      type: object
+      required: [topic, produced, firstOffset, lastOffset]
+      properties:
+        topic:
+          type: string
+        produced:
+          type: integer
+        firstOffset:
+          type: integer
+          format: int64
+          description: -1 when nothing was produced.
+        lastOffset:
+          type: integer
+          format: int64
+        failures:
+          type: array
+          items:
+            type: object
+            required: [index, error]
+            properties:
+              index: { type: integer }
+              error: { type: string }
     ProduceMessageRequest:
       type: object
       required: [value]
