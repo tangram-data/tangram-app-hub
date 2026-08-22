@@ -263,8 +263,9 @@ paths:
       operationId: setKafkaTopicSchema
       tags: [KafkaService]
       summary: >-
-        Create or update the topic's Tangram schema (the declared shape of its JSON messages),
-        saved as a dataset schema in the core data catalog.
+        Create or update the topic's schema: an Avro schema (registered in the cluster's schema
+        registry under `<topic>-value` and flattened into the core data catalog) or plain
+        flattened fields (catalog-only, for schemaless-JSON topics).
       parameters:
         - $ref: '#/components/parameters/ClusterName'
         - $ref: '#/components/parameters/TopicName'
@@ -961,13 +962,20 @@ components:
           nullable: true
     SetTopicSchemaRequest:
       type: object
-      required: [fields]
+      description: >-
+        Exactly one input lane: an Avro record schema (registered in the cluster's schema
+        registry under `<topic>-value` and flattened into the catalog fields), or plain
+        flattened fields (catalog-only, for schemaless-JSON topics).
       properties:
         fields:
           type: array
           items:
             $ref: '#/components/schemas/TopicSchemaField'
           description: Field names must be unique; order becomes the catalog field ordering.
+        avroSchema:
+          type: string
+          nullable: true
+          description: Avro record schema as a JSON string; mutually exclusive with fields.
     TopicSchemaInfo:
       type: object
       required: [topic, version, fields]
@@ -981,6 +989,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TopicSchemaField'
+        avroSchema:
+          type: string
+          nullable: true
+          description: The topic's latest registered Avro schema (subject `<topic>-value`), when one exists.
     ProduceMessageRequest:
       type: object
       required: [value]
