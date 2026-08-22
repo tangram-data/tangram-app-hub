@@ -111,6 +111,68 @@ KafkaCluster = new resources.ResourceTypeDefinition {
           operationId = "getKafkaClusterConnectionDetails"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
+      },
+      // Confluent-wire-compatible Avro schema registry, served per cluster. Registered versions
+      // are immutable (the registry has no delete), hence Irreversible on register.
+      new resources.Action {
+        name = "RegisterSchema"
+        effect = Irreversible
+        idempotent = true
+        doc = "Register an Avro schema under a subject (idempotent; compatibility-checked)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "registerKafkaSchema"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListSchemaSubjects"
+        effect = Stateless
+        idempotent = true
+        doc = "List the schema registry's subjects."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaSchemaSubjects"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListSchemaVersions"
+        effect = Stateless
+        idempotent = true
+        doc = "List a subject's registered schema versions."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaSchemaVersions"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetSchemaVersion"
+        effect = Stateless
+        idempotent = true
+        doc = "One registered schema version of a subject (number or latest)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSchemaVersion"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetSchemaCompatibility"
+        effect = Stateless
+        idempotent = true
+        doc = "The registry's schema compatibility level."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSchemaCompatibility"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "SetSchemaCompatibility"
+        effect = Reversible
+        idempotent = true
+        doc = "Set the registry's schema compatibility level."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "setKafkaSchemaCompatibility"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
       }
     )
   })

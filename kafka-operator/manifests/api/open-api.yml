@@ -495,6 +495,138 @@ paths:
                 $ref: '#/components/schemas/SinkConnectorInfo'
         default:
           $ref: '#/components/responses/Error'
+  # Confluent-wire-compatible Avro schema registry (per cluster). The same endpoints are served
+  # unwrapped for in-cluster Confluent clients (serializers, Connect converters) whose
+  # schema.registry.url points at the service; this spec exposes the curated management subset.
+  /api/v1/clusters/{name}/schema-registry/subjects:
+    get:
+      operationId: listKafkaSchemaSubjects
+      tags: [KafkaService]
+      summary: List the cluster's schema registry subjects.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Subject names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+  /api/v1/clusters/{name}/schema-registry/subjects/{subject}/versions:
+    post:
+      operationId: registerKafkaSchema
+      tags: [KafkaService]
+      summary: >-
+        Register an Avro schema under the subject (Confluent semantics: idempotent for an
+        already-registered schema, otherwise appends the next version after a compatibility
+        check against the subject's history).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SubjectName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: Global id of the registered schema
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: integer }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+    get:
+      operationId: listKafkaSchemaVersions
+      tags: [KafkaService]
+      summary: List the subject's registered schema versions.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SubjectName'
+      responses:
+        '200':
+          description: Version numbers, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: integer }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+  /api/v1/clusters/{name}/schema-registry/subjects/{subject}/versions/{version}:
+    get:
+      operationId: getKafkaSchemaVersion
+      tags: [KafkaService]
+      summary: One registered schema version of the subject (a version number or `latest`).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SubjectName'
+        - $ref: '#/components/parameters/SchemaVersion'
+      responses:
+        '200':
+          description: The registered schema at that version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaVersionInfo'
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+  /api/v1/clusters/{name}/schema-registry/config:
+    get:
+      operationId: getKafkaSchemaCompatibility
+      tags: [KafkaService]
+      summary: The cluster registry's schema compatibility level.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Current compatibility level
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [compatibilityLevel]
+                properties:
+                  compatibilityLevel: { type: string }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+    put:
+      operationId: setKafkaSchemaCompatibility
+      tags: [KafkaService]
+      summary: >-
+        Set the registry's compatibility level (NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD,
+        FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compatibility]
+              properties:
+                compatibility: { type: string }
+      responses:
+        '200':
+          description: The applied compatibility level
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [compatibility]
+                properties:
+                  compatibility: { type: string }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
 components:
   parameters:
     ClusterName:
@@ -515,6 +647,19 @@ components:
       required: true
       schema:
         type: string
+    SubjectName:
+      name: subject
+      in: path
+      required: true
+      schema:
+        type: string
+    SchemaVersion:
+      name: version
+      in: path
+      required: true
+      description: A positive version number or the literal `latest`.
+      schema:
+        type: string
   responses:
     # Platform convention (same as the other app packages): Tapir serializes ServiceError to a
     # plain string body on the error channel.
@@ -523,6 +668,17 @@ components:
       content:
         application/json:
           schema: { type: string }
+    # The schema-registry routes speak the Confluent wire format, errors included.
+    SchemaRegistryError:
+      description: Confluent-style registry error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error_code, message]
+            properties:
+              error_code: { type: integer }
+              message: { type: string }
   schemas:
     ComponentSpec:
       type: object
@@ -534,6 +690,28 @@ components:
           type: integer
         memoryMi:
           type: integer
+    RegisterSchemaRequest:
+      type: object
+      required: [schema]
+      properties:
+        schema:
+          type: string
+          description: The Avro schema as a JSON string.
+        schemaType:
+          type: string
+          description: Optional; must be AVRO when present (the only supported type).
+    SchemaVersionInfo:
+      type: object
+      required: [subject, id, version, schema]
+      properties:
+        subject:
+          type: string
+        id:
+          type: integer
+        version:
+          type: integer
+        schema:
+          type: string
     InitializeClusterRequest:
       type: object
       required: [controllers, brokers]
