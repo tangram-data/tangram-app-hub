@@ -172,7 +172,9 @@ paths:
     post:
       operationId: createKafkaTopic
       tags: [KafkaService]
-      summary: Create a topic (KafkaTopic CR, reconciled by the Topic Operator).
+      summary: >-
+        Create a topic (KafkaTopic CR, reconciled by the Topic Operator) with a declared value
+        format; an Avro topic's schema is registered in the schema registry and the catalog.
       parameters:
         - $ref: '#/components/parameters/ClusterName'
       requestBody:
@@ -323,7 +325,10 @@ paths:
     post:
       operationId: produceKafkaTopicMessage
       tags: [KafkaService]
-      summary: Post a single JSON message to the topic (admin producer, internal listener).
+      summary: >-
+        Post a single message to the topic (admin producer, internal listener), encoded per the
+        topic's declared format: JSON verbatim, text as a raw string, or Avro transformed against
+        the topic's registered schema (Confluent-framed).
       parameters:
         - $ref: '#/components/parameters/ClusterName'
         - $ref: '#/components/parameters/TopicName'
@@ -911,6 +916,20 @@ components:
           additionalProperties:
             type: string
           description: Raw topic configs (e.g. retention.ms).
+        format:
+          type: string
+          enum: [Text, Json, Avro]
+          default: Json
+          description: >-
+            Declared value encoding, set at creation and immutable. Governs the produce
+            endpoint's transformation and sink converter defaults (a contract for the platform's
+            lanes, not a broker-enforced guarantee).
+        avroSchema:
+          type: string
+          nullable: true
+          description: >-
+            Required when format is Avro; registered as the topic's schema (schema registry +
+            catalog).
     UpdateTopicRequest:
       type: object
       properties:
@@ -945,6 +964,10 @@ components:
         message:
           type: string
           nullable: true
+        format:
+          type: string
+          enum: [Text, Json, Avro]
+          default: Json
     TopicSchemaField:
       type: object
       required: [name, dataType]
@@ -1135,9 +1158,10 @@ components:
         valueFormat:
           type: string
           enum: [Json, Avro]
-          default: Json
+          nullable: true
           description: >-
-            Record value format. Json infers types from schemaless JSON; Avro deserializes
+            Record value format. Unset derives from the source topics' declared formats (all
+            Avro → Avro, else Json); an explicit value must match them. Avro deserializes
             through the app's built-in schema registry, giving the table typed columns and
             schema evolution.
     CustomSinkKind:
