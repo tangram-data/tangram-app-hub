@@ -1053,19 +1053,24 @@ components:
             $ref: '#/components/schemas/ProduceMessageRequest'
     ProduceMessagesBatchResult:
       type: object
-      required: [topic, produced, firstOffset, lastOffset]
+      required: [topic, produced]
       properties:
         topic:
           type: string
         produced:
           type: integer
-        firstOffset:
-          type: integer
-          format: int64
-          description: -1 when nothing was produced.
-        lastOffset:
-          type: integer
-          format: int64
+        partitions:
+          type: array
+          description: Per-partition summary (offsets are partition-local).
+          items:
+            type: object
+            required: [partition, count, lastOffset]
+            properties:
+              partition: { type: integer }
+              count: { type: integer }
+              lastOffset:
+                type: integer
+                format: int64
         failures:
           type: array
           items:
