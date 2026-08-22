@@ -1120,6 +1120,14 @@ components:
           additionalProperties:
             type: string
           description: Extra iceberg.* sink options (connection/security keys rejected).
+        valueFormat:
+          type: string
+          enum: [Json, Avro]
+          default: Json
+          description: >-
+            Record value format. Json infers types from schemaless JSON; Avro deserializes
+            through the app's built-in schema registry, giving the table typed columns and
+            schema evolution.
     CustomSinkKind:
       type: object
       required: [type, connectorClass]
