@@ -1,6 +1,7 @@
-import "dependencies.pkl" as deps
-import "@tangram-app-manifest/deployment.pkl" as deployment
 import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
+import "@tangram-app-manifest/deployment.pkl" as deployment
+
+import "dependencies.pkl" as deps
 
 local database = deps.databaseClaim.database()
 local dbSecrets = deps.databaseClaim.secrets()
@@ -8,10 +9,11 @@ local dbSecrets = deps.databaseClaim.secrets()
 @deployment.AppComponentMeta {
   name = "kafka-service"
   recommendedReplica = 1
-  containers = List(new deployment.ContainerMeta {
-    name = "kafka-server"
-    image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.10"
-  })
+  containers =
+    List(new deployment.ContainerMeta {
+      name = "kafka-server"
+      image = "ghcr.io/tangram-data/tangram-kafka-operator:1.0.0"
+    })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
     metrics = new deployment.OtlpMetrics {}
@@ -23,31 +25,33 @@ kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
     targetPort = 9899
     protocol = "TCP"
   }
-  containers = List(
-    new deployment.AppContainerSpec {
+  containers =
+    List(new deployment.AppContainerSpec {
       ports = List(9899)
-      variables = Map(
-        "SERVER_PORT", "9899",
-        "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
-        "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
-        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
-        "KAFKA_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
-        "KAFKA_APP_JDBC_USER", dbSecrets.user,
-        "KAFKA_APP_JDBC_PASSWORD", new deployment.SecretValue {
-          value = dbSecrets.password
-        },
-        // Tangram-token lane (OAUTHBEARER listener + IAM authorizer): clients authenticate with
-        // their Tangram token and topic access is decided by Tangram IAM. Needs the broker image
-        // that carries the authorizer + strimzi-oauth libs (tangram-kafka/broker-image); its Kafka
-        // base MUST match the Kafka version the operator serves.
-        "KAFKA_TANGRAM_TOKEN_LANE_ENABLED", "true",
-        // 1.0.0 (rebuilt) includes the static confinement of sink-worker principals in the authorizer.
-        "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.0",
-        // Default Connect worker image with the Iceberg sink connector baked in
-        // (tangram-kafka/connect-image); Iceberg sinks require it unless the caller supplies a
-        // trusted custom image.
-        "KAFKA_CONNECT_IMAGE", "ghcr.io/tangram-data/tangram-kafka-connect:1.0.0"
-      )
-    }
-  )
+      variables =
+        Map(
+          "SERVER_PORT", "9899",
+          "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
+          "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
+          "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
+          "KAFKA_APP_JDBC_URL",
+          "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+          "KAFKA_APP_JDBC_USER", dbSecrets.user,
+          "KAFKA_APP_JDBC_PASSWORD",
+          new deployment.SecretValue {
+            value = dbSecrets.password
+          },
+          // Tangram-token lane (OAUTHBEARER listener + IAM authorizer): clients authenticate with
+          // their Tangram token and topic access is decided by Tangram IAM. Needs the broker image
+          // that carries the authorizer + strimzi-oauth libs (tangram-kafka/broker-image); its Kafka
+          // base MUST match the Kafka version the operator serves.
+          "KAFKA_TANGRAM_TOKEN_LANE_ENABLED", "true",
+          // 1.0.0 (rebuilt) includes the static confinement of sink-worker principals in the authorizer.
+          "KAFKA_BROKER_IMAGE", "ghcr.io/tangram-data/tangram-kafka-broker:1.0.0",
+          // Default Connect worker image with the Iceberg sink connector baked in
+          // (tangram-kafka/connect-image); Iceberg sinks require it unless the caller supplies a
+          // trusted custom image.
+          "KAFKA_CONNECT_IMAGE", "ghcr.io/tangram-data/tangram-kafka-connect:1.0.0",
+        )
+    })
 }

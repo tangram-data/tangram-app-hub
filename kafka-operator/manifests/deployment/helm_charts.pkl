@@ -6,11 +6,11 @@ import "@tangram-app-manifest/deployment.pkl" as deployment
 // tangram-kafka/charts/tangram-strimzi and is published to the tangram Helm repo. The operator
 // watches exactly the app's namespace (STRIMZI_NAMESPACE = its own pod namespace), where the
 // kafka-service applies Kafka/KafkaNodePool/KafkaTopic/KafkaUser CRs for it to reconcile.
-charts: List<deployment.HelmChart> = List(
-  new deployment.HelmChart {
-    repo      = "https://tangram-data.github.io/helm-charts"
-    fullName  = "tangram/tangram-strimzi"
-    version   = "0.1.0" // wraps Strimzi 1.1.0
+charts: List<deployment.HelmChart> =
+  List(new deployment.HelmChart {
+    repo = "https://tangram-data.github.io/helm-charts"
+    fullName = "tangram/tangram-strimzi"
+    version = "0.1.0" // wraps Strimzi 1.1.0
     // The chart vendors the Strimzi CRDs (cluster-scoped by nature, applied by the platform);
     // everything else it renders is namespaced — no hooks, no cluster-scoped kinds.
     requestedCapabilities = new deployment.HelmRequestedCapabilities {
@@ -23,26 +23,26 @@ charts: List<deployment.HelmChart> = List(
     // app component Role. Least-privilege: the service creates/gets/lists/updates/deletes the main
     // resources only (status is read through the main-resource GET, never the status subresource;
     // no watch/patch).
-    crds = List(
-      new deployment.CustomResourceRbac {
-        apiGroup  = "kafka.strimzi.io"
-        resources = List("kafkas", "kafkanodepools")
-        // patch: the metrics-lane startup reconciliation merge-patches ONLY the exporter config
-        // and scrape template metadata onto live CRs instead of re-applying the full spec.
-        verbs     = List("create", "get", "list", "update", "patch", "delete")
-      },
-      new deployment.CustomResourceRbac {
-        apiGroup  = "kafka.strimzi.io"
-        resources = List("kafkatopics", "kafkausers")
-        // deletecollection: teardown deletes topics/users by label selector (a collection DELETE).
-        verbs     = List("create", "get", "list", "update", "delete", "deletecollection")
-      },
-      new deployment.CustomResourceRbac {
-        apiGroup  = "kafka.strimzi.io"
-        resources = List("kafkaconnects", "kafkaconnectors")
-        // patch: pause/resume merge-patches only the connector's spec.state.
-        verbs     = List("create", "get", "list", "update", "patch", "delete")
-      }
-    )
-  }
-)
+    crds =
+      List(
+        new deployment.CustomResourceRbac {
+          apiGroup = "kafka.strimzi.io"
+          resources = List("kafkas", "kafkanodepools")
+          // patch: the metrics-lane startup reconciliation merge-patches ONLY the exporter config
+          // and scrape template metadata onto live CRs instead of re-applying the full spec.
+          verbs = List("create", "get", "list", "update", "patch", "delete")
+        },
+        new deployment.CustomResourceRbac {
+          apiGroup = "kafka.strimzi.io"
+          resources = List("kafkatopics", "kafkausers")
+          // deletecollection: teardown deletes topics/users by label selector (a collection DELETE).
+          verbs = List("create", "get", "list", "update", "delete", "deletecollection")
+        },
+        new deployment.CustomResourceRbac {
+          apiGroup = "kafka.strimzi.io"
+          resources = List("kafkaconnects", "kafkaconnectors")
+          // patch: pause/resume merge-patches only the connector's spec.state.
+          verbs = List("create", "get", "list", "update", "patch", "delete")
+        },
+      )
+  })

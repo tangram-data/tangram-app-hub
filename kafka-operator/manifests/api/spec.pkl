@@ -7,5 +7,5 @@ backend: api.ServiceBackend = new api.ServiceBackend {
   port = 9899
 }
 
-authMode    = "Proxy"
+authMode = "Proxy"
 apiSpecFile = "open-api.yml"

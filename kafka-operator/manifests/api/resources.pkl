@@ -165,6 +165,16 @@ KafkaCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "RevokeIngestionKey"
+        effect = Irreversible
+        idempotent = true
+        doc = "Revoke a write-only ingestion key (takes effect within the verification cache TTL)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "revokeKafkaIngestionKey"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "SetSchemaCompatibility"
         effect = Reversible
         idempotent = true
@@ -261,6 +271,26 @@ Topic = new resources.ResourceTypeDefinition {
         effect = Stateless
         idempotent = true
         doc = "Authorization marker for consuming from the topic."
+      },
+      new resources.Action {
+        name = "CreateIngestionKey"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a write-only ingestion key for the public HTTP ingest endpoint (browser/JS clients); the plaintext key is returned once."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createKafkaIngestionKey"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListIngestionKeys"
+        effect = Stateless
+        idempotent = true
+        doc = "List the topic's ingestion keys (metadata only; secrets are never stored)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaIngestionKeys"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
       },
       new resources.Action {
         name = "Write"

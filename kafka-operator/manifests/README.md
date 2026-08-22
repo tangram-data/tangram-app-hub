@@ -39,3 +39,37 @@ Provision and operate Apache Kafka clusters on Kubernetes through a namespace-co
 
 The operator runs namespace-scoped with Role-only RBAC, so rack awareness and NodePort listeners
 are unsupported. Controller replicas, disk sizes and Cruise Control are fixed at creation.
+
+## Browser event ingestion (Mixpanel-style)
+
+The app serves a public ingest endpoint authenticated ONLY by a write-only ingestion key
+(create one via the Topic `CreateIngestionKey` action). Expose the app's `kafka-service`
+directly (ingress/LoadBalancer, e.g. `collect.example.com`) — browser traffic must NOT go
+through the platform gateway (it requires platform tokens and is the control plane).
+
+    POST /api/v1/ingest/{cluster}/{topic}
+      Authorization: Bearer <key>   (or X-Ingest-Key: <key>, or ?key=<key> for sendBeacon)
+      body: {"events": [...]} | [...] | single JSON object   (application/json or text/plain)
+
+A string `distinct_id` in an event becomes the Kafka partition key. Per-key rate limit:
+2000 events/s. Minimal JS client:
+
+```js
+const INGEST = "https://collect.example.com/api/v1/ingest/kafka/web-events";
+const KEY = "wek_...";
+const queue = [];
+export function track(event, props = {}) {
+  queue.push({ event, distinct_id: getUserId(), time: Date.now(), ...props });
+  if (queue.length >= 20) flush();
+}
+function flush() {
+  if (!queue.length) return;
+  const body = JSON.stringify({ events: queue.splice(0) });
+  fetch(`${INGEST}?key=${KEY}`, { method: "POST", body, keepalive: true });
+}
+setInterval(flush, 5000);
+addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && queue.length)
+    navigator.sendBeacon(`${INGEST}?key=${KEY}`, JSON.stringify({ events: queue.splice(0) }));
+});
+```

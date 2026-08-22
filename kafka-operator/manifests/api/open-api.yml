@@ -328,6 +328,83 @@ paths:
                 $ref: '#/components/schemas/ProduceMessagesBatchResult'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/ingestion-keys:
+    post:
+      operationId: createKafkaIngestionKey
+      tags: [KafkaService]
+      summary: >-
+        Create a write-only ingestion key for the public ingest endpoint
+        (POST /api/v1/ingest/{cluster}/{topic}, exposed directly to browsers, never through the
+        platform gateway). The plaintext key is returned once and never stored.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '200':
+          description: The created key (only time the secret is visible)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, topic, key]
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  topic: { type: string }
+                  key: { type: string }
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listKafkaIngestionKeys
+      tags: [KafkaService]
+      summary: List the topic's ingestion keys (metadata only).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, topic, createdAt]
+                  properties:
+                    id: { type: string }
+                    name: { type: string }
+                    topic: { type: string }
+                    createdAt: { type: string, format: date-time }
+                    revokedAt: { type: string, format: date-time, nullable: true }
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/ingestion-keys/{keyId}:
+    delete:
+      operationId: revokeKafkaIngestionKey
+      tags: [KafkaService]
+      summary: Revoke an ingestion key (takes effect within the verification cache TTL).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Revoked
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics/{topic}/stats:
     get:
       operationId: getKafkaTopicStats
