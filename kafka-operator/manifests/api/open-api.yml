@@ -362,7 +362,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [id, name, topic, key]
+                required: [id, name, topic, key, allowedOrigins]
                 properties:
                   id: { type: string }
                   name: { type: string }
@@ -389,7 +389,7 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [id, name, topic, createdAt]
+                  required: [id, name, topic, createdAt, allowedOrigins]
                   properties:
                     id: { type: string }
                     name: { type: string }

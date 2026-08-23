@@ -60,7 +60,9 @@ A string `distinct_id` in an event becomes the Kafka partition key. Per-key rate
 Minimal JS client:
 
 ```js
-const INGEST = "https://collect.example.com/api/v1/ingest/kafka/web-events";
+// The platform-managed public endpoint: /<workspace>/<group>/<app>/<endpointName> + the
+// declared pathPrefix's remainder (pathPrefix /api/v1/ingest is stripped down to /ingest/...).
+const INGEST = "https://public.example.tangram-os.com/demo/ai.tangram/kafka-operator/ingest/kafka/web-events";
 const KEY = "wek_...";
 const queue = [];
 export function track(event, props = {}) {
