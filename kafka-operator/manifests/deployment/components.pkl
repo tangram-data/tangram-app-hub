@@ -18,6 +18,19 @@ local dbSecrets = deps.databaseClaim.secrets()
     traces = "otlp"
     metrics = new deployment.OtlpMetrics {}
   }
+  // Browser event ingestion (Mixpanel-replacement lane): the platform exposes
+  // ONLY this subtree at https://public.<domain>/<ws>/ai.tangram/kafka-operator/ingest/...
+  // with managed TLS + edge guardrails. Requests authenticate with write-only
+  // ingestion keys; the endpoint keeps its own per-key rate limits and bounded
+  // body reads as the inner layer.
+  publicEndpoints = List(new deployment.PublicEndpoint {
+    name = "ingest"
+    pathPrefix = "/api/v1/ingest"
+    // Server reads bodies up to ~6MiB (batch lane); edge cap matches.
+    maxBodyBytes = 6291456
+    rateLimitRps = 100
+    doc = "Browser event ingestion: POST /{cluster}/{topic}, authenticated by write-only ingestion keys"
+  })
 }
 kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
   service = new deployment.AppComponentServiceSpec {
