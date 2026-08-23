@@ -348,6 +348,13 @@ paths:
               required: [name]
               properties:
                 name: { type: string }
+                allowedOrigins:
+                  type: array
+                  items: { type: string }
+                  description: >-
+                    Optional website-origin allowlist (scheme://host[:port], at most 20).
+                    When set, ingest requests must carry a matching Origin header; empty/absent
+                    falls back to the app's ingestAllowedOrigins setting, else any origin.
       responses:
         '200':
           description: The created key (only time the secret is visible)
@@ -361,6 +368,9 @@ paths:
                   name: { type: string }
                   topic: { type: string }
                   key: { type: string }
+                  allowedOrigins:
+                    type: array
+                    items: { type: string }
         default:
           $ref: '#/components/responses/Error'
     get:
@@ -386,6 +396,9 @@ paths:
                     topic: { type: string }
                     createdAt: { type: string, format: date-time }
                     revokedAt: { type: string, format: date-time, nullable: true }
+                    allowedOrigins:
+                      type: array
+                      items: { type: string }
         default:
           $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/ingestion-keys/{keyId}:

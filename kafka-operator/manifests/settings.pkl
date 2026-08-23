@@ -1,0 +1,10 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "ingestAllowedOrigins"
+    required    = false
+    description = "Workspace-wide default browser-origin allowlist for the public event-ingestion endpoint: comma-separated scheme://host[:port] entries (e.g. https://www.example.com,https://shop.example.com). Empty = any origin. A key's own allowedOrigins override this default."
+    example     = "https://www.example.com"
+  }
+)

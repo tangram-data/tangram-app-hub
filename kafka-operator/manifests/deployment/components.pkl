@@ -65,6 +65,9 @@ kafkaManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
           // (tangram-kafka/connect-image); Iceberg sinks require it unless the caller supplies a
           // trusted custom image.
           "KAFKA_CONNECT_IMAGE", "ghcr.io/tangram-data/tangram-kafka-connect:1.0.0",
+          // Workspace default origin allowlist for the public ingest endpoint
+          // (settings.pkl `ingestAllowedOrigins`); per-key allowedOrigins override it.
+          "KAFKA_INGEST_ALLOWED_ORIGINS", deploymentRuntime.getOptionalConfig("ingestAllowedOrigins") ?? ""
         )
     })
 }

@@ -43,16 +43,21 @@ are unsupported. Controller replicas, disk sizes and Cruise Control are fixed at
 ## Browser event ingestion (Mixpanel-style)
 
 The app serves a public ingest endpoint authenticated ONLY by a write-only ingestion key
-(create one via the Topic `CreateIngestionKey` action). Expose the app's `kafka-service`
-directly (ingress/LoadBalancer, e.g. `collect.example.com`) — browser traffic must NOT go
-through the platform gateway (it requires platform tokens and is the control plane).
+(create one via the Topic `CreateIngestionKey` action). The manifest declares the `ingest`
+public endpoint, so the platform exposes exactly this subtree at
+`https://public.<domain>/<workspace>/ai.tangram/kafka-operator/ingest/...` with managed TLS —
+browser traffic must NOT go through the platform gateway (it requires platform tokens and is
+the control plane).
 
     POST /api/v1/ingest/{cluster}/{topic}
       Authorization: Bearer <key>   (or X-Ingest-Key: <key>, or ?key=<key> for sendBeacon)
       body: {"events": [...]} | [...] | single JSON object   (application/json or text/plain)
 
 A string `distinct_id` in an event becomes the Kafka partition key. Per-key rate limit:
-2000 events/s. Minimal JS client:
+2000 events/s. Origin scoping (server-side; CORS itself stays allow-all): a key created with
+`allowedOrigins` only accepts requests whose `Origin` header matches, and the app setting
+`ingestAllowedOrigins` provides the workspace-wide default when a key has no list of its own.
+Minimal JS client:
 
 ```js
 const INGEST = "https://collect.example.com/api/v1/ingest/kafka/web-events";
