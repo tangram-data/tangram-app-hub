@@ -112,12 +112,12 @@ paths:
     get:
       operationId: getKafkaClusterConnectionDetails
       tags: [KafkaService]
-      summary: Bootstrap servers and admin SCRAM credentials (GetConnectionDetails action).
+      summary: Token-lane connection coordinates (GetConnectionDetails action); never credentials.
       parameters:
         - $ref: '#/components/parameters/ClusterName'
       responses:
         '200':
-          description: Connection details including credentials — sensitive
+          description: Token-lane bootstrap, token endpoint and schema-registry URL
           content:
             application/json:
               schema:
@@ -962,23 +962,36 @@ components:
             Namespace-qualified OAuth client_credentials token endpoint for OIDC consumers
             (e.g. StarRocks routine loads): a Tangram service-account token is presented as
             client_secret and returned as the access token.
+        schemaRegistryUrl:
+          type: string
+          nullable: true
+          description: >-
+            Namespace-qualified base URL of the cluster's Confluent-compatible schema registry
+            (token-authenticated: Bearer, or Basic with a Tangram token as the password).
     ClusterConnectionDetails:
       type: object
-      required: [bootstrapServers, securityProtocol, saslMechanism, user]
+      required: [bootstrapServers, securityProtocol, saslMechanism, tokenEndpointUrl]
+      description: >-
+        Token-lane connection coordinates — never credentials: clients authenticate with their
+        own Tangram token (OAUTHBEARER OIDC client_credentials with the token as client_secret),
+        and topic access is authorized by Tangram IAM.
       properties:
         bootstrapServers:
           type: string
+          description: In-cluster bootstrap of the Tangram-token listener.
         securityProtocol:
           type: string
           description: SASL_PLAINTEXT
         saslMechanism:
           type: string
-          description: SCRAM-SHA-512
-        user:
+          description: OAUTHBEARER
+        tokenEndpointUrl:
           type: string
-        password:
+          description: OAuth client_credentials endpoint accepting a Tangram token as client_secret.
+        schemaRegistryUrl:
           type: string
           nullable: true
+          description: Confluent-compatible schema registry base URL (token-authenticated).
         status:
           type: string
           nullable: true

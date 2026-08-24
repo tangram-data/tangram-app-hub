@@ -106,7 +106,7 @@ KafkaCluster = new resources.ResourceTypeDefinition {
         name = "GetConnectionDetails"
         effect = Stateless
         idempotent = true
-        doc = "Bootstrap servers and admin SCRAM credentials for connecting clients."
+        doc = "Token-lane connection coordinates (bootstrap, token endpoint, schema registry); never credentials."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getKafkaClusterConnectionDetails"
           resourceNameTemplate = "[{{parameters.name}}]"
@@ -205,13 +205,13 @@ Topic = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "reader"
-        permissions = List("Read")
-        description = "Consume messages from the topic."
+        permissions = List("Read", "GetSchema")
+        description = "Consume messages from the topic and read its schemas."
       },
       new resources.Role {
         name = "writer"
-        permissions = List("Read", "Write")
-        description = "Produce to and consume from the topic."
+        permissions = List("Read", "Write", "GetSchema", "SetSchema")
+        description = "Produce to and consume from the topic, reading and registering its schemas."
       }
     )
     actions = List(
