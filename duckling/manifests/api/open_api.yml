@@ -791,6 +791,8 @@ components:
         memory:
           type: integer
           format: int32
+          minimum: 512
+          description: Memory allocation in MB. The minimum is 512 MB.
         cpu:
           type: integer
           format: int32
@@ -928,6 +930,8 @@ components:
         memory:
           type: integer
           format: int32
+          minimum: 512
+          description: Memory allocation in MB. The minimum is 512 MB.
         description:
           type: string
         status:
@@ -1003,6 +1007,8 @@ components:
         memory:
           type: integer
           format: int32
+          minimum: 512
+          description: Memory allocation in MB. The minimum is 512 MB.
         cpu:
           type: integer
           format: int32
