@@ -11,7 +11,7 @@ local storageBucket = deps.storageBucketClaim.bucket()
   recommendedReplica = 3
   containers = List(new deployment.ContainerMeta {
     name = "duckling-service-server"
-    image = "ghcr.io/tangram-data/tangram-duckling-app:1.0.1"
+    image = "ghcr.io/tangram-data/tangram-duckling-app:1.0.0"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
