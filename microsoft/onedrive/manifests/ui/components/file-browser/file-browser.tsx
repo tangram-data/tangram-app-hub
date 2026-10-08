@@ -282,7 +282,17 @@ export default function FileBrowser() {
                     <span className="m-name">
                       {type.icon}
                       {isFolder ? (
-                        <span>{f.name}</span>
+                        <button
+                          type="button"
+                          className="m-link"
+                          disabled={busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openFolder(f);
+                          }}
+                        >
+                          {f.name}
+                        </button>
                       ) : f.webUrl ? (
                         <a href={f.webUrl} target="_blank" rel="noopener noreferrer">
                           {f.name}

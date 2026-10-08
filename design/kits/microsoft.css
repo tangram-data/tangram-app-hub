@@ -97,3 +97,12 @@
 .m-root .ant-table-thead > tr > th::before { display: none; }
 .m-error.inline { margin: 12px 0; } .m-error b { font-weight: 600; display: block; }
 .m-form.wide .m-field > label { min-width: 84px; }
+/* Keyboard focus: borderless fields underline in brand blue; controls get a visible ring. */
+.m-field:focus-within { border-bottom-color: var(--m-brand); box-shadow: 0 1px 0 var(--m-brand); }
+.m-root .m-link:focus-visible, .m-root .m-att:focus-visible, .m-root .m-filter button:focus-visible,
+.m-root .m-evrow:focus-visible, .m-root .m-table a:focus-visible { outline: 2px solid var(--m-brand); outline-offset: 2px; border-radius: 2px; }
+.m-root .m-evrow:focus-visible { outline-offset: -2px; }
+.m-table .m-link { color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-table .m-link:hover { color: var(--m-brand); }
+/* Expanded events and confirmations show the full subject. */
+.m-evrow.sel .ti b, .m-evrow.wrap .ti b { white-space: normal; overflow-wrap: anywhere; }

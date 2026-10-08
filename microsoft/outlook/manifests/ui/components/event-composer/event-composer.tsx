@@ -227,7 +227,7 @@ export default function EventComposer() {
         <div className="m-ok" role="status">
           <CheckCircleFilled aria-hidden="true" /> {ev.updated ? "Event updated" : "Event created"}
         </div>
-        <div className="m-evrow" style={{ padding: "0 0 4px", cursor: "default", gridTemplateColumns: "4px 1fr" }}>
+        <div className="m-evrow wrap" style={{ padding: "0 0 4px", cursor: "default", gridTemplateColumns: "4px 1fr" }}>
           <span className="m-evbar" />
           <div className="ti">
             <b>{ev.subject}</b>
