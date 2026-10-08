@@ -15,9 +15,11 @@ import {
   TeamOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Empty, Input, Select, Space, Spin, Tag, Typography } from "antd";
+import { Button, Input, Select, Spin } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -86,12 +88,37 @@ function timeLabel(ev: CalEvent): string {
   return e ? `${s} – ${e}` : s;
 }
 
+// Attendee response dot: accepted green, declined red, tentative amber.
 const RESPONSE_COLORS: Record<string, string> = {
-  accepted: "green",
-  organizer: "green",
-  declined: "red",
-  tentativelyAccepted: "orange",
+  accepted: "#107c10",
+  organizer: "#107c10",
+  declined: "#c4314b",
+  tentativelyAccepted: "#d67f00",
 };
+const RESPONSE_LABELS: Record<string, string> = {
+  accepted: "Accepted",
+  organizer: "Organizer",
+  declined: "Declined",
+  tentativelyAccepted: "Tentative",
+};
+
+// Deterministic soft persona tint (background, initials color) per name.
+const PERSONA_TINTS: [string, string][] = [
+  ["#e9d7f4", "#5c2e91"], ["#d6e8fa", "#0f548c"], ["#dff6dd", "#0e700e"], ["#fde7e9", "#a4262c"],
+  ["#fff4ce", "#835b00"], ["#fed9cc", "#8a3707"], ["#cdedf4", "#00666d"], ["#f7e3f5", "#8b1d7f"],
+];
+function personaTint(key: string): { background: string; color: string } {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const [background, color] = PERSONA_TINTS[h % PERSONA_TINTS.length];
+  return { background, color };
+}
+function initials(name: string): string {
+  const words = name.split(/[\s._@-]+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  const last = words.length > 1 ? (words[words.length - 1][0] ?? "") : "";
+  return ((words[0][0] ?? "") + last).toUpperCase();
+}
 
 export default function EventList() {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -218,17 +245,10 @@ export default function EventList() {
   });
 
   return (
-    <div
-      style={{
-        padding: 16,
-        maxWidth: 720,
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      }}
-    >
-      <Space.Compact style={{ display: "flex", marginBottom: 12 }}>
+    <div className="m-root" style={{ paddingBottom: 12 }}>
+      <div className="m-bar wrap" style={{ padding: "14px 20px 4px" }}>
         <Select
-          style={{ minWidth: 180 }}
+          style={{ flex: "1 1 160px", minWidth: 0 }}
           value={(criteria?.calendarId || defaultCalendarId) || undefined}
           placeholder="Calendar"
           disabled={loading}
@@ -239,6 +259,7 @@ export default function EventList() {
           onChange={(id) => criteria && setCriteria({ ...criteria, calendarId: id })}
         />
         <Input.Search
+          style={{ flex: "2 1 180px", minWidth: 0 }}
           placeholder="Search subjects"
           value={search}
           disabled={loading}
@@ -246,114 +267,124 @@ export default function EventList() {
           onSearch={(q) => criteria && setCriteria({ ...criteria, q })}
         />
         <Button
-          icon={<ReloadOutlined />}
+          type="text"
+          aria-label="Reload"
+          icon={<ReloadOutlined aria-hidden="true" />}
           disabled={loading || !criteria}
           onClick={() =>
             criteria && (criteria.calendarId || defaultCalendarId) &&
             load(criteria, criteria.calendarId || defaultCalendarId)
           }
         />
-      </Space.Compact>
-      <Typography.Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 8 }}>
+      </div>
+      <div className="m-faint" style={{ padding: "0 20px 4px", fontSize: 11 }}>
         UTC times shown in your local time; others in the event's own time zone
-      </Typography.Text>
+      </div>
       {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginBottom: 12 }} />
+        <div className="m-error" role="alert">
+          {status.message}
+        </div>
       ) : null}
       {calendarsFailed && waitingForCalendars ? (
-        <Alert
-          type="error"
-          showIcon
-          message="Could not load the calendar list; pass a calendarId input."
-          style={{ marginBottom: 12 }}
-        />
+        <div className="m-error" role="alert">
+          Could not load the calendar list; pass a calendarId input.
+        </div>
       ) : null}
       {(loading || (waitingForCalendars && !calendarsFailed)) && events.length === 0 ? (
         <Spin style={{ display: "block", margin: "24px auto" }} />
       ) : null}
       {!loading && !waitingForCalendars && events.length === 0 && status.kind !== "error" ? (
-        <Empty description="No events in this window" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <div className="m-empty">No events in this window</div>
       ) : null}
       {[...byDay.entries()].map(([day, dayEvents]) => (
-        <div key={day} style={{ marginBottom: 8 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "8px 0 4px" }}>
+        <div key={day}>
+          <div className="m-daylabel">
             {dayjs(day).isValid() ? dayjs(day).format("dddd, MMM D") : day}
-          </Typography.Text>
+          </div>
           {dayEvents.map((ev) => (
-            <div
-              key={ev.id}
-              onClick={() => select(ev)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                cursor: "pointer",
-                background: expanded === ev.id ? "rgba(22,119,255,0.06)" : undefined,
-                border: "1px solid #f0f0f0",
-                marginBottom: 4,
-              }}
-            >
-              <Space size={8} style={{ width: "100%" }}>
-                <Tag style={{ minWidth: 90, textAlign: "center" }}>{timeLabel(ev)}</Tag>
-                <Typography.Text strong>{ev.subject || "(no subject)"}</Typography.Text>
-                {!ev.isAllDay && ev.start?.timeZone && !isUtc(ev.start) ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {ev.start.timeZone}
-                  </Typography.Text>
-                ) : null}
-                {ev.seriesMasterId ? <Tag color="blue">recurring</Tag> : null}
-                {ev.location?.displayName ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    <EnvironmentOutlined /> {ev.location.displayName}
-                  </Typography.Text>
-                ) : null}
-                {ev.attendees?.length ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    <TeamOutlined /> {ev.attendees.length}
-                  </Typography.Text>
-                ) : null}
-                {ev.onlineMeeting?.joinUrl ? <VideoCameraOutlined /> : null}
-              </Space>
+            <div key={ev.id}>
+              <div
+                className={`m-evrow${expanded === ev.id ? " sel" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded === ev.id}
+                onClick={() => select(ev)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    select(ev);
+                  }
+                }}
+              >
+                <span className="m-evbar" />
+                <span className="t">{timeLabel(ev)}</span>
+                <div className="ti">
+                  <b>{ev.subject || "(no subject)"}</b>
+                  <div className="m-evmeta">
+                    {!ev.isAllDay && ev.start?.timeZone && !isUtc(ev.start) ? (
+                      <span>{ev.start.timeZone}</span>
+                    ) : null}
+                    {ev.seriesMasterId ? <span>Recurring</span> : null}
+                    {ev.location?.displayName ? (
+                      <span>
+                        <EnvironmentOutlined aria-hidden="true" /> {ev.location.displayName}
+                      </span>
+                    ) : null}
+                    {ev.attendees?.length ? (
+                      <span>
+                        <TeamOutlined aria-hidden="true" /> {ev.attendees.length}
+                      </span>
+                    ) : null}
+                    {ev.onlineMeeting?.joinUrl ? (
+                      <span style={{ color: "#0f6cbd" }}>
+                        <VideoCameraOutlined aria-hidden="true" /> Teams
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
               {expanded === ev.id ? (
-                <div style={{ marginTop: 8, marginLeft: 4 }} onClick={(e) => e.stopPropagation()}>
+                <div className="m-evdetail" onClick={(e) => e.stopPropagation()}>
                   {ev.bodyPreview ? (
-                    <div
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        marginBottom: 6,
-                        maxHeight: 200,
-                        overflow: "auto",
-                      }}
-                    >
+                    <div className="m-pre" style={{ fontSize: 13, maxHeight: 200, overflow: "auto", marginBottom: 6 }}>
                       {ev.bodyPreview}
                     </div>
                   ) : null}
                   {ev.attendees?.length ? (
-                    <Space size={4} wrap style={{ marginBottom: 6 }}>
-                      {ev.attendees.map((a, i) => (
-                        <Tag
-                          key={`${a.emailAddress?.address}-${i}`}
-                          color={RESPONSE_COLORS[a.status?.response ?? ""] ?? "default"}
-                        >
-                          {a.emailAddress?.name || a.emailAddress?.address}
-                        </Tag>
-                      ))}
-                    </Space>
+                    <div className="m-chips">
+                      {ev.attendees.map((a, i) => {
+                        const label = a.emailAddress?.name || a.emailAddress?.address || "";
+                        const response = a.status?.response ?? "";
+                        return (
+                          <span
+                            key={`${a.emailAddress?.address}-${i}`}
+                            className="m-chip"
+                            title={RESPONSE_LABELS[response] ?? "No response"}
+                          >
+                            <span className="m-persona sm" style={personaTint(a.emailAddress?.address || label)} aria-hidden="true">
+                              {initials(label)}
+                            </span>
+                            {label}
+                            {RESPONSE_COLORS[response] ? (
+                              <span className="m-dot" style={{ background: RESPONSE_COLORS[response] }} aria-hidden="true" />
+                            ) : null}
+                          </span>
+                        );
+                      })}
+                    </div>
                   ) : null}
-                  <Space size={12}>
+                  <div className="m-bar" style={{ gap: 16 }}>
                     {ev.webLink ? (
-                      <Typography.Link href={ev.webLink} target="_blank" rel="noreferrer">
-                        <LinkOutlined /> Open in Outlook
-                      </Typography.Link>
+                      <a className="m-link" href={ev.webLink} target="_blank" rel="noreferrer">
+                        <LinkOutlined aria-hidden="true" /> Open in Outlook
+                      </a>
                     ) : null}
                     {ev.onlineMeeting?.joinUrl ? (
-                      <Typography.Link href={ev.onlineMeeting.joinUrl} target="_blank" rel="noreferrer">
-                        <VideoCameraOutlined /> Join Teams meeting
-                      </Typography.Link>
+                      <a className="m-link" href={ev.onlineMeeting.joinUrl} target="_blank" rel="noreferrer">
+                        <VideoCameraOutlined aria-hidden="true" /> Join Teams meeting
+                      </a>
                     ) : null}
-                  </Space>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -361,13 +392,15 @@ export default function EventList() {
         </div>
       ))}
       {hasMore ? (
-        <Button
-          size="small"
-          loading={loading}
-          onClick={() => criteria && setCriteria({ ...criteria, top: criteria.top * 2 })}
-        >
-          Load more
-        </Button>
+        <div style={{ padding: "8px 20px" }}>
+          <Button
+            size="small"
+            loading={loading}
+            onClick={() => criteria && setCriteria({ ...criteria, top: criteria.top * 2 })}
+          >
+            Load more
+          </Button>
+        </div>
       ) : null}
     </div>
   );

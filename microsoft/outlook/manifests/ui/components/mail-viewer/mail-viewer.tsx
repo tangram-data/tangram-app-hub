@@ -5,9 +5,11 @@
 // http(s)/mailto links only) so untrusted email markup can never reach the
 // DOM with live handlers — inside the sandbox, window.tangram can invoke
 // actions with the viewer's credentials. Plain-text bodies are linkified.
-import { PaperClipOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Skeleton, Space, Typography } from "antd";
+import { PaperClipOutlined, RollbackOutlined } from "@ant-design/icons";
+import { Button, Skeleton, Spin } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -131,27 +133,34 @@ function renderPlainText(text: string): React.ReactNode[] {
   );
 }
 
-// antd's default font token stack; plain elements inside the sandbox iframe
-// would otherwise fall back to the browser's serif default.
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, ' +
-  '"Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji"';
+// Deterministic soft persona tint (background, initials color) per name.
+const PERSONA_TINTS: [string, string][] = [
+  ["#e9d7f4", "#5c2e91"], ["#d6e8fa", "#0f548c"], ["#dff6dd", "#0e700e"], ["#fde7e9", "#a4262c"],
+  ["#fff4ce", "#835b00"], ["#fed9cc", "#8a3707"], ["#cdedf4", "#00666d"], ["#f7e3f5", "#8b1d7f"],
+];
+function personaTint(key: string): { background: string; color: string } {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const [background, color] = PERSONA_TINTS[h % PERSONA_TINTS.length];
+  return { background, color };
+}
+function initials(name: string): string {
+  const words = name.replace(/[<>"]/g, "").split(/[\s._@-]+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  const first = words[0][0] ?? "";
+  const last = words.length > 1 ? (words[words.length - 1][0] ?? "") : "";
+  return (first + last).toUpperCase();
+}
 
-// Our own presentation styles for the sanitized body (email styles are gone).
-const BODY_CSS = `
-.mail-body { line-height: 1.55; word-break: break-word; }
-.mail-body a { color: #1677ff; text-decoration: none; }
-.mail-body a:hover { text-decoration: underline; }
-.mail-body p, .mail-body div { margin: 0 0 0.6em; }
-.mail-body ul, .mail-body ol { margin: 0.4em 0 0.8em; padding-left: 1.4em; }
-.mail-body li { margin-bottom: 0.25em; }
-.mail-body blockquote { margin: 0.6em 0; padding: 0.2em 0 0.2em 0.9em; border-left: 3px solid #d9d9d9; color: #666; }
-.mail-body table { border-collapse: collapse; max-width: 100%; }
-.mail-body td, .mail-body th { padding: 4px 8px; vertical-align: top; }
-.mail-body pre, .mail-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.mail-body pre { background: #fafafa; padding: 8px; border-radius: 4px; overflow-x: auto; }
-.mail-body h1, .mail-body h2, .mail-body h3 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
-`;
+// Office-style file badge by extension (Word/Excel/PowerPoint/PDF), else neutral.
+function fileBadge(name: string): { label: string; color: string } {
+  const ext = (name.split(".").pop() ?? "").toLowerCase();
+  if (/^docx?$/.test(ext)) return { label: "W", color: "#185abd" };
+  if (/^(xlsx?|csv)$/.test(ext)) return { label: "X", color: "#107c41" };
+  if (/^pptx?$/.test(ext)) return { label: "P", color: "#c43e1c" };
+  if (ext === "pdf") return { label: "PDF", color: "#c4314b" };
+  return { label: ext && ext.length <= 3 && ext !== name.toLowerCase() ? ext.toUpperCase() : "", color: "#707070" };
+}
 
 export default function MailViewer() {
   const [msg, setMsg] = useState<GraphMessage | null>(null);
@@ -215,16 +224,20 @@ export default function MailViewer() {
     tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
   }, [load]);
 
-  if (state === "loading") return <Skeleton active style={{ padding: 16 }} />;
+  if (state === "loading")
+    return (
+      <div className="m-root m-pad">
+        <Skeleton active />
+      </div>
+    );
   if (state === "error" || !msg)
     return (
-      <Alert
-        type="error"
-        showIcon
-        message="Couldn't load message"
-        description={error}
-        style={{ margin: 16 }}
-      />
+      <div className="m-root">
+        <div className="m-error" role="alert">
+          <b>Couldn't load message</b>
+          {error}
+        </div>
+      </div>
     );
 
   const date = msg.receivedDateTime
@@ -265,69 +278,87 @@ export default function MailViewer() {
       });
   }
   const cc = formatRecipients(msg.ccRecipients);
-  const metaRows: [string, string][] = [
-    ["From", formatAddress(msg.from)],
-    ["To", formatRecipients(msg.toRecipients)],
-    ...(cc ? ([["Cc", cc]] as [string, string][]) : []),
-    ["Date", date],
-  ];
+  const to = formatRecipients(msg.toRecipients);
+  const fromName = msg.from?.emailAddress?.name ?? "";
+  const fromAddress = msg.from?.emailAddress?.address ?? "";
+  const fromLabel = fromName || fromAddress || "(unknown sender)";
+  const persona = personaTint(fromAddress || fromName);
 
   return (
-    <div style={{ padding: 16, fontSize: 14, fontFamily: FONT_STACK, color: "rgba(0,0,0,0.88)" }}>
-      <style>{BODY_CSS}</style>
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
-        {subject || "(no subject)"}
-      </Typography.Title>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
-        {metaRows.map(([label, value]) => (
-          <React.Fragment key={label}>
-            <Typography.Text type="secondary">{label}</Typography.Text>
-            <Typography.Text>{value}</Typography.Text>
-          </React.Fragment>
-        ))}
+    <div className="m-root m-pad">
+      <h2 className="m-title">{subject || "(no subject)"}</h2>
+      <div className="m-sender">
+        <div className="m-persona" style={persona} aria-hidden="true">
+          {initials(fromLabel)}
+        </div>
+        <div className="m-from">
+          <b>{fromLabel}</b>{" "}
+          {fromName && fromAddress && fromName !== fromAddress ? (
+            <span className="addr">&lt;{fromAddress}&gt;</span>
+          ) : null}
+          {to ? <div className="m-to">To: {to}</div> : null}
+          {cc ? <div className="m-to">Cc: {cc}</div> : null}
+        </div>
+        <div className="m-date">{date}</div>
       </div>
-      <Divider style={{ margin: "12px 0" }} />
+      <div className="m-toolbar">
+        <Button
+          size="small"
+          icon={<RollbackOutlined aria-hidden="true" />}
+          onClick={() =>
+            tangram.emit("reply", {
+              to: msg.from?.emailAddress?.address ?? "",
+              subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
+              conversationId: msg.conversationId ?? "",
+            })
+          }
+        >
+          Reply
+        </Button>
+      </div>
       {isHtml ? (
-        <div className="mail-body" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="m-body" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <div className="mail-body" style={{ whiteSpace: "pre-wrap" }}>
+        <div className="m-body" style={{ whiteSpace: "pre-wrap" }}>
           {renderPlainText(text || msg.bodyPreview || "(empty body)")}
         </div>
       )}
       {attachments.length > 0 ? (
-        <>
-          <Divider style={{ margin: "12px 0" }} />
-          <Space direction="vertical" size={4}>
-            {attachments.map((att) => (
-              <Button
+        <div className="m-atts">
+          {attachments.map((att) => {
+            const badge = fileBadge(att.name || "");
+            const busy = downloading === att.id;
+            return (
+              <button
                 key={att.id}
-                size="small"
-                icon={<PaperClipOutlined />}
-                loading={downloading === att.id}
+                type="button"
+                className="m-att"
+                disabled={busy}
+                title={`Download ${att.name || "attachment"}`}
                 onClick={() => download(att)}
               >
-                {att.name || "attachment"} ({formatSize(att.size ?? 0)})
-              </Button>
-            ))}
-          </Space>
-        </>
+                {badge.label ? (
+                  <span className="m-fileicon" style={{ background: badge.color }} aria-hidden="true">
+                    {badge.label}
+                  </span>
+                ) : (
+                  <PaperClipOutlined aria-hidden="true" style={{ fontSize: 16, color: "#616161" }} />
+                )}
+                <div>
+                  <div className="n">{att.name || "attachment"}</div>
+                  <div className="s">{busy ? "Downloading…" : formatSize(att.size ?? 0)}</div>
+                </div>
+                {busy ? <Spin size="small" className="x" /> : null}
+              </button>
+            );
+          })}
+        </div>
       ) : null}
       {attError || (error && state === "ready") ? (
-        <Alert type="error" showIcon message={attError || error} style={{ marginTop: 8 }} />
+        <div className="m-error inline" role="alert">
+          {attError || error}
+        </div>
       ) : null}
-      <Divider style={{ margin: "12px 0" }} />
-      <Button
-        size="small"
-        onClick={() =>
-          tangram.emit("reply", {
-            to: msg.from?.emailAddress?.address ?? "",
-            subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
-            conversationId: msg.conversationId ?? "",
-          })
-        }
-      >
-        Reply
-      </Button>
     </div>
   );
 }

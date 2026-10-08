@@ -6,10 +6,12 @@
 // exclusive next-midnight end (+ isAllDay=true) on save. Times are sent as
 // Graph {dateTime, timeZone} pairs — offset-less wall clock in the viewer's
 // IANA zone.
-import { VideoCameraOutlined } from "@ant-design/icons";
-import { Alert, Button, DatePicker, Input, Space, Switch, Typography } from "antd";
+import { CheckCircleFilled, VideoCameraOutlined } from "@ant-design/icons";
+import { Button, DatePicker, Input, Switch } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -218,134 +220,164 @@ export default function EventComposer() {
       );
   }
 
-  const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
-      {text}
-    </Typography.Text>
-  );
-
-  const rootStyle = {
-    padding: 16,
-    maxWidth: 720,
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  };
-
   if (status.kind === "saved") {
     const ev = status.event;
     return (
-      <div style={rootStyle}>
-        <Alert
-          type="success"
-          showIcon
-          message={ev.updated ? "Event updated" : "Event created"}
-          style={{ marginBottom: 12 }}
-        />
-        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
-          {ev.subject}
-        </Typography.Title>
-        <Typography.Text style={{ display: "block" }}>{ev.when}</Typography.Text>
-        {ev.location ? (
-          <Typography.Text type="secondary" style={{ display: "block" }}>
-            {ev.location}
-          </Typography.Text>
-        ) : null}
-        {ev.attendees.length ? (
-          <Typography.Text type="secondary" style={{ display: "block" }}>
-            With {ev.attendees.join(", ")}
-          </Typography.Text>
-        ) : null}
-        {ev.joinUrl ? (
-          <Typography.Text style={{ display: "block", marginTop: 4 }}>
-            <VideoCameraOutlined />{" "}
-            <Typography.Link href={ev.joinUrl} target="_blank" rel="noreferrer">
-              {ev.joinUrl}
-            </Typography.Link>
-          </Typography.Text>
-        ) : ev.teamsMissing ? (
-          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            <VideoCameraOutlined /> Teams meeting was requested but no join link came back — open
-            the event in Outlook to check.
-          </Typography.Text>
-        ) : null}
-        <Space style={{ marginTop: 12 }}>
-          {ev.webLink ? (
-            <Typography.Link href={ev.webLink} target="_blank" rel="noreferrer">
-              Open in Outlook
-            </Typography.Link>
+      <div className="m-root m-pad">
+        <div className="m-ok" role="status">
+          <CheckCircleFilled aria-hidden="true" /> {ev.updated ? "Event updated" : "Event created"}
+        </div>
+        <div className="m-evrow" style={{ padding: "0 0 4px", cursor: "default", gridTemplateColumns: "4px 1fr" }}>
+          <span className="m-evbar" />
+          <div className="ti">
+            <b>{ev.subject}</b>
+            <div className="m-muted" style={{ fontSize: 13 }}>{ev.when}</div>
+          </div>
+        </div>
+        <dl className="m-meta">
+          {ev.location ? (
+            <>
+              <dt>Location</dt>
+              <dd>{ev.location}</dd>
+            </>
           ) : null}
-          <Button size="small" onClick={() => setStatus({ kind: "idle" })}>
-            Back to form
-          </Button>
-        </Space>
+          {ev.attendees.length ? (
+            <>
+              <dt>With</dt>
+              <dd>{ev.attendees.join(", ")}</dd>
+            </>
+          ) : null}
+          {ev.joinUrl ? (
+            <>
+              <dt>Teams</dt>
+              <dd>
+                <a className="m-link" href={ev.joinUrl} target="_blank" rel="noreferrer">
+                  {ev.joinUrl}
+                </a>
+              </dd>
+            </>
+          ) : null}
+        </dl>
+        {!ev.joinUrl && ev.teamsMissing ? (
+          <div className="m-note warn">
+            <VideoCameraOutlined aria-hidden="true" /> Teams meeting was requested but no join link came
+            back — open the event in Outlook to check.
+          </div>
+        ) : null}
+        <div className="m-bar foot">
+          {ev.webLink ? (
+            <a className="m-link" href={ev.webLink} target="_blank" rel="noreferrer">
+              Open in Outlook
+            </a>
+          ) : null}
+          <span className="sp" />
+          <Button onClick={() => setStatus({ kind: "idle" })}>Back to form</Button>
+        </div>
       </div>
     );
   }
 
+  const tzLabel = timeZone || LOCAL_TZ;
   return (
-    <div style={rootStyle}>
-      {editing ? (
-        <Alert type="info" showIcon message={`Editing event ${eventId}`} style={{ marginBottom: 4 }} />
-      ) : null}
-      {label("Title")}
-      <Input value={subject} disabled={disabled} onChange={(e) => setSubject(e.target.value)} />
-      <Space size={16} style={{ marginTop: 10 }} align="center">
-        <Space size={6}>
-          <Switch size="small" checked={allDay} disabled={disabled} onChange={setAllDay} />
-          <Typography.Text style={{ fontSize: 13 }}>All day</Typography.Text>
-        </Space>
-        {!editing ? (
-          <Space size={6}>
-            <Switch size="small" checked={teams} disabled={disabled} onChange={setTeams} />
-            <Typography.Text style={{ fontSize: 13 }}>
-              <VideoCameraOutlined /> Teams meeting
-            </Typography.Text>
-          </Space>
+    <div className="m-root">
+      <div className="m-form wide" style={{ maxWidth: 720 }}>
+        {editing ? <div className="m-note">Editing event {eventId}</div> : null}
+        <div className="m-field">
+          <Input
+            aria-label="Title"
+            variant="borderless"
+            placeholder="Add a title"
+            value={subject}
+            disabled={disabled}
+            style={{ fontSize: 16, fontWeight: 600 }}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+        <div className="m-toggles">
+          <label>
+            <Switch size="small" checked={allDay} disabled={disabled} onChange={setAllDay} />
+            All day
+          </label>
+          {!editing ? (
+            <label>
+              <Switch size="small" checked={teams} disabled={disabled} onChange={setTeams} />
+              <VideoCameraOutlined aria-hidden="true" style={{ color: "#0f6cbd" }} /> Teams meeting
+            </label>
+          ) : null}
+        </div>
+        <div className="m-field">
+          <label>{allDay ? "Start date" : "Start"}</label>
+          <DatePicker
+            aria-label={allDay ? "Start date" : `Start (${tzLabel})`}
+            variant="borderless"
+            value={start}
+            disabled={disabled}
+            showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
+            style={{ flex: "0 1 220px" }}
+            onChange={setStart}
+          />
+          {!allDay ? <span className="m-faint">{tzLabel}</span> : null}
+        </div>
+        <div className="m-field">
+          <label>{allDay ? "End date" : "End"}</label>
+          <DatePicker
+            aria-label={allDay ? "End date (inclusive)" : `End (${tzLabel})`}
+            variant="borderless"
+            value={end}
+            disabled={disabled}
+            showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
+            style={{ flex: "0 1 220px" }}
+            onChange={setEnd}
+          />
+          <span className="m-faint">{allDay ? "inclusive" : tzLabel}</span>
+        </div>
+        <div className="m-field">
+          <label htmlFor="ec-attendees">Attendees</label>
+          <Input
+            id="ec-attendees"
+            variant="borderless"
+            value={attendees}
+            disabled={disabled}
+            placeholder="alice@contoso.com, bob@contoso.com"
+            onChange={(e) => setAttendees(e.target.value)}
+          />
+        </div>
+        <div className="m-field">
+          <label htmlFor="ec-location">Location</label>
+          <Input
+            id="ec-location"
+            variant="borderless"
+            value={location}
+            disabled={disabled}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+        <div className="m-field body">
+          <Input.TextArea
+            aria-label="Description"
+            variant="borderless"
+            placeholder="Add a description"
+            value={bodyText}
+            disabled={disabled}
+            autoSize={{ minRows: 3, maxRows: 12 }}
+            onChange={(e) => setBodyText(e.target.value)}
+          />
+        </div>
+        {status.kind === "error" ? (
+          <div className="m-error inline" role="alert">
+            {status.message}
+          </div>
         ) : null}
-      </Space>
-      {label(allDay ? "Start date" : `Start (${timeZone || LOCAL_TZ})`)}
-      <DatePicker
-        value={start}
-        disabled={disabled}
-        showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
-        style={{ width: 220 }}
-        onChange={setStart}
-      />
-      {label(allDay ? "End date (inclusive)" : `End (${timeZone || LOCAL_TZ})`)}
-      <DatePicker
-        value={end}
-        disabled={disabled}
-        showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
-        style={{ width: 220 }}
-        onChange={setEnd}
-      />
-      {label("Attendees")}
-      <Input
-        value={attendees}
-        disabled={disabled}
-        placeholder="alice@contoso.com, bob@contoso.com"
-        onChange={(e) => setAttendees(e.target.value)}
-      />
-      {label("Location")}
-      <Input value={location} disabled={disabled} onChange={(e) => setLocation(e.target.value)} />
-      {label("Description")}
-      <Input.TextArea
-        value={bodyText}
-        disabled={disabled}
-        autoSize={{ minRows: 3, maxRows: 12 }}
-        onChange={(e) => setBodyText(e.target.value)}
-      />
-      <Space style={{ marginTop: 14 }}>
-        <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
-          {editing ? "Save changes" : "Create event"}
-        </Button>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {editing ? `event ${eventId}` : calendarId ? `on calendar ${calendarId}` : "no calendar selected"}
-        </Typography.Text>
-      </Space>
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
-      ) : null}
+        <div className="m-bar foot">
+          <span className="m-faint" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {editing ? `event ${eventId}` : calendarId ? `on calendar ${calendarId}` : "no calendar selected"}
+          </span>
+          <span className="sp" />
+          <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
+            {editing ? "Save changes" : "Create event"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

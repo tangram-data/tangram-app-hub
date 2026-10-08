@@ -7,10 +7,12 @@
 // so the platform wraps them in an `app_action_result` envelope — inline text
 // up to 32 KB, larger/binary content saved to workspace files — and this
 // component unwraps both shapes.
-import { ExportOutlined, FilePdfOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Skeleton, Table, Typography } from "antd";
+import { ExportOutlined, FileOutlined, FilePdfOutlined, FolderFilled } from "@ant-design/icons";
+import { Button, Skeleton, Table } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -132,8 +134,24 @@ function formatSize(size: number | undefined): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+// Office brand badge for the header (Word/Excel/PowerPoint/PDF).
+const BADGES: Record<string, { label: string; color: string }> = {
+  [DOCX]: { label: "W", color: "#185abd" },
+  [XLSX]: { label: "X", color: "#107c41" },
+  [PPTX]: { label: "P", color: "#c43e1c" },
+  "application/pdf": { label: "PDF", color: "#c4314b" },
+};
+
+function ItemIcon({ item }: { item: DriveItem }) {
+  if (item.folder) return <FolderFilled aria-hidden="true" style={{ color: "#ffc83d", fontSize: 28 }} />;
+  const b = BADGES[item.file?.mimeType ?? ""];
+  if (!b) return <FileOutlined aria-hidden="true" style={{ color: "#616161", fontSize: 24 }} />;
+  return (
+    <span className="m-fileicon" style={{ background: b.color, width: 26, height: 30 }} aria-hidden="true">
+      {b.label}
+    </span>
+  );
+}
 
 export default function FileViewer() {
   const [item, setItem] = useState<DriveItem | null>(null);
@@ -216,9 +234,21 @@ export default function FileViewer() {
       .then(() => setConverting(false));
   }
 
-  if (state === "loading") return <Skeleton active style={{ padding: 16 }} />;
+  if (state === "loading")
+    return (
+      <div className="m-root m-pad">
+        <Skeleton active />
+      </div>
+    );
   if (state === "error" || !item)
-    return <Alert type="error" showIcon message="Couldn't load item" description={error} style={{ margin: 16 }} />;
+    return (
+      <div className="m-root">
+        <div className="m-error" role="alert">
+          <b>Couldn't load item</b>
+          {error}
+        </div>
+      </div>
+    );
 
   const mime = item.file?.mimeType ?? "";
   const isFolder = Boolean(item.folder);
@@ -259,46 +289,55 @@ export default function FileViewer() {
     content.kind !== "none" || note || isPdfConvertible || mime === XLSX;
 
   return (
-    <div style={{ padding: 16, fontSize: 14, fontFamily: FONT_STACK, color: "rgba(0,0,0,0.88)" }}>
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
-        {item.name}
-      </Typography.Title>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
+    <div className="m-root m-pad">
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <ItemIcon item={item} />
+        <h2 className="m-title" style={{ minWidth: 0, wordBreak: "break-word" }}>
+          {item.name}
+        </h2>
+      </div>
+      <dl className="m-meta">
         {metaRows.map(([label, value]) => (
           <React.Fragment key={label}>
-            <Typography.Text type="secondary">{label}</Typography.Text>
-            <Typography.Text>{value}</Typography.Text>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
           </React.Fragment>
         ))}
-      </div>
-      {item.webUrl ? (
-        <Button
-          size="small"
-          icon={<ExportOutlined />}
-          style={{ marginTop: 12 }}
-          href={item.webUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open in OneDrive
-        </Button>
-      ) : null}
-      {showBody ? <Divider style={{ margin: "12px 0" }} /> : null}
-      {content.kind === "text" || content.kind === "sheet" ? (
-        content.truncated ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="Preview truncated — content exceeds the inline limit. Open in OneDrive for the full file."
-            style={{ marginBottom: 12 }}
-          />
-        ) : null
-      ) : null}
-      {content.kind === "text" ? (
-        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55, wordBreak: "break-word" }}>
-          {content.text || "(empty file)"}
+      </dl>
+      {item.webUrl || isPdfConvertible ? (
+        <div className="m-toolbar">
+          {item.webUrl ? (
+            <Button
+              size="small"
+              icon={<ExportOutlined aria-hidden="true" />}
+              href={item.webUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in OneDrive
+            </Button>
+          ) : null}
+          {isPdfConvertible && content.kind !== "saved" ? (
+            <Button
+              size="small"
+              icon={<FilePdfOutlined aria-hidden="true" />}
+              loading={converting}
+              onClick={() => convertToPdf(item.id, item.name ?? "document")}
+            >
+              Convert to PDF
+            </Button>
+          ) : null}
         </div>
       ) : null}
+      {showBody ? <hr className="m-divider" /> : null}
+      {content.kind === "text" || content.kind === "sheet" ? (
+        content.truncated ? (
+          <div className="m-note warn">
+            Preview truncated — content exceeds the inline limit. Open in OneDrive for the full file.
+          </div>
+        ) : null
+      ) : null}
+      {content.kind === "text" ? <div className="m-pre">{content.text || "(empty file)"}</div> : null}
       {content.kind === "sheet" ? (
         <>
           <Table
@@ -309,53 +348,36 @@ export default function FileViewer() {
             scroll={{ x: "max-content" }}
           />
           {sheetOverflow ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <div className="m-faint" style={{ marginTop: 8 }}>
               Showing the first {MAX_SHEET_ROWS} rows — open in OneDrive for the full file.
-            </Typography.Text>
+            </div>
           ) : null}
         </>
       ) : null}
       {content.kind === "saved" ? (
-        <Alert
-          type="info"
-          showIcon
-          message="Content saved to workspace files"
-          description={
-            content.where
-              ? `The content was saved to workspace files: ${content.where}`
-              : "The content was saved to workspace files."
-          }
-        />
+        <div className="m-note">
+          <b style={{ fontWeight: 600, display: "block" }}>Content saved to workspace files</b>
+          {content.where
+            ? `The content was saved to workspace files: ${content.where}`
+            : "The content was saved to workspace files."}
+        </div>
       ) : null}
       {isPdfConvertible && content.kind !== "saved" ? (
-        <div>
-          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-            {mime === DOCX ? "Word documents" : "PowerPoint presentations"} have no text export in
-            Graph — convert to PDF to read the content (the PDF is saved to workspace files).
-          </Typography.Paragraph>
-          <Button
-            size="small"
-            icon={<FilePdfOutlined />}
-            loading={converting}
-            onClick={() => convertToPdf(item.id, item.name ?? "document")}
-          >
-            Convert to PDF
-          </Button>
+        <div className="m-faint" style={{ fontSize: 13 }}>
+          {mime === DOCX ? "Word documents" : "PowerPoint presentations"} have no text export in
+          Graph — convert to PDF to read the content (the PDF is saved to workspace files).
         </div>
       ) : null}
       {mime === XLSX ? (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginTop: isPdfConvertible ? 12 : 0 }}
-          message="Spreadsheet preview isn't available here"
-          description="Use the excel connector, whose tools read cell values as JSON by this workbook's itemId."
-        />
+        <div className="m-note">
+          <b style={{ fontWeight: 600, display: "block" }}>Spreadsheet preview isn't available here</b>
+          Use the excel connector, whose tools read cell values as JSON by this workbook's itemId.
+        </div>
       ) : null}
       {note && content.kind !== "saved" ? (
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
+        <div className="m-faint" style={{ marginTop: 8 }}>
           {note}
-        </Typography.Text>
+        </div>
       ) : null}
     </div>
   );

@@ -1,0 +1,99 @@
+/* Microsoft (Fluent 2, restrained) look for Outlook and OneDrive connector components:
+   brand blue only as accent, Segoe-style type, no ribbon / gray chrome.
+   Source of truth: design/kits/microsoft.css — run scripts/sync-ui-kits.sh after editing. */
+.m-root {
+  --m-font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --m-text: #242424; --m-muted: #616161; --m-faint: #707070; --m-line: #e0e0e0; --m-line2: #f0f0f0;
+  --m-brand: #0f6cbd; --m-brand-soft: #ebf3fc; --m-hover: #f5f5f5; --m-sel: #ebf3fc;
+  font-family: var(--m-font); color: var(--m-text); background: #fff; font-size: 14px; line-height: 20px;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+}
+.m-root *, .m-root *::before, .m-root *::after { box-sizing: border-box; }
+.m-root .ant-btn, .m-root .ant-input, .m-root .ant-select, .m-root .ant-picker { font-family: var(--m-font); }
+.m-pad { padding: 20px 24px; }
+.m-title { font-size: 20px; font-weight: 600; line-height: 28px; margin: 0; }
+.m-h3 { font-size: 16px; font-weight: 600; margin: 0; }
+.m-muted { color: var(--m-muted); } .m-faint { color: var(--m-faint); font-size: 12px; }
+.m-persona { width: 40px; height: 40px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 15px; font-weight: 600; flex: none; }
+.m-persona.sm { width: 24px; height: 24px; font-size: 10px; }
+.m-divider { border: 0; border-top: 1px solid var(--m-line); margin: 16px 0; }
+.m-att { display: flex; align-items: center; gap: 10px; border: 1px solid var(--m-line); border-radius: 4px; padding: 6px 10px; min-width: 200px; background: #fff; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+.m-att:hover { background: var(--m-hover); } .m-att .n { font-size: 13px; } .m-att .s { font-size: 12px; color: var(--m-muted); }
+.m-fileicon { width: 20px; height: 22px; border-radius: 3px; color: #fff; font-size: 10px; font-weight: 700; display: inline-grid; place-items: center; flex: none; }
+.m-table { width: 100%; border-collapse: collapse; }
+.m-table th { text-align: left; font-weight: 400; font-size: 12px; color: var(--m-muted); padding: 6px 20px; white-space: nowrap; position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--m-line); }
+.m-table td { padding: 0 20px; height: 42px; border-top: 1px solid var(--m-line2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+.m-table tr.m-row { cursor: pointer; } .m-table tr.m-row:hover td { background: var(--m-hover); } .m-table tr.m-row.sel td { background: var(--m-sel); }
+.m-name { display: flex; align-items: center; gap: 10px; min-width: 0; } .m-name span { overflow: hidden; text-overflow: ellipsis; }
+.m-filter { display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid var(--m-line); }
+.m-filter button { border: 0; background: #fff; font: inherit; font-size: 13px; padding: 4px 10px; cursor: pointer; color: var(--m-text); }
+.m-filter button.on { background: var(--m-brand-soft); color: var(--m-brand); font-weight: 600; }
+.m-field { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--m-line); padding: 8px 0; min-height: 40px; }
+.m-field > label { color: var(--m-muted); min-width: 56px; }
+.m-field input, .m-field textarea { flex: 1; border: 0; outline: none; font: inherit; color: var(--m-text); background: transparent; resize: vertical; }
+.m-token { background: var(--m-brand-soft); color: var(--m-brand); border-radius: 4px; padding: 1px 8px; }
+.m-evrow { display: grid; grid-template-columns: 4px 110px 1fr; gap: 12px; align-items: center; padding: 8px 20px; cursor: pointer; }
+.m-evrow:hover { background: var(--m-hover); } .m-evbar { width: 4px; height: 32px; border-radius: 2px; background: var(--m-brand); }
+.m-daylabel { padding: 12px 20px 4px; font-size: 12px; font-weight: 600; color: var(--m-muted); text-transform: uppercase; letter-spacing: .4px; }
+.m-bar { display: flex; gap: 8px; align-items: center; } .m-bar .sp { flex: 1; }
+.m-empty { padding: 48px 24px; text-align: center; color: var(--m-muted); }
+.m-error { margin: 16px 20px; padding: 10px 14px; border-radius: 4px; background: #fdf3f4; color: #b10e1c; border: 1px solid #eeacb2; }
+/* Reading pane (Outlook message / OneDrive item header). */
+.m-sender { display: flex; gap: 12px; align-items: flex-start; margin-top: 16px; }
+.m-from { min-width: 0; flex: 1; } .m-from b { font-weight: 600; } .m-from .addr { color: var(--m-faint); word-break: break-all; }
+.m-to { color: var(--m-muted); font-size: 12px; margin-top: 2px; word-break: break-word; }
+.m-date { color: var(--m-muted); font-size: 12px; white-space: nowrap; }
+.m-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.m-meta { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; row-gap: 4px; margin-top: 12px; font-size: 13px; }
+.m-meta > dt { color: var(--m-muted); } .m-meta > dd { margin: 0; min-width: 0; word-break: break-word; }
+.m-atts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.m-att:disabled { cursor: default; opacity: .6; } .m-att > div { min-width: 0; } .m-att .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-att .x { margin-left: auto; }
+/* Sanitized mail body: our styles only (email styles are stripped). */
+.m-body { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--m-line); word-break: break-word; }
+.m-body a { color: var(--m-brand); text-decoration: none; } .m-body a:hover { text-decoration: underline; }
+.m-body p, .m-body div { margin: 0 0 10px; }
+.m-body ul, .m-body ol { margin: 6px 0 12px; padding-left: 22px; } .m-body li { margin-bottom: 4px; }
+.m-body blockquote { margin: 10px 0; padding: 2px 0 2px 12px; border-left: 2px solid var(--m-line); color: var(--m-muted); }
+.m-body table { border-collapse: collapse; max-width: 100%; } .m-body td, .m-body th { padding: 4px 8px; vertical-align: top; }
+.m-body pre, .m-body code, .m-pre { font-family: ui-monospace, "Cascadia Code", SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.m-body pre { padding: 8px 0; overflow-x: auto; }
+.m-body h1, .m-body h2, .m-body h3 { font-size: 16px; font-weight: 600; margin: 14px 0 6px; }
+.m-pre { white-space: pre-wrap; word-break: break-word; line-height: 20px; }
+/* Lists: head with breadcrumb + filter; folder rows open, file rows only hover. */
+.m-listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px 8px; }
+.m-crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 16px; font-weight: 600; min-width: 0; }
+.m-crumbs .sep { color: var(--m-faint); font-weight: 400; }
+.m-link { border: 0; background: none; padding: 0; font: inherit; color: var(--m-brand); cursor: pointer; text-align: left; text-decoration: none; }
+.m-link:hover { text-decoration: underline; } .m-link:disabled { color: var(--m-faint); cursor: default; text-decoration: none; }
+.m-crumbs .m-link { color: var(--m-muted); font-weight: 400; }
+.m-table tr.m-row-static:hover td { background: var(--m-hover); }
+.m-table a { color: inherit; text-decoration: none; } .m-table a:hover { color: var(--m-brand); text-decoration: underline; }
+.m-table .m-act { width: 84px; text-align: right; }
+@media (max-width: 520px) { .m-table .m-wide { display: none; } }
+@media (max-width: 420px) { .m-table .m-mid { display: none; } .m-table th, .m-table td { padding-left: 14px; padding-right: 14px; } }
+/* Agenda rows: time column + title/meta; expanded detail aligns under the title. */
+.m-evrow.sel { background: var(--m-sel); } .m-evrow .t { font-size: 13px; color: var(--m-muted); white-space: nowrap; }
+.m-evrow .ti { min-width: 0; } .m-evrow .ti b { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-evmeta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--m-muted); }
+.m-evdetail { padding: 0 20px 12px 146px; background: var(--m-sel); }
+@media (max-width: 420px) { .m-evrow { grid-template-columns: 4px 84px 1fr; padding: 8px 14px; } .m-evdetail { padding: 0 14px 12px; } }
+.m-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px 2px 2px; border-radius: 12px; border: 1px solid var(--m-line); }
+.m-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.m-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+/* Forms: borderless field rows (composer), toggles, banners. */
+.m-form { padding: 8px 20px 16px; }
+.m-field .ant-input, .m-field .ant-picker { flex: 1; padding-left: 0; padding-right: 0; }
+.m-field.top { align-items: flex-start; } .m-field.top > label { padding-top: 4px; }
+.m-field.body { border-bottom: 0; padding-top: 12px; }
+.m-toggles { display: flex; gap: 20px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--m-line); font-size: 13px; }
+.m-toggles label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.m-bar.foot { margin-top: 16px; flex-wrap: wrap; } .m-bar.wrap { flex-wrap: wrap; }
+.m-ok { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 4px; background: #f1faf1; color: #0e700e; margin-bottom: 16px; }
+.m-ok-inline { color: #0e700e; font-size: 13px; }
+.m-note { padding: 10px 14px; border-radius: 4px; background: var(--m-brand-soft); color: var(--m-text); font-size: 13px; margin: 12px 0; }
+.m-note.warn { background: #fff9f5; color: #8a3707; }
+.m-root .ant-table-thead > tr > th { background: #fff; font-weight: 400; font-size: 12px; color: var(--m-muted); }
+.m-root .ant-table-thead > tr > th::before { display: none; }
+.m-error.inline { margin: 12px 0; } .m-error b { font-weight: 600; display: block; }
+.m-form.wide .m-field > label { min-width: 84px; }

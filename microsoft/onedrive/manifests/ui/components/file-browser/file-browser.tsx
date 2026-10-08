@@ -6,19 +6,17 @@
 // URL that can't be replayed through a binding, so instead of pagination the
 // component shows a "more items exist" note when a nextLink is present.
 import {
-  FileExcelOutlined,
   FileImageOutlined,
   FileOutlined,
-  FilePdfOutlined,
-  FilePptOutlined,
   FileTextOutlined,
-  FileWordOutlined,
   FileZipOutlined,
   FolderFilled,
 } from "@ant-design/icons";
-import { Alert, Breadcrumb, Button, Empty, Input, List, Typography } from "antd";
+import { Button, Input, Spin } from "antd";
 import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -35,41 +33,50 @@ type DriveItem = {
 const SELECT = "id,name,size,lastModifiedDateTime,folder,file,webUrl";
 const DEFAULT_PAGE_SIZE = 50;
 
-// Microsoft brand hexes inlined (no icon-color package in the sandbox
-// catalog): Word blue, Excel green, PowerPoint red-orange, PDF red.
-const WORD_BLUE = "#2b579a";
-const EXCEL_GREEN = "#217346";
-const PPT_ORANGE = "#b7472a";
-const RED = "#f5222d";
+// Office brand badges (Word/Excel/PowerPoint/PDF); other types get a muted icon.
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
-const OFFICE_TYPES: Record<string, { label: string; icon: React.ReactNode }> = {
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-    label: "Word",
-    icon: <FileWordOutlined style={{ color: WORD_BLUE }} />,
-  },
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
-    label: "Excel",
-    icon: <FileExcelOutlined style={{ color: EXCEL_GREEN }} />,
-  },
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-    label: "PowerPoint",
-    icon: <FilePptOutlined style={{ color: PPT_ORANGE }} />,
-  },
-};
+const badge = (label: string, color: string) => (
+  <span className="m-fileicon" style={{ background: color }} aria-hidden="true">
+    {label}
+  </span>
+);
+const muted = (icon: React.ReactNode) => (
+  <span style={{ fontSize: 18, color: "#616161", width: 20, display: "inline-grid", placeItems: "center", flex: "none" }} aria-hidden="true">
+    {icon}
+  </span>
+);
 
-function fileType(item: DriveItem): { label: string; icon: React.ReactNode } {
-  if (item.folder) return { label: "Folder", icon: <FolderFilled style={{ color: "#5f6368" }} /> };
+type Kind = "folder" | "word" | "excel" | "ppt" | "pdf" | "other";
+
+function fileType(item: DriveItem): { label: string; kind: Kind; icon: React.ReactNode } {
+  if (item.folder)
+    return {
+      label: "Folder",
+      kind: "folder",
+      icon: <FolderFilled aria-hidden="true" style={{ color: "#ffc83d", fontSize: 20, flex: "none" }} />,
+    };
   const mime = item.file?.mimeType ?? "";
-  const known = OFFICE_TYPES[mime];
-  if (known) return known;
-  if (mime === "application/pdf")
-    return { label: "PDF", icon: <FilePdfOutlined style={{ color: RED }} /> };
-  if (mime.startsWith("image/")) return { label: "Image", icon: <FileImageOutlined /> };
-  if (mime.startsWith("text/")) return { label: "Text", icon: <FileTextOutlined /> };
-  if (/zip|compressed|tar/.test(mime)) return { label: "Archive", icon: <FileZipOutlined /> };
-  if (!mime) return { label: "File", icon: <FileOutlined /> };
-  return { label: mime.split("/").pop() ?? "File", icon: <FileOutlined /> };
+  if (mime === DOCX) return { label: "Word", kind: "word", icon: badge("W", "#185abd") };
+  if (mime === XLSX) return { label: "Excel", kind: "excel", icon: badge("X", "#107c41") };
+  if (mime === PPTX) return { label: "PowerPoint", kind: "ppt", icon: badge("P", "#c43e1c") };
+  if (mime === "application/pdf") return { label: "PDF", kind: "pdf", icon: badge("PDF", "#c4314b") };
+  if (mime.startsWith("image/")) return { label: "Image", kind: "other", icon: muted(<FileImageOutlined />) };
+  if (mime.startsWith("text/")) return { label: "Text", kind: "other", icon: muted(<FileTextOutlined />) };
+  if (/zip|compressed|tar/.test(mime)) return { label: "Archive", kind: "other", icon: muted(<FileZipOutlined />) };
+  if (!mime) return { label: "File", kind: "other", icon: muted(<FileOutlined />) };
+  return { label: mime.split("/").pop() ?? "File", kind: "other", icon: muted(<FileOutlined />) };
 }
+
+// Display-only type filter over the loaded page (no extra requests).
+const FILTERS: { key: string; label: string; kinds: Kind[] }[] = [
+  { key: "all", label: "All", kinds: [] },
+  { key: "word", label: "Word", kinds: ["word"] },
+  { key: "excel", label: "Excel", kinds: ["excel"] },
+  { key: "pdf", label: "PDF", kinds: ["pdf"] },
+];
 
 function formatSize(size: number | undefined): string {
   if (typeof size !== "number" || !Number.isFinite(size)) return "";
@@ -77,9 +84,6 @@ function formatSize(size: number | undefined): string {
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(0)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 type Crumb = { name: string; itemId: string };
 type Target = { kind: "search"; q: string } | { kind: "folder"; itemId: string };
@@ -95,6 +99,7 @@ export default function FileBrowser() {
   const [hasMore, setHasMore] = useState(false);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
   // Guards stale responses when loads overlap.
   const loadSeq = useRef(0);
 
@@ -102,6 +107,7 @@ export default function FileBrowser() {
     const seq = ++loadSeq.current;
     setState("loading");
     setError("");
+    setFilter("all");
     const call: Promise<Record<string, any>> =
       target.kind === "search"
         ? tangram.performAction({ resourceType: "DriveItem", action: "Search" }, {
@@ -171,112 +177,150 @@ export default function FileBrowser() {
   const busy = state === "loading";
   const inFolder = path.length > 0;
 
+  const activeKinds = FILTERS.find((f) => f.key === filter)?.kinds ?? [];
+  const shown = activeKinds.length
+    ? items.filter((f) => activeKinds.includes(fileType(f).kind))
+    : items;
+  const emitOpen = (f: DriveItem) =>
+    tangram.emit("open", {
+      itemId: f.id,
+      name: f.name,
+      mimeType: f.file?.mimeType ?? "",
+      webUrl: f.webUrl ?? "",
+    });
+
   return (
-    <div style={{ padding: 16, fontSize: 14, fontFamily: FONT_STACK, color: "rgba(0,0,0,0.88)" }}>
-      <Input.Search
-        value={searchText}
-        placeholder="Search file names and content across the drive; empty browses from the root"
-        loading={busy}
-        onChange={(e) => setSearchText(e.target.value)}
-        onSearch={(value) => {
-          setPath([]);
-          setRootQuery(value);
-          load(rootTarget(value), orderBy, pageSize);
-        }}
-      />
-      {inFolder ? (
-        <Breadcrumb
-          style={{ marginTop: 8 }}
-          items={[
-            {
-              title: (
-                <Typography.Link disabled={busy} onClick={() => goTo(0)}>
-                  {rootQuery.trim() ? "Search" : "OneDrive"}
-                </Typography.Link>
-              ),
-            },
-            ...path.map((crumb, i) => ({
-              title:
-                i === path.length - 1 ? (
-                  crumb.name
-                ) : (
-                  <Typography.Link disabled={busy} onClick={() => goTo(i + 1)}>
-                    {crumb.name}
-                  </Typography.Link>
-                ),
-            })),
-          ]}
-        />
-      ) : null}
-      {state === "error" ? (
-        <Alert type="error" showIcon message="Couldn't list items" description={error} style={{ marginTop: 12 }} />
-      ) : (
-        <List
-          style={{ marginTop: 8 }}
-          size="small"
+    <div className="m-root">
+      <div style={{ padding: "14px 20px 0" }}>
+        <Input.Search
+          value={searchText}
+          placeholder="Search file names and content; empty browses from the root"
           loading={busy}
-          dataSource={items}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No items match" /> }}
-          renderItem={(f) => {
-            const type = fileType(f);
-            const isFolder = Boolean(f.folder);
-            const meta = [
-              type.label,
-              isFolder && typeof f.folder?.childCount === "number" ? `${f.folder.childCount} items` : "",
-              f.lastModifiedDateTime ? dayjs(f.lastModifiedDateTime).format("MMM D, YYYY HH:mm") : "",
-              isFolder ? "" : formatSize(f.size),
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <List.Item
-                actions={[
-                  <Button
-                    key="select"
-                    size="small"
-                    disabled={busy}
-                    onClick={() =>
-                      tangram.emit("open", {
-                        itemId: f.id,
-                        name: f.name,
-                        mimeType: f.file?.mimeType ?? "",
-                        webUrl: f.webUrl ?? "",
-                      })
-                    }
-                  >
-                    Select
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={<span style={{ fontSize: 18, color: "#5f6368" }}>{type.icon}</span>}
-                  title={
-                    isFolder ? (
-                      <Typography.Link disabled={busy} onClick={() => openFolder(f)}>
-                        {f.name}
-                      </Typography.Link>
-                    ) : f.webUrl ? (
-                      <a href={f.webUrl} target="_blank" rel="noopener noreferrer">
-                        {f.name}
-                      </a>
-                    ) : (
-                      f.name
-                    )
-                  }
-                  description={meta}
-                />
-              </List.Item>
-            );
+          onChange={(e) => setSearchText(e.target.value)}
+          onSearch={(value) => {
+            setPath([]);
+            setRootQuery(value);
+            load(rootTarget(value), orderBy, pageSize);
           }}
         />
+      </div>
+      <div className="m-listhead">
+        <nav className="m-crumbs" aria-label="Location">
+          {inFolder ? (
+            <>
+              <button type="button" className="m-link" disabled={busy} onClick={() => goTo(0)}>
+                {rootQuery.trim() ? "Search" : "My files"}
+              </button>
+              {path.map((crumb, i) => (
+                <React.Fragment key={`${crumb.itemId}-${i}`}>
+                  <span className="sep" aria-hidden="true">›</span>
+                  {i === path.length - 1 ? (
+                    <span aria-current="page">{crumb.name}</span>
+                  ) : (
+                    <button type="button" className="m-link" disabled={busy} onClick={() => goTo(i + 1)}>
+                      {crumb.name}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
+            </>
+          ) : (
+            <span>{rootQuery.trim() ? "Search results" : "My files"}</span>
+          )}
+        </nav>
+        <span className="m-filter" role="group" aria-label="Filter by type">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={filter === f.key ? "on" : undefined}
+              aria-pressed={filter === f.key}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </span>
+      </div>
+      {state === "error" ? (
+        <div className="m-error" role="alert">
+          <b>Couldn't list items</b>
+          {error}
+        </div>
+      ) : busy ? (
+        <Spin style={{ display: "block", margin: "32px auto" }} />
+      ) : shown.length === 0 ? (
+        <div className="m-empty">{items.length ? "No items of this type" : "No items match"}</div>
+      ) : (
+        <table className="m-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th className="m-mid" style={{ width: 150 }}>Modified</th>
+              <th className="m-wide" style={{ width: 90 }}>Size</th>
+              <th className="m-act">
+                <span style={{ position: "absolute", left: -9999 }}>Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((f) => {
+              const type = fileType(f);
+              const isFolder = Boolean(f.folder);
+              const size = isFolder
+                ? typeof f.folder?.childCount === "number"
+                  ? `${f.folder.childCount} items`
+                  : ""
+                : formatSize(f.size);
+              return (
+                <tr
+                  key={f.id}
+                  className={isFolder ? "m-row" : "m-row-static"}
+                  onClick={isFolder && !busy ? () => openFolder(f) : undefined}
+                >
+                  <td title={`${f.name} · ${type.label}`}>
+                    <span className="m-name">
+                      {type.icon}
+                      {isFolder ? (
+                        <span>{f.name}</span>
+                      ) : f.webUrl ? (
+                        <a href={f.webUrl} target="_blank" rel="noopener noreferrer">
+                          {f.name}
+                        </a>
+                      ) : (
+                        <span>{f.name}</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="m-mid m-muted">
+                    {f.lastModifiedDateTime ? dayjs(f.lastModifiedDateTime).format("MMM D, YYYY HH:mm") : ""}
+                  </td>
+                  <td className="m-wide m-muted">{size || "—"}</td>
+                  <td className="m-act">
+                    <Button
+                      size="small"
+                      disabled={busy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        emitOpen(f);
+                      }}
+                    >
+                      Select
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
       {hasMore && state === "ready" ? (
         // @odata.nextLink is a full URL that a binding can't replay, and Graph
         // children listing has no $skip — surface the gap rather than hide it.
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+        <div className="m-faint" style={{ padding: "8px 20px" }}>
           Showing the first {items.length} items — more exist. Refine the search, open a subfolder,
           or raise pageSize.
-        </Typography.Text>
+        </div>
       ) : null}
     </div>
   );

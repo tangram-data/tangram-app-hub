@@ -6,9 +6,11 @@
 // contentBytes), which Graph caps around 3 MB total, guarded below. Graph
 // cannot thread a sendMail onto an existing conversation, so unlike the Gmail
 // composer there is no reply-threading field.
-import { DeleteOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Input, Space, Typography } from "antd";
+import { CheckCircleFilled, DeleteOutlined, PaperClipOutlined, SendOutlined } from "@ant-design/icons";
+import { Button, Input } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/microsoft.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -57,6 +59,26 @@ function buildMessage(
     }));
   }
   return message;
+}
+
+// Office-style file badge by extension (Word/Excel/PowerPoint/PDF), else a clip.
+function AttIcon({ name }: { name: string }) {
+  const ext = (name.split(".").pop() ?? "").toLowerCase();
+  const badge = /^docx?$/.test(ext)
+    ? { label: "W", color: "#185abd" }
+    : /^(xlsx?|csv)$/.test(ext)
+      ? { label: "X", color: "#107c41" }
+      : /^pptx?$/.test(ext)
+        ? { label: "P", color: "#c43e1c" }
+        : ext === "pdf"
+          ? { label: "PDF", color: "#c4314b" }
+          : null;
+  if (!badge) return <PaperClipOutlined aria-hidden="true" style={{ fontSize: 16, color: "#616161" }} />;
+  return (
+    <span className="m-fileicon" style={{ background: badge.color }} aria-hidden="true">
+      {badge.label}
+    </span>
+  );
 }
 
 function formatSize(bytes: number): string {
@@ -222,136 +244,151 @@ export default function MailComposer() {
       );
   }
 
-  const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
-      {text}
-    </Typography.Text>
-  );
-
-  const rootStyle = {
-    padding: 16,
-    maxWidth: 720,
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  };
-
   if (status.kind === "sent") {
     const mail = status.mail;
-    const metaRows: [string, string][] = [
-      ["To", mail.to],
-      ...(mail.cc.trim() ? ([["Cc", mail.cc]] as [string, string][]) : []),
-      ["Date", mail.at.toLocaleString()],
-    ];
     return (
-      <div style={rootStyle}>
-        <Alert type="success" showIcon message="Message sent" style={{ marginBottom: 12 }} />
-        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
-          {mail.subject || "(no subject)"}
-        </Typography.Title>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
-          {metaRows.map(([l, v]) => (
-            <React.Fragment key={l}>
-              <Typography.Text type="secondary">{l}</Typography.Text>
-              <Typography.Text>{v}</Typography.Text>
-            </React.Fragment>
-          ))}
+      <div className="m-root m-pad">
+        <div className="m-ok" role="status">
+          <CheckCircleFilled aria-hidden="true" /> Message sent
         </div>
-        <Divider style={{ margin: "12px 0" }} />
-        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55, wordBreak: "break-word" }}>
-          {mail.body}
-        </div>
+        <h2 className="m-title">{mail.subject || "(no subject)"}</h2>
+        <dl className="m-meta">
+          <dt>To</dt>
+          <dd>{mail.to}</dd>
+          {mail.cc.trim() ? (
+            <>
+              <dt>Cc</dt>
+              <dd>{mail.cc}</dd>
+            </>
+          ) : null}
+          <dt>Date</dt>
+          <dd>{mail.at.toLocaleString()}</dd>
+        </dl>
+        <div className="m-body m-pre">{mail.body}</div>
         {mail.attachments.length > 0 ? (
-          <>
-            <Divider style={{ margin: "12px 0" }} />
-            <Space direction="vertical" size={4}>
-              {mail.attachments.map((a, i) => (
-                <Space key={`${a.name}-${i}`} size={6}>
-                  <PaperClipOutlined />
-                  <Typography.Text>{a.name}</Typography.Text>
-                  <Typography.Text type="secondary">({formatSize(a.size)})</Typography.Text>
-                </Space>
-              ))}
-            </Space>
-          </>
+          <div className="m-atts">
+            {mail.attachments.map((a, i) => (
+              <div key={`${a.name}-${i}`} className="m-att" style={{ cursor: "default" }}>
+                <AttIcon name={a.name} />
+                <div>
+                  <div className="n">{a.name}</div>
+                  <div className="s">{formatSize(a.size)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : null}
-        <Divider style={{ margin: "12px 0" }} />
-        <Button size="small" onClick={composeAnother}>
-          Compose another
-        </Button>
+        <div className="m-bar foot">
+          <span className="sp" />
+          <Button onClick={composeAnother}>Compose another</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={rootStyle}>
-      {label("To")}
-      <Input
-        value={to}
-        disabled={disabled}
-        placeholder="alice@example.com, bob@example.com"
-        onChange={(e) => setTo(e.target.value)}
-      />
-      {label("Cc")}
-      <Input value={cc} disabled={disabled} onChange={(e) => setCc(e.target.value)} />
-      {label("Subject")}
-      <Input value={subject} disabled={disabled} onChange={(e) => setSubject(e.target.value)} />
-      {label("Body")}
-      <Input.TextArea
-        value={body}
-        disabled={disabled}
-        autoSize={{ minRows: 8, maxRows: 24 }}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        style={{ display: "none" }}
-        onChange={(e) => {
-          addFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-      <Space direction="vertical" size={4} style={{ marginTop: 10, display: "flex" }}>
-        {attachments.map((att, i) => (
-          <Space key={`${att.name}-${i}`} size={6}>
-            <PaperClipOutlined />
-            <Typography.Text>{att.name}</Typography.Text>
-            <Typography.Text type="secondary">({formatSize(att.bytes.length)})</Typography.Text>
-            <Button
-              type="text"
-              size="small"
-              icon={<DeleteOutlined />}
-              disabled={disabled}
-              onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
-            />
-          </Space>
-        ))}
-      </Space>
-      <Space style={{ marginTop: 14 }} align="center">
-        <Button type="primary" onClick={send} disabled={disabled} loading={status.kind === "busy" && status.what === "send"}>
-          Send
-        </Button>
-        <Button onClick={saveDraft} disabled={disabled} loading={status.kind === "busy" && status.what === "draft"}>
-          Save draft
-        </Button>
-        <Button icon={<PaperClipOutlined />} disabled={disabled} onClick={() => fileInput.current?.click()}>
-          Attach
-        </Button>
-        {status.kind === "drafted" ? (
-          <Typography.Text type="success">
-            Draft saved ✓{" "}
-            {status.webLink ? (
-              <a href={status.webLink} target="_blank" rel="noopener noreferrer">
-                Open in Outlook
-              </a>
-            ) : null}
-          </Typography.Text>
+    <div className="m-root">
+      <div className="m-form" style={{ maxWidth: 720 }}>
+        <div className="m-field">
+          <label htmlFor="mc-to">To</label>
+          <Input
+            id="mc-to"
+            variant="borderless"
+            value={to}
+            disabled={disabled}
+            placeholder="alice@example.com, bob@example.com"
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        <div className="m-field">
+          <label htmlFor="mc-cc">Cc</label>
+          <Input id="mc-cc" variant="borderless" value={cc} disabled={disabled} onChange={(e) => setCc(e.target.value)} />
+        </div>
+        <div className="m-field">
+          <Input
+            aria-label="Subject"
+            variant="borderless"
+            placeholder="Add a subject"
+            value={subject}
+            disabled={disabled}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+        <div className="m-field body">
+          <Input.TextArea
+            aria-label="Body"
+            variant="borderless"
+            placeholder="Type your message"
+            value={body}
+            disabled={disabled}
+            autoSize={{ minRows: 8, maxRows: 24 }}
+            onChange={(e) => setBody(e.target.value)}
+          />
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {attachments.length > 0 ? (
+          <div className="m-atts" style={{ marginTop: 4 }}>
+            {attachments.map((att, i) => (
+              <div key={`${att.name}-${i}`} className="m-att" style={{ cursor: "default" }}>
+                <AttIcon name={att.name} />
+                <div>
+                  <div className="n">{att.name}</div>
+                  <div className="s">{formatSize(att.bytes.length)}</div>
+                </div>
+                <Button
+                  className="x"
+                  type="text"
+                  size="small"
+                  aria-label={`Remove ${att.name}`}
+                  icon={<DeleteOutlined aria-hidden="true" />}
+                  disabled={disabled}
+                  onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                />
+              </div>
+            ))}
+          </div>
         ) : null}
-      </Space>
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
-      ) : null}
+        {status.kind === "error" ? (
+          <div className="m-error inline" role="alert">
+            {status.message}
+          </div>
+        ) : null}
+        <div className="m-bar foot">
+          <Button
+            icon={<PaperClipOutlined aria-hidden="true" />}
+            disabled={disabled}
+            onClick={() => fileInput.current?.click()}
+          >
+            Attach
+          </Button>
+          <span className="sp" />
+          {status.kind === "drafted" ? (
+            <span className="m-ok-inline">
+              Draft saved{" "}
+              {status.webLink ? (
+                <a href={status.webLink} target="_blank" rel="noopener noreferrer">
+                  Open in Outlook
+                </a>
+              ) : null}
+            </span>
+          ) : null}
+          <Button onClick={saveDraft} disabled={disabled} loading={status.kind === "busy" && status.what === "draft"}>
+            Save draft
+          </Button>
+          <Button type="primary" icon={<SendOutlined aria-hidden="true" />} onClick={send} disabled={disabled} loading={status.kind === "busy" && status.what === "send"}>
+            Send
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

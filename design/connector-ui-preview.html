@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connector UI — native look preview</title>
+<style>
+  body { margin: 0; padding: 32px; background: #eef0f3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1f2328; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lead { color: #57606a; margin: 0 0 28px; font-size: 14px; }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 40px; }
+  .cap { font-size: 12px; color: #57606a; margin: 0 0 8px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+  .frame { width: 560px; height: 360px; overflow: auto; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.06); }
+  .frame.tall { height: 520px; }
+
+  /* ===== Tangram button language (shared by every connector; ui/design/button-language.md) ===== */
+  .tg-btn { font: inherit; font-size: 14px; height: 32px; padding: 0 15px; border-radius: 6px; border: 1px solid #d9d9d9; background: #fff; color: rgba(0,0,0,.88);
+            display: inline-flex; align-items: center; gap: 6px; cursor: pointer; line-height: 1; }
+  .tg-btn:hover { border-color: #4096ff; color: #1668dc; }
+  .tg-btn svg { width: 16px; height: 16px; }
+  .tg-btn.primary { background: #edf4ff; border-color: #c6dcff; color: #1668dc; }
+  .tg-btn.primary:hover { background: #e0ecff; }
+  .tg-btn.danger { background: #fef3f2; border-color: #fecdca; color: #d92d20; }
+  .tg-btn.text { border-color: transparent; background: transparent; padding: 0 8px; }
+  .tg-btn.text:hover { background: rgba(0,0,0,.04); color: rgba(0,0,0,.88); }
+  .tg-btn.sm { height: 24px; padding: 0 8px; font-size: 13px; }
+  .bar { display: flex; gap: 8px; align-items: center; }
+  .bar .sp { flex: 1; }
+
+  /* ================= GOOGLE (Material 3) ================= */
+  .g { --g-font: "Google Sans Text", "Google Sans", Roboto, -apple-system, "Segoe UI", Arial, sans-serif;
+       --g-display: "Google Sans", "Google Sans Text", Roboto, -apple-system, "Segoe UI", Arial, sans-serif;
+       --g-text: #1f1f1f; --g-muted: #444746; --g-faint: #5e5e5e; --g-line: #e3e3e3;
+       --g-blue: #0b57d0; --g-blue-soft: #d3e3fd; --g-surface: #fff; --g-surface2: #f8fafd; --g-hover: #f2f6fc;
+       font-family: var(--g-font); color: var(--g-text); background: var(--g-surface); font-size: 14px; }
+  .g-mail { padding: 20px 24px 24px; }
+  .g-subject { font-family: var(--g-display); font-size: 22px; font-weight: 400; line-height: 28px; margin: 0 0 18px; display: flex; align-items: center; gap: 10px; }
+  .g-label { font-family: var(--g-font); font-size: 12px; background: #e8eaed; color: var(--g-muted); border-radius: 4px; padding: 0 6px; line-height: 20px; }
+  .g-sender { display: flex; gap: 12px; align-items: flex-start; }
+  .g-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-family: var(--g-display); font-size: 17px; flex: none; }
+  .g-from { flex: 1; min-width: 0; }
+  .g-from b { font-weight: 600; } .g-from .addr { color: var(--g-faint); font-size: 12px; }
+  .g-to { color: var(--g-faint); font-size: 12px; margin-top: 2px; }
+  .g-date { color: var(--g-faint); font-size: 12px; white-space: nowrap; }
+  .g-body { margin: 18px 0 0 52px; line-height: 20px; }
+  .g-body p { margin: 0 0 12px; }
+  .g-atts { margin: 16px 0 0 52px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .g-chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--g-line); border-radius: 8px; padding: 8px 12px; width: 200px; }
+  .g-fileicon { width: 20px; height: 24px; border-radius: 3px; color: #fff; font-size: 9px; font-weight: 700; display: grid; place-items: center; flex: none; }
+  .g-chip .n { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .g-chip .s { font-size: 12px; color: var(--g-faint); }
+  .g-actions { margin: 22px 0 0 52px; display: flex; gap: 10px; }
+  .g-pill { font-family: var(--g-display); font-size: 14px; font-weight: 500; border: 1px solid #747775; color: var(--g-muted); background: #fff; border-radius: 18px; height: 36px; padding: 0 16px 0 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .g-pill.primary { background: var(--g-blue); border-color: var(--g-blue); color: #fff; }
+
+  .g-cal { padding: 8px 0; }
+  .g-day { display: grid; grid-template-columns: 64px 1fr; padding: 8px 16px 8px 8px; border-bottom: 1px solid var(--g-line); }
+  .g-daylabel { text-align: center; } .g-daylabel .dow { font-size: 11px; font-weight: 500; color: var(--g-muted); letter-spacing: .8px; } .g-daylabel .dn { font-family: var(--g-display); font-size: 24px; line-height: 40px; width: 40px; height: 40px; margin: 2px auto 0; border-radius: 50%; }
+  .g-daylabel.today .dow { color: var(--g-blue); } .g-daylabel.today .dn { background: var(--g-blue); color: #fff; }
+  .g-ev { display: grid; grid-template-columns: 12px 110px 1fr; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+  .g-ev:hover { background: var(--g-hover); }
+  .g-dot { width: 10px; height: 10px; border-radius: 50%; } .g-ev .t { color: var(--g-muted); font-size: 13px; } .g-ev .ti { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .g-ev .loc { color: var(--g-faint); font-size: 12px; font-weight: 400; }
+
+  .g-drive-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+  .g-search { flex: 1; background: #e9eef6; border-radius: 24px; height: 40px; display: flex; align-items: center; padding: 0 16px; color: var(--g-muted); gap: 10px; }
+  .g-crumbs { font-family: var(--g-display); font-size: 18px; padding: 4px 16px 10px; }
+  .g-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .g-table th { text-align: left; font-weight: 500; font-size: 13px; color: var(--g-muted); padding: 8px 16px; border-bottom: 1px solid var(--g-line); }
+  .g-table td { padding: 0 16px; height: 44px; border-bottom: 1px solid var(--g-line); white-space: nowrap; }
+  .g-table tr:hover td { background: var(--g-hover); }
+  .g-name { display: flex; align-items: center; gap: 14px; } .g-muted { color: var(--g-muted); font-size: 13px; }
+  .g-own { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; vertical-align: middle; margin-right: 8px; }
+
+  /* ================= MICROSOFT (Fluent 2, restrained) ================= */
+  .m { --m-font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+       --m-text: #242424; --m-muted: #616161; --m-faint: #707070; --m-line: #e0e0e0; --m-brand: #0f6cbd; --m-brand-soft: #ebf3fc; --m-hover: #f5f5f5;
+       font-family: var(--m-font); color: var(--m-text); background: #fff; font-size: 14px; }
+  .m-mail { padding: 20px 24px; }
+  .m-subject { font-size: 20px; font-weight: 600; line-height: 28px; margin: 0 0 16px; }
+  .m-sender { display: flex; gap: 12px; align-items: center; }
+  .m-persona { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: 600; flex: none; }
+  .m-from b { font-weight: 600; } .m-from .addr { color: var(--m-faint); } .m-to { color: var(--m-muted); font-size: 12px; margin-top: 2px; }
+  .m-date { margin-left: auto; color: var(--m-muted); font-size: 12px; white-space: nowrap; align-self: flex-start; }
+  .m-toolbar { display: flex; gap: 8px; margin: 14px 0 0; }
+  .m-btn { font-family: var(--m-font); font-size: 14px; background: transparent; border: 0; border-radius: 4px; height: 32px; padding: 0 10px; color: var(--m-text); display: inline-flex; align-items: center; gap: 6px; }
+  .m-btn:hover { background: var(--m-hover); } .m-btn svg { color: var(--m-brand); }
+  .m-btn.primary { background: var(--m-brand); color: #fff; padding: 0 14px; font-weight: 600; } .m-btn.primary svg { color: #fff; }
+  .m-body { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--m-line); line-height: 20px; }
+  .m-body p { margin: 0 0 12px; }
+  .m-atts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .m-att { display: flex; align-items: center; gap: 10px; border: 1px solid var(--m-line); border-radius: 4px; padding: 6px 10px; min-width: 180px; }
+  .m-att .n { font-size: 13px; } .m-att .s { font-size: 12px; color: var(--m-muted); }
+  .m-list-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 8px; }
+  .m-list-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .m-filter { display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid var(--m-line); }
+  .m-filter span { padding: 4px 10px; font-size: 13px; } .m-filter .on { background: var(--m-brand-soft); color: var(--m-brand); font-weight: 600; }
+  .m-files { width: 100%; border-collapse: collapse; }
+  .m-files th { text-align: left; font-weight: 400; font-size: 12px; color: var(--m-muted); padding: 6px 20px; }
+  .m-files td { padding: 0 20px; height: 42px; border-top: 1px solid #f0f0f0; white-space: nowrap; font-size: 14px; }
+  .m-files tr:hover td { background: var(--m-hover); }
+
+  /* ================= NOTION ================= */
+  .n { --n-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif;
+       --n-text: rgb(55,53,47); --n-muted: rgba(55,53,47,.65); --n-faint: rgba(55,53,47,.45); --n-line: rgba(55,53,47,.09); --n-hover: rgba(55,53,47,.06);
+       font-family: var(--n-font); color: var(--n-text); background: #fff; font-size: 16px; line-height: 1.5; }
+  .n-page { padding: 28px 48px 40px; }
+  .n-icon { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+  .n-title { font-size: 34px; font-weight: 700; line-height: 1.2; margin: 0 0 14px; letter-spacing: -.01em; }
+  .n-props { font-size: 14px; margin-bottom: 18px; }
+  .n-prop { display: grid; grid-template-columns: 140px 1fr; padding: 4px 0; }
+  .n-prop .k { color: var(--n-muted); display: flex; gap: 6px; align-items: center; }
+  .n-tag { background: rgb(219,237,219); color: rgb(28,56,41); border-radius: 3px; padding: 0 6px; font-size: 13px; }
+  .n-tag.y { background: rgb(253,236,200); color: rgb(64,44,27); }
+  .n-hr { border: 0; border-top: 1px solid var(--n-line); margin: 0 0 16px; }
+  .n-h2 { font-size: 24px; font-weight: 600; margin: 22px 0 4px; line-height: 1.3; }
+  .n-p { margin: 2px 0; padding: 3px 2px; }
+  .n-todo { display: flex; gap: 8px; align-items: flex-start; padding: 3px 2px; }
+  .n-box { width: 16px; height: 16px; border: 1.5px solid rgba(55,53,47,.85); border-radius: 2px; margin-top: 4px; flex: none; }
+  .n-box.on { background: rgb(35,131,226); border-color: rgb(35,131,226); }
+  .n-todo.done span { text-decoration: line-through; color: var(--n-faint); }
+  .n-callout { display: flex; gap: 10px; background: rgb(241,241,239); border-radius: 4px; padding: 14px 16px; margin: 10px 0; font-size: 15px; }
+  .n-quote { border-left: 3px solid currentColor; padding: 2px 14px; margin: 8px 0; }
+  .n-code { background: rgb(247,246,243); border-radius: 4px; padding: 16px 20px; font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 13px; margin: 8px 0; }
+  .n-add { color: var(--n-faint); font-size: 14px; padding: 6px 2px; }
+</style>
+</head>
+<body>
+<h1>Connector UI — native look</h1>
+<p class="lead">Each connector looks like its own app. Layout, type, color and icons follow each app; <b>buttons follow Tangram's button language</b> (soft fills, color = meaning). Frames are the real chat-card size (560 × 360, scrolls); system fonts only, no remote images.</p>
+
+<!-- ================= GOOGLE ================= -->
+<div class="row">
+  <div>
+    <p class="cap">Gmail — message viewer</p>
+    <div class="frame tall g"><div class="g-mail">
+      <h2 class="g-subject">Q3 planning — draft agenda <span class="g-label">Inbox</span></h2>
+      <div class="g-sender">
+        <div class="g-avatar" style="background:#7b1fa2">A</div>
+        <div class="g-from"><b>Ana Lopez</b> <span class="addr">&lt;ana@acme.com&gt;</span><div class="g-to">to me, Ben ▾</div></div>
+        <div class="g-date">Oct 7, 2026, 9:41 AM (1 day ago)</div>
+      </div>
+      <div class="g-body">
+        <p>Hi team,</p>
+        <p>Attached is the draft agenda for Thursday. Main topics: revenue targets, the dashboard migration, and hiring for the data platform team.</p>
+        <p>Please add comments by Wednesday EOD.</p>
+        <p>Thanks,<br>Ana</p>
+      </div>
+      <div class="g-atts">
+        <div class="g-chip"><div class="g-fileicon" style="background:#d93025">PDF</div><div style="min-width:0"><div class="n">Q3-agenda.pdf</div><div class="s">182 KB</div></div></div>
+        <div class="g-chip"><div class="g-fileicon" style="background:#188038">XLS</div><div style="min-width:0"><div class="n">targets-v2.xlsx</div><div class="s">44 KB</div></div></div>
+      </div>
+      <div class="g-actions">
+        <span class="tg-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>Reply</span>
+        <span class="tg-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9V5l7 7-7 7v-4.1c-5 0-8.5 1.6-11 5.1 1-5 4-10 11-11z"/></svg>Forward</span>
+      </div>
+    </div></div>
+  </div>
+
+  <div>
+    <p class="cap">Google Calendar — agenda</p>
+    <div class="frame g"><div class="g-cal">
+      <div class="g-day"><div class="g-daylabel today"><div class="dow">THU</div><div class="dn">8</div></div><div>
+        <div class="g-ev"><span class="g-dot" style="background:#039be5"></span><span class="t">9:00 – 9:30am</span><span class="ti">Standup <span class="loc">· Meet</span></span></div>
+        <div class="g-ev"><span class="g-dot" style="background:#33b679"></span><span class="t">11:00am – 12pm</span><span class="ti">Q3 planning <span class="loc">· Room 4B</span></span></div>
+        <div class="g-ev"><span class="g-dot" style="background:#f4511e"></span><span class="t">2:00 – 2:45pm</span><span class="ti">Interview — data engineer</span></div>
+      </div></div>
+      <div class="g-day"><div class="g-daylabel"><div class="dow">FRI</div><div class="dn">9</div></div><div>
+        <div class="g-ev"><span class="g-dot" style="background:#8e24aa"></span><span class="t">All day</span><span class="ti">Team offsite</span></div>
+        <div class="g-ev"><span class="g-dot" style="background:#039be5"></span><span class="t">4:00 – 5:00pm</span><span class="ti">Demo review <span class="loc">· Meet</span></span></div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <div>
+    <p class="cap">Google Drive — file browser</p>
+    <div class="frame g">
+      <div class="g-drive-head"><div class="g-search"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search in Drive</div></div>
+      <div class="g-crumbs">My Drive › Planning</div>
+      <table class="g-table">
+        <tr><th>Name</th><th>Owner</th><th>Last modified</th></tr>
+        <tr><td><span class="g-name"><svg viewBox="64 64 896 896" width="20" height="20" fill="#5f6368" style="vertical-align:middle;flex:none" aria-hidden="true"><path d="M880 298.4H521L403.7 186.2a8.15 8.15 0 00-5.5-2.2H144c-17.7 0-32 14.3-32 32v592c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V330.4c0-17.7-14.3-32-32-32z"/></svg>Archive</span></td><td class="g-muted"><span class="g-own" style="background:#0b57d0">me</span>me</td><td class="g-muted">Sep 2</td></tr>
+        <tr><td><span class="g-name"><span class="g-fileicon" style="background:#4285f4">DOC</span>Q3 planning notes</span></td><td class="g-muted"><span class="g-own" style="background:#7b1fa2">A</span>Ana Lopez</td><td class="g-muted">10:12 AM</td></tr>
+        <tr><td><span class="g-name"><span class="g-fileicon" style="background:#0f9d58">SH</span>Revenue targets 2026</span></td><td class="g-muted"><span class="g-own" style="background:#0b57d0">me</span>me</td><td class="g-muted">Oct 6</td></tr>
+        <tr><td><span class="g-name"><span class="g-fileicon" style="background:#f4b400">SL</span>Board deck — draft</span></td><td class="g-muted"><span class="g-own" style="background:#e37400">B</span>Ben Ito</td><td class="g-muted">Oct 1</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div>
+    <p class="cap">Gmail — composer (Send = Tangram primary)</p>
+    <div class="frame g" style="height:300px"><div style="padding:0">
+      <div style="background:#f2f6fc;padding:10px 16px;font-family:var(--g-display);font-weight:500">New message</div>
+      <div style="padding:0 16px">
+        <div style="border-bottom:1px solid var(--g-line);padding:10px 0;color:var(--g-muted)">To <span style="color:var(--g-text)">ana@acme.com</span></div>
+        <div style="border-bottom:1px solid var(--g-line);padding:10px 0">Re: Q3 planning — draft agenda</div>
+        <div style="padding:12px 0;min-height:70px">Thanks Ana — comments added in the doc.</div>
+        <div class="bar"><span class="tg-btn text sm">Discard</span><span class="sp"></span><span class="tg-btn">Save draft</span><span class="tg-btn primary">Send</span></div>
+      </div>
+    </div></div>
+  </div>
+  <div>
+    <p class="cap">Outlook — composer</p>
+    <div class="frame m" style="height:300px"><div style="padding:14px 20px">
+      <div style="border-bottom:1px solid var(--m-line);padding:8px 0;color:var(--m-muted)">To &nbsp;<span style="background:#ebf3fc;color:#0f6cbd;border-radius:4px;padding:1px 8px">Ana Lopez</span></div>
+      <div style="border-bottom:1px solid var(--m-line);padding:8px 0">RE: Q3 planning — draft agenda</div>
+      <div style="padding:12px 0;min-height:70px">Thanks Ana — comments added in the doc.</div>
+      <div class="bar"><span class="tg-btn text sm">Discard</span><span class="sp"></span><span class="tg-btn">Save draft</span><span class="tg-btn primary">Send</span></div>
+    </div></div>
+  </div>
+  <div>
+    <p class="cap">Destructive confirm (any connector)</p>
+    <div class="frame g" style="height:160px;width:360px"><div style="padding:20px">
+      <div style="font-weight:600;margin-bottom:6px">Delete this event?</div>
+      <div style="color:#5e5e5e;font-size:13px;margin-bottom:16px">Guests will get a cancellation email.</div>
+      <div class="bar"><span class="sp"></span><span class="tg-btn">Cancel</span><span class="tg-btn danger">Delete</span></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ================= MICROSOFT ================= -->
+<div class="row">
+  <div>
+    <p class="cap">Outlook — reading pane (clean Fluent 2: no ribbon, no gray chrome)</p>
+    <div class="frame tall m"><div class="m-mail">
+      <h2 class="m-subject">Q3 planning — draft agenda</h2>
+      <div class="m-sender">
+        <div class="m-persona" style="background:#e9d7f4;color:#5c2e91">AL</div>
+        <div class="m-from"><b>Ana Lopez</b> <span class="addr">&lt;ana@acme.com&gt;</span><div class="m-to">To: You; Ben Ito</div></div>
+        <div class="m-date">Wed 10/7/2026 9:41 AM</div>
+      </div>
+      <div class="m-toolbar">
+        <span class="tg-btn sm"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 5 3 10l5 5v-3c4 0 7 1 9 4-1-5-4-8-9-8.5V5z"/></svg>Reply</span>
+        <span class="tg-btn sm"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 5 1 10l5 5V5zm5 0-5 5 5 5v-3c4 0 6 1 8 4-1-5-3-8-8-8.5V5z"/></svg>Reply all</span>
+        <span class="tg-btn sm"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M12 5l5 5-5 5v-3c-4 0-7 1-9 4 1-5 4-8 9-8.5V5z"/></svg>Forward</span>
+      </div>
+      <div class="m-body">
+        <p>Hi team,</p>
+        <p>Attached is the draft agenda for Thursday. Main topics: revenue targets, the dashboard migration, and hiring for the data platform team.</p>
+        <p>Thanks,<br>Ana</p>
+        <div class="m-atts">
+          <div class="m-att"><div class="g-fileicon" style="background:#c4314b">PDF</div><div><div class="n">Q3-agenda.pdf</div><div class="s">182 KB</div></div></div>
+          <div class="m-att"><div class="g-fileicon" style="background:#107c41">X</div><div><div class="n">targets-v2.xlsx</div><div class="s">44 KB</div></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div>
+    <p class="cap">OneDrive — file list</p>
+    <div class="frame m">
+      <div class="m-list-head"><h3>My files › Planning</h3><span class="m-filter"><span class="on">All</span><span>Word</span><span>Excel</span><span>PDF</span></span></div>
+      <table class="m-files">
+        <tr><th>Name</th><th>Modified</th><th>Modified by</th><th>Size</th></tr>
+        <tr><td><svg viewBox="64 64 896 896" width="20" height="20" fill="#ffc83d" style="vertical-align:middle;margin-right:10px;flex:none" aria-hidden="true"><path d="M880 298.4H521L403.7 186.2a8.15 8.15 0 00-5.5-2.2H144c-17.7 0-32 14.3-32 32v592c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V330.4c0-17.7-14.3-32-32-32z"/></svg>Archive</td><td>Sep 2</td><td>You</td><td>—</td></tr>
+        <tr><td><span class="g-fileicon" style="background:#185abd;display:inline-grid;margin-right:10px;vertical-align:middle">W</span>Q3 planning notes.docx</td><td>10:12 AM</td><td>Ana Lopez</td><td>38 KB</td></tr>
+        <tr><td><span class="g-fileicon" style="background:#107c41;display:inline-grid;margin-right:10px;vertical-align:middle">X</span>Revenue targets.xlsx</td><td>Oct 6</td><td>You</td><td>44 KB</td></tr>
+        <tr><td><span class="g-fileicon" style="background:#c43e1c;display:inline-grid;margin-right:10px;vertical-align:middle">P</span>Board deck.pptx</td><td>Oct 1</td><td>Ben Ito</td><td>2.1 MB</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= NOTION ================= -->
+<div class="row">
+  <div>
+    <p class="cap">Notion — page viewer</p>
+    <div class="frame tall n" style="width:640px"><div class="n-page">
+      <div class="n-icon">🗓️</div>
+      <h1 class="n-title">Q3 Planning</h1>
+      <div class="n-props">
+        <div class="n-prop"><span class="k">◉ Status</span><span><span class="n-tag">In progress</span></span></div>
+        <div class="n-prop"><span class="k">👤 Owner</span><span>Ana Lopez</span></div>
+        <div class="n-prop"><span class="k">🏷 Tags</span><span><span class="n-tag y">Planning</span> <span class="n-tag">Revenue</span></span></div>
+      </div>
+      <hr class="n-hr">
+      <div class="n-callout"><span>💡</span><span>Targets are due to finance by <b>Oct 15</b>. Keep this page as the single source of truth.</span></div>
+      <div class="n-h2">Agenda</div>
+      <div class="n-todo done"><div class="n-box on"></div><span>Review Q2 results</span></div>
+      <div class="n-todo"><div class="n-box"></div><span>Agree revenue targets per region</span></div>
+      <div class="n-todo"><div class="n-box"></div><span>Dashboard migration timeline</span></div>
+      <div class="n-quote">"Ship the semantic layer before the board meeting." — Ben</div>
+      <div class="n-code">SELECT region, sum(revenue) FROM orders GROUP BY 1;</div>
+      <div class="n-add">+ Click to add a block</div>
+      <div class="bar" style="margin-top:10px"><span class="tg-btn text sm">Cancel</span><span class="sp"></span><span class="tg-btn sm">Edit</span><span class="tg-btn primary sm">Append to page</span></div>
+    </div></div>
+  </div>
+</div>
+</body>
+</html>
