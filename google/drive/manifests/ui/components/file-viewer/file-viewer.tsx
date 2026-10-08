@@ -125,7 +125,10 @@ export default function FileViewer() {
   const [exportNote, setExportNote] = useState("");
 
   useEffect(() => {
+    // Bumped per load; responses from a superseded fileId are dropped.
+    let loadSeq = 0;
     const load = (inputs: Record<string, unknown>) => {
+      const seq = ++loadSeq;
       const fileId = String(inputs?.fileId ?? "").trim();
       if (!fileId) {
         setError("No fileId input provided.");
@@ -145,6 +148,7 @@ export default function FileViewer() {
           },
         })
         .then((meta: DriveFile) => {
+          if (seq !== loadSeq) return;
           setFile(meta);
           setState("ready");
           const exportMime = EXPORT_MIME[meta.mimeType ?? ""];
@@ -152,6 +156,7 @@ export default function FileViewer() {
           return tangram
             .performAction({ resourceType: "File", action: "Export" }, { parameters: { fileId, mimeType: exportMime } })
             .then((result: unknown) => {
+              if (seq !== loadSeq) return;
               const { text, truncated, saved, note } = unwrapExport(result);
               if (note) setExportNote(note);
               if (saved) setContent({ kind: "saved", where: saved.where, note });
@@ -159,11 +164,13 @@ export default function FileViewer() {
                 setContent({ kind: "sheet", rows: parseCsv(text ?? ""), truncated });
               else setContent({ kind: "text", text: text ?? "", truncated });
             })
-            .catch((e: unknown) =>
-              setExportNote(`Preview unavailable: ${e instanceof Error ? e.message : String(e)}`),
-            );
+            .catch((e: unknown) => {
+              if (seq !== loadSeq) return;
+              setExportNote(`Preview unavailable: ${e instanceof Error ? e.message : String(e)}`);
+            });
         })
         .catch((e: unknown) => {
+          if (seq !== loadSeq) return;
           setError(e instanceof Error ? e.message : String(e));
           setState("error");
         });

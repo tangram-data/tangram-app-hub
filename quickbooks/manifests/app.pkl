@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.intuit"
 name = "quickbooks"
-version = "0.1.0"
+version = "0.1.1"
 appType = "Connector"
 providerWebsite = "https://developer.intuit.com"
 category = "finance"

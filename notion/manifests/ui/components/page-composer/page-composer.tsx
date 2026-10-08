@@ -37,8 +37,13 @@ type ParsedBlock = { block: NotionBlock; line: number };
 
 function spansOf(text: string): Span[] {
   const spans: Span[] = [];
-  for (let i = 0; i < text.length; i += SPAN_CHAR_LIMIT) {
-    spans.push({ type: "text", text: { content: text.slice(i, i + SPAN_CHAR_LIMIT) } });
+  for (let i = 0; i < text.length; ) {
+    let end = Math.min(i + SPAN_CHAR_LIMIT, text.length);
+    // Never split a surrogate pair across spans.
+    const prev = text.charCodeAt(end - 1);
+    if (end < text.length && prev >= 0xd800 && prev <= 0xdbff) end--;
+    spans.push({ type: "text", text: { content: text.slice(i, end) } });
+    i = end;
   }
   return spans;
 }
@@ -117,10 +122,10 @@ function fallbackUrl(id: string): string {
   return `https://www.notion.so/${id.replace(/-/g, "")}`;
 }
 
-// Only ever link to http(s) URLs; anything else falls back to the id-derived
-// notion.so address.
+// Only ever link to https URLs (what openExternal relays); anything else falls
+// back to the id-derived notion.so address.
 function safePageUrl(url: string | undefined, id: string): string {
-  return url && /^https?:\/\//i.test(url) ? url : fallbackUrl(id);
+  return url && /^https:\/\//i.test(url) ? url : fallbackUrl(id);
 }
 
 // Batched append that remembers how many blocks landed before the failure.
@@ -356,7 +361,16 @@ export default function PageComposer() {
             >
               Open in Notion
             </Typography.Link>
-            <Button size="small" onClick={() => setStatus({ kind: "idle" })}>
+            <Button
+              size="small"
+              onClick={() => {
+                // Continue as an append to the saved page; re-saving the same
+                // fields would create (or append) a duplicate.
+                setPageId(page.pageId);
+                setContent("");
+                setStatus({ kind: "idle" });
+              }}
+            >
               Back to editor
             </Button>
           </Space>

@@ -222,6 +222,8 @@ export default function EventComposer() {
         // a fresh one lets the next save (retry-after-failure or
         // create-another) issue a request Google won't ignore as a duplicate.
         meetRequestIdRef.current = requestId();
+        // Later saves update the created event instead of duplicating it.
+        if (!editing && ev?.id) setEventId(ev.id);
         setStatus({
           kind: "saved",
           event: {

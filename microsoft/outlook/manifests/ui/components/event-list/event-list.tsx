@@ -5,9 +5,9 @@
 // `select` output for wiring to the event-composer.
 //
 // Graph datetime quirk: start/end dateTime strings carry NO UTC offset (e.g.
-// 2026-07-10T14:00:00) — the sibling timeZone field names the zone. Times are
-// rendered as wall-clock strings read straight off the dateTime; parsing them
-// through dayjs would misread them as viewer-local instants.
+// 2026-07-10T14:00:00) — the sibling timeZone field names the zone. UTC times
+// (what calendarView returns without Prefer: outlook.timezone) are parsed as
+// UTC and shown in the viewer's local time; other zones render as wall clock.
 import {
   EnvironmentOutlined,
   LinkOutlined,
@@ -59,8 +59,25 @@ type Status = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message:
 function wallDate(t?: EventTime): string {
   return (t?.dateTime ?? "").slice(0, 10);
 }
+function isUtc(t?: EventTime): boolean {
+  return !t?.timeZone || /^(utc|etc\/utc|gmt)$/i.test(t.timeZone);
+}
+// A UTC dateTime as a real instant (Z appended when missing); null otherwise.
+function utcInstant(t?: EventTime): ReturnType<typeof dayjs> | null {
+  const raw = (t?.dateTime ?? "").replace(/(\.\d{3})\d+/, "$1");
+  if (!raw || !isUtc(t)) return null;
+  const d = dayjs(/(Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}Z`);
+  return d.isValid() ? d : null;
+}
 function wallTime(t?: EventTime): string {
+  const local = utcInstant(t);
+  if (local) return local.format("HH:mm");
   return (t?.dateTime ?? "").match(/T(\d{2}:\d{2})/)?.[1] ?? "";
+}
+// Day the event is listed under: local date for UTC times, else wall date.
+function listDate(ev: CalEvent): string {
+  const local = ev.isAllDay ? null : utcInstant(ev.start);
+  return local ? local.format("YYYY-MM-DD") : wallDate(ev.start);
 }
 function timeLabel(ev: CalEvent): string {
   if (ev.isAllDay) return "All day";
@@ -196,7 +213,7 @@ export default function EventList() {
   const waitingForCalendars = Boolean(criteria) && !criteria?.calendarId && !defaultCalendarId;
   const byDay = new Map<string, CalEvent[]>();
   events.forEach((ev) => {
-    const key = wallDate(ev.start) || "unknown";
+    const key = listDate(ev) || "unknown";
     byDay.set(key, [...(byDay.get(key) ?? []), ev]);
   });
 
@@ -238,7 +255,7 @@ export default function EventList() {
         />
       </Space.Compact>
       <Typography.Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 8 }}>
-        Times shown in each event's own time zone
+        UTC times shown in your local time; others in the event's own time zone
       </Typography.Text>
       {status.kind === "error" ? (
         <Alert type="error" showIcon message={status.message} style={{ marginBottom: 12 }} />
@@ -278,7 +295,7 @@ export default function EventList() {
               <Space size={8} style={{ width: "100%" }}>
                 <Tag style={{ minWidth: 90, textAlign: "center" }}>{timeLabel(ev)}</Tag>
                 <Typography.Text strong>{ev.subject || "(no subject)"}</Typography.Text>
-                {!ev.isAllDay && ev.start?.timeZone ? (
+                {!ev.isAllDay && ev.start?.timeZone && !isUtc(ev.start) ? (
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     {ev.start.timeZone}
                   </Typography.Text>

@@ -86,8 +86,13 @@ type ParsedBlock = { block: NotionBlock; line: number };
 
 function spansOf(text: string): Span[] {
   const spans: Span[] = [];
-  for (let i = 0; i < text.length; i += SPAN_CHAR_LIMIT) {
-    spans.push({ type: "text", text: { content: text.slice(i, i + SPAN_CHAR_LIMIT) } });
+  for (let i = 0; i < text.length; ) {
+    let end = Math.min(i + SPAN_CHAR_LIMIT, text.length);
+    // Never split a surrogate pair across spans.
+    const prev = text.charCodeAt(end - 1);
+    if (end < text.length && prev >= 0xd800 && prev <= 0xdbff) end--;
+    spans.push({ type: "text", text: { content: text.slice(i, end) } });
+    i = end;
   }
   return spans;
 }
@@ -835,6 +840,8 @@ export default function PageViewer() {
   const [blockError, setBlockError] = useState("");
   // Guards stale responses when the target page changes mid-fetch.
   const loadSeq = useRef(0);
+  // Current target page, so async saves can tell the page changed under them.
+  const pageIdRef = useRef("");
 
   function load(id: string) {
     if (!id) {
@@ -867,24 +874,36 @@ export default function PageViewer() {
     let lastId = "";
     let lastDraft = "";
     const apply = (inputs: Record<string, unknown>) => {
-      // Agent-supplied draft: open the editor prefilled/refined. Dedup so a
-      // renewal replay can't clobber what the user typed since.
+      const id = String(inputs?.pageId ?? "").trim();
+      const pageChanged = id !== "" && id !== lastId;
+      if (pageChanged) {
+        // New page: drop the previous page's draft and block edits.
+        pageIdRef.current = id;
+        setDraft("");
+        setMode("view");
+        setEditingId("");
+        setInsertingId("");
+        setSaveError("");
+        setBlockError("");
+      }
+      // Agent-supplied draft: open the editor prefilled/refined. Dedup per page
+      // so a renewal replay can't clobber what the user typed since.
       const agentDraft = String(inputs?.draft ?? "");
-      if (agentDraft !== lastDraft) {
-        lastDraft = agentDraft;
+      const draftKey = `${id || lastId}\n${agentDraft}`;
+      if (draftKey !== lastDraft) {
+        lastDraft = draftKey;
         if (agentDraft.trim()) {
           setDraft(agentDraft);
           setMode("edit");
           setSaveError("");
         }
       }
-      const id = String(inputs?.pageId ?? "").trim();
       // Inputs arrived without a pageId: surface it instead of spinning forever.
       if (!id) {
         if (!lastId) setState({ kind: "error", message: "No pageId provided." });
         return;
       }
-      if (id === lastId) return;
+      if (!pageChanged) return;
       lastId = id;
       setPageId(id);
       load(id);
@@ -917,12 +936,15 @@ export default function PageViewer() {
     setSaving(true);
     setSaveError("");
     const parsed = parseContent(draft);
+    const target = pageId;
     try {
-      await appendBlocks(pageId, parsed.map((p) => p.block));
+      await appendBlocks(target, parsed.map((p) => p.block));
+      if (pageIdRef.current !== target) return;
       setDraft("");
       setMode("view");
-      load(pageId);
+      load(target);
     } catch (e) {
+      if (pageIdRef.current !== target) return;
       if (e instanceof AppendFailure && e.appendedBlocks > 0) {
         setDraft(remainingContent(draft, parsed, e.appendedBlocks));
         setSaveError(`Partially appended; the draft keeps only the unwritten lines. ${e.message}`);

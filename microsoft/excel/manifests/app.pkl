@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.microsoft"
 name = "excel"
-version = "0.1.0"
+version = "0.1.1"
 appType = "Connector"
 providerWebsite = "https://learn.microsoft.com/graph/api/resources/excel"
 category = "productivity"

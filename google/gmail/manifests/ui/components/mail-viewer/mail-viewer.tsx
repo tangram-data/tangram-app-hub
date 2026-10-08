@@ -45,8 +45,15 @@ function decodeB64UrlBytes(data: string): Uint8Array {
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
 
-function decodeB64Url(data: string): string {
-  return new TextDecoder("utf-8").decode(decodeB64UrlBytes(data));
+function decodeB64Url(data: string, charset = "utf-8"): string {
+  let decoder: TextDecoder;
+  try {
+    decoder = new TextDecoder(charset);
+  } catch {
+    // Unknown/unsupported charset label: fall back to UTF-8.
+    decoder = new TextDecoder("utf-8");
+  }
+  return decoder.decode(decodeB64UrlBytes(data));
 }
 
 function encodeB64Bytes(bytes: Uint8Array): string {
@@ -203,6 +210,9 @@ function findPart(
 ): GmailPayload | undefined {
   const flat: GmailPayload[] = [];
   const walk = (p: GmailPayload) => {
+    // Attachments and forwarded messages aren't this message's body.
+    if (p.filename || /^\s*attachment/i.test(partHeader(p, "Content-Disposition"))) return;
+    if (p !== payload && (p.mimeType ?? "").toLowerCase() === "message/rfc822") return;
     flat.push(p);
     (p.parts ?? []).forEach(walk);
   };
@@ -280,13 +290,21 @@ function extractAttachments(payload?: GmailPayload): AttachmentRef[] {
   return out;
 }
 
+// Charset from the part's Content-Type header (UTF-8 when absent).
+function partCharset(part: GmailPayload): string {
+  const m = partHeader(part, "Content-Type").match(/charset\s*=\s*"?([^";\s]+)/i);
+  return m ? m[1] : "utf-8";
+}
+
 function extractBody(payload?: GmailPayload): { html?: string; text?: string } {
   if (!payload) return {};
   const html = findPart(payload, "text/html");
-  if (html) return { html: sanitizeHtml(decodeB64Url(html.body!.data!)) };
+  if (html) return { html: sanitizeHtml(decodeB64Url(html.body!.data!, partCharset(html))) };
   const plain = findPart(payload, "text/plain");
   if (plain)
-    return { text: decodeB64Url(plain.body!.data!).replace(/\n{3,}/g, "\n\n") };
+    return {
+      text: decodeB64Url(plain.body!.data!, partCharset(plain)).replace(/\n{3,}/g, "\n\n"),
+    };
   return {};
 }
 

@@ -162,7 +162,16 @@ export default function DocComposer() {
           <Typography.Link href={docUrl(doc.documentId)} target="_blank" rel="noreferrer">
             Open in Google Docs
           </Typography.Link>
-          <Button size="small" onClick={() => setStatus({ kind: "idle" })}>
+          <Button
+            size="small"
+            onClick={() => {
+              // Continue as an append to the saved document; re-saving the same
+              // fields would create (or append) a duplicate.
+              setDocumentId(doc.documentId);
+              setContent("");
+              setStatus({ kind: "idle" });
+            }}
+          >
             Back to form
           </Button>
         </Space>

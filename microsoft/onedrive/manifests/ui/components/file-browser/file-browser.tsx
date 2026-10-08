@@ -18,7 +18,7 @@ import {
 } from "@ant-design/icons";
 import { Alert, Breadcrumb, Button, Empty, Input, List, Typography } from "antd";
 import dayjs from "dayjs";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const tangram = (window as any).tangram;
 
@@ -95,8 +95,11 @@ export default function FileBrowser() {
   const [hasMore, setHasMore] = useState(false);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
+  // Guards stale responses when loads overlap.
+  const loadSeq = useRef(0);
 
   const load = useCallback((target: Target, order: string, size: number) => {
+    const seq = ++loadSeq.current;
     setState("loading");
     setError("");
     const call: Promise<Record<string, any>> =
@@ -116,11 +119,13 @@ export default function FileBrowser() {
           });
     call
       .then((r) => {
+        if (seq !== loadSeq.current) return;
         setItems(r?.value ?? []);
         setHasMore(Boolean(r?.["@odata.nextLink"]));
         setState("ready");
       })
       .catch((e: unknown) => {
+        if (seq !== loadSeq.current) return;
         setError(e instanceof Error ? e.message : String(e));
         setState("error");
       });

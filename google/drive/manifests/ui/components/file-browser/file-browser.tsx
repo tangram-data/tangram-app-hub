@@ -75,11 +75,18 @@ function formatSize(size: string | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Text with Drive query operators is a raw q; anything else is a name search.
+// Text shaped like a Drive query clause is a raw q; anything else (including
+// bare words like "in" or "trashed") is a name search.
+const RAW_QUERY = [
+  /\b\w+\s*(=|!=|<=|>=|<|>|contains)\s*'/,
+  /'[^']*'\s+in\s+(parents|owners|writers|readers)\b/,
+  /\b(trashed|starred|sharedWithMe)\s*(=|!=)\s*(true|false)\b/,
+];
+
 function toQuery(text: string): string {
   const t = text.trim();
   if (!t) return "trashed=false";
-  if (/[=<>]|\b(contains|in|trashed)\b/.test(t)) return t;
+  if (RAW_QUERY.some((re) => re.test(t))) return t;
   return `name contains '${t.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and trashed=false`;
 }
 
@@ -100,10 +107,14 @@ export default function FileBrowser() {
   const [state, setState] = useState<"loading" | "more" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const loadSeq = useRef(0);
+  // Query the current results came from; "Load more" pages with it, not the
+  // (possibly edited) search box.
+  const activeQuery = useRef("");
 
   const load = useCallback(
     (q: string, order: string, size: number, pageToken?: string) => {
       const seq = ++loadSeq.current;
+      activeQuery.current = q;
       setState(pageToken ? "more" : "loading");
       setError("");
       tangram
@@ -271,7 +282,7 @@ export default function FileBrowser() {
           loading={state === "more"}
           disabled={state === "loading"}
           onClick={() => {
-            if (!busy) load(searchText, orderBy, pageSize, nextToken);
+            if (!busy) load(activeQuery.current, orderBy, pageSize, nextToken);
           }}
         >
           Load more

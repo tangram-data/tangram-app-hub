@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.google"
 name = "slides"
-version = "0.1.0"
+version = "0.1.1"
 appType = "Connector"
 providerWebsite = "https://developers.google.com/slides/api"
 category = "productivity"
