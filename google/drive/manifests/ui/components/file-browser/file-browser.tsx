@@ -107,14 +107,13 @@ export default function FileBrowser() {
   const [state, setState] = useState<"loading" | "more" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const loadSeq = useRef(0);
-  // Query the current results came from; "Load more" pages with it, not the
-  // (possibly edited) search box.
-  const activeQuery = useRef("");
+  // Query/options the current results came from (set on success only); "Load
+  // more" pages with them, not the (possibly edited) search box.
+  const active = useRef({ q: "", order: "", size: DEFAULT_PAGE_SIZE });
 
   const load = useCallback(
     (q: string, order: string, size: number, pageToken?: string) => {
       const seq = ++loadSeq.current;
-      activeQuery.current = q;
       setState(pageToken ? "more" : "loading");
       setError("");
       tangram
@@ -131,12 +130,18 @@ export default function FileBrowser() {
         })
         .then((r: { files?: DriveFile[]; nextPageToken?: string }) => {
           if (seq !== loadSeq.current) return;
+          active.current = { q, order, size };
           setFiles((prev) => (pageToken ? [...prev, ...(r?.files ?? [])] : (r?.files ?? [])));
           setNextToken(r?.nextPageToken ?? "");
           setState("ready");
         })
         .catch((e: unknown) => {
           if (seq !== loadSeq.current) return;
+          // A failed fresh search drops the old results so their token can't page a different query.
+          if (!pageToken) {
+            setFiles([]);
+            setNextToken("");
+          }
           setError(e instanceof Error ? e.message : String(e));
           setState("error");
         });
@@ -282,7 +287,7 @@ export default function FileBrowser() {
           loading={state === "more"}
           disabled={state === "loading"}
           onClick={() => {
-            if (!busy) load(activeQuery.current, orderBy, pageSize, nextToken);
+            if (!busy) load(active.current.q, active.current.order, active.current.size, nextToken);
           }}
         >
           Load more

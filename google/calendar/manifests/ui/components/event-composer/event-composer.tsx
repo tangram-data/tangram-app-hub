@@ -92,6 +92,9 @@ export default function EventComposer() {
   // stable only while the outcome is unknown (network error), and regenerate
   // after any completed response so the next save is a real new request.
   const meetRequestIdRef = useRef(requestId());
+  // Bumped when new inputs arrive; a save that started under an older generation
+  // must not write its event id into the new form.
+  const inputGenRef = useRef(0);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   useEffect(() => {
@@ -112,6 +115,7 @@ export default function EventComposer() {
       const key = canonical(inputs ?? {});
       if (key === lastApplied) return;
       lastApplied = key;
+      inputGenRef.current += 1;
       explicitPatchFieldsRef.current = new Set(
         ["description", "location", "attendees"].filter((field) =>
           Object.prototype.hasOwnProperty.call(inputs ?? {}, field),
@@ -164,6 +168,7 @@ export default function EventComposer() {
   const disabled = status.kind === "busy";
 
   function save() {
+    const gen = inputGenRef.current;
     if (!summary.trim()) {
       setStatus({ kind: "error", message: "Title is required." });
       return;
@@ -223,7 +228,7 @@ export default function EventComposer() {
         // create-another) issue a request Google won't ignore as a duplicate.
         meetRequestIdRef.current = requestId();
         // Later saves update the created event instead of duplicating it.
-        if (!editing && ev?.id) setEventId(ev.id);
+        if (!editing && ev?.id && gen === inputGenRef.current) setEventId(ev.id);
         setStatus({
           kind: "saved",
           event: {

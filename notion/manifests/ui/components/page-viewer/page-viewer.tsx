@@ -842,6 +842,9 @@ export default function PageViewer() {
   const loadSeq = useRef(0);
   // Current target page, so async saves can tell the page changed under them.
   const pageIdRef = useRef("");
+  // Bumped on every page switch or agent draft replacement; a save that started
+  // under an older generation must not clear or replace the editor (covers A→B→A).
+  const editorGenRef = useRef(0);
 
   function load(id: string) {
     if (!id) {
@@ -879,6 +882,7 @@ export default function PageViewer() {
       if (pageChanged) {
         // New page: drop the previous page's draft and block edits.
         pageIdRef.current = id;
+        editorGenRef.current += 1;
         setDraft("");
         setMode("view");
         setEditingId("");
@@ -893,6 +897,7 @@ export default function PageViewer() {
       if (draftKey !== lastDraft) {
         lastDraft = draftKey;
         if (agentDraft.trim()) {
+          editorGenRef.current += 1;
           setDraft(agentDraft);
           setMode("edit");
           setSaveError("");
@@ -937,14 +942,15 @@ export default function PageViewer() {
     setSaveError("");
     const parsed = parseContent(draft);
     const target = pageId;
+    const gen = editorGenRef.current;
     try {
       await appendBlocks(target, parsed.map((p) => p.block));
-      if (pageIdRef.current !== target) return;
+      if (pageIdRef.current !== target || editorGenRef.current !== gen) return;
       setDraft("");
       setMode("view");
       load(target);
     } catch (e) {
-      if (pageIdRef.current !== target) return;
+      if (pageIdRef.current !== target || editorGenRef.current !== gen) return;
       if (e instanceof AppendFailure && e.appendedBlocks > 0) {
         setDraft(remainingContent(draft, parsed, e.appendedBlocks));
         setSaveError(`Partially appended; the draft keeps only the unwritten lines. ${e.message}`);
