@@ -87,8 +87,9 @@ Classic OAuth App scopes are coarse:
 
 ### Token lifetime and revocation
 
-OAuth App tokens don't expire and the exchange returns no `refresh_token` or `expires_in`, so Tangram stores the token without an expiry and never
-refreshes it. A token dies when the user revokes it at **github.com/settings/applications**, or after one year of non-use. The manifest declares no
+By default OAuth App tokens don't expire: the exchange returns no `refresh_token` or `expires_in`, so Tangram stores the token without an expiry.
+If the OAuth App enables GitHub's optional **expiring user tokens**, the exchange returns `expires_in` + `refresh_token` and Tangram refreshes the
+token 10 minutes before it expires. A token dies when the user revokes it at **github.com/settings/applications**, or after one year of non-use. The manifest declares no
 `revocationUrl`: GitHub revokes through `DELETE /applications/{client_id}/grant` with Basic client auth, which is not RFC 7009, so disconnecting in
 Tangram only drops the local token — revoke on GitHub to remove the grant upstream.
 

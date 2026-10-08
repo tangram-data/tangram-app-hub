@@ -42,9 +42,10 @@ oauth = new oauthTypes.OAuth2AuthCode {
   // with Basic client auth, not RFC 7009 — users revoke at
   // github.com/settings/applications instead.
   pkce = true
-  // OAuth App tokens don't expire and come with no refresh_token (no
-  // expires_in in the exchange), so the platform stores them without expiry
-  // and refresh never triggers; the window is inert.
+  // By default OAuth App tokens don't expire (no expires_in / refresh_token),
+  // so refresh never triggers. If the OAuth App opts into expiring tokens,
+  // GitHub returns expires_in + refresh_token and the platform refreshes them
+  // 10 minutes before expiry like any other provider.
   refreshWindowSeconds = 600
   connectionScope = new oauthTypes.SelectableScope {
     default = "PerUser"
