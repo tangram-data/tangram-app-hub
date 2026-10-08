@@ -20,7 +20,8 @@ paths:
           required: false
           description: >
             Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
+            out of the previous response's @odata.nextLink URL and URL-decode it
+            before passing it (the platform URL-encodes it again).
           schema:
             type: string
         - name: $skip
@@ -88,7 +89,8 @@ paths:
           required: false
           description: >
             Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
+            out of the previous response's @odata.nextLink URL and URL-decode it
+            before passing it (the platform URL-encodes it again).
           schema:
             type: string
         - name: $skip
@@ -107,7 +109,8 @@ paths:
             Search text, matched against file names and file content across
             the whole drive, including items shared with the user (the
             drive-level search; shared hits carry a remoteItem facet). The
-            search(q='...') path is Graph's OData function-call syntax.
+            search(q='...') path is Graph's OData function-call syntax, so an
+            apostrophe in the term must be doubled: O'Brien → O''Brien.
           schema:
             type: string
         - name: $top

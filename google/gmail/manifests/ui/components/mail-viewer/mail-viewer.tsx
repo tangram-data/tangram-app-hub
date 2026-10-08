@@ -505,7 +505,7 @@ function MessageBody({
             : (
                 await tangram.performAction(
                   { resourceType: "Attachment", action: "Get" },
-                  { parameters: { messageId, id: part.attachmentId } },
+                  { parameters: { messageId, attachmentId: part.attachmentId } },
                 )
               )?.data;
           if (!data) throw new Error("Inline image has no content");
@@ -664,7 +664,7 @@ export default function MailViewer() {
       .performAction(
         { resourceType: "Attachment", action: "Get" },
         {
-          parameters: { messageId: msg!.id, id: att.attachmentId },
+          parameters: { messageId: msg!.id, attachmentId: att.attachmentId },
         },
       )
       .then((r: { data?: string }) => {

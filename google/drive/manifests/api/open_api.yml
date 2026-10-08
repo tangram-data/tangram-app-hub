@@ -47,10 +47,13 @@ paths:
           in: query
           required: false
           description: >
-            Response field mask, e.g.
-            nextPageToken,files(id,name,mimeType,modifiedTime,owners,webViewLink).
+            Response field mask. Defaults to the recommended
+            nextPageToken,files(id,name,mimeType,size,modifiedTime,owners,parents,webViewLink);
+            without it Drive returns only id, name, and mimeType. Pass a custom mask
+            to request other fields.
           schema:
             type: string
+            default: "nextPageToken,files(id,name,mimeType,size,modifiedTime,owners,parents,webViewLink)"
         - name: includeItemsFromAllDrives
           in: query
           required: false
@@ -93,9 +96,13 @@ paths:
         - name: fields
           in: query
           required: false
-          description: Field mask, e.g. id,name,mimeType,size,owners,modifiedTime,webViewLink.
+          description: >
+            Field mask. Defaults to the recommended
+            id,name,mimeType,size,modifiedTime,owners,parents,webViewLink; without it
+            Drive returns only id, name, and mimeType. Use * for every field.
           schema:
             type: string
+            default: "id,name,mimeType,size,modifiedTime,owners,parents,webViewLink"
         - name: supportsAllDrives
           in: query
           required: false

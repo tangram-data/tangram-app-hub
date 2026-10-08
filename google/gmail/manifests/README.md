@@ -74,7 +74,7 @@ it is rejected on the shared global workspace, which is per-user only.
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.google/gmail/mail-viewer`and
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.google/gmail/mail-viewer`and
 `com.google/gmail/mail-composer`:
 
 - **mail-viewer** — renders a message by `messageId` via the `Message.Get` binding. HTML bodies go through a strict allowlist sanitizer

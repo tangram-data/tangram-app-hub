@@ -49,6 +49,15 @@ paths:
           description: Set true to include cell data (large; prefer getValues for ranges).
           schema:
             type: boolean
+        - name: fields
+          in: query
+          required: false
+          description: >
+            Optional response field mask to trim the payload, e.g.
+            spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties)).
+            Omit for all metadata.
+          schema:
+            type: string
       responses:
         "200":
           description: Spreadsheet metadata including sheets and their gridProperties.

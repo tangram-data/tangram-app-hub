@@ -26,7 +26,7 @@ binary content, e.g. a PDF conversion) is saved to the caller's workspace files 
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.microsoft/onedrive/file-browser` and
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.microsoft/onedrive/file-browser` and
 `com.microsoft/onedrive/file-viewer`:
 
 - **file-browser** — search/browse via the `DriveItem.Search` / `DriveItem.List` bindings. An agent can prefill search text via render

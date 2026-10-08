@@ -14,8 +14,16 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "List or search messages; $search for free-text, $filter for structured queries, $top + @odata.nextLink for paging."
+          doc = "List or search messages across the mailbox; $search (value wrapped in double quotes) for free-text/KQL, $filter for structured queries, $top + @odata.nextLink for paging. Use ListInFolder to scope to one folder."
           openApiMapping = new resources.OpenApiMapping { operationId = "listMessages" }
+        },
+        new resources.Action {
+          name = "ListInFolder"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List or search messages in one mail folder; folderId is a MailFolder.List id or a well-known name (inbox, sentitems, drafts, deleteditems, archive). Same $search/$filter/$select/$top paging as List."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listFolderMessages" }
         },
         new resources.Action {
           name = "Get"
@@ -79,7 +87,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "List a message's attachments; fileAttachment entries include base64 contentBytes for files up to ~3MB."
+          doc = "List a message's attachments. Pass $select=id,name,contentType,size,isInline to skip the base64 contentBytes (up to ~3MB each); fetch content with Get."
           openApiMapping = new resources.OpenApiMapping { operationId = "listAttachments" }
         },
         new resources.Action {
@@ -111,7 +119,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "List mail folders; folder ids scope message listing via the parentFolderId filter or well-known names like inbox."
+          doc = "List mail folders; folder ids (or well-known names like inbox) scope message listing via Message.ListInFolder."
           openApiMapping = new resources.OpenApiMapping { operationId = "listMailFolders" }
         }
       )

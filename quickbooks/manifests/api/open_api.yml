@@ -50,7 +50,8 @@ paths:
             Queryable entities include Purchase, Deposit, Transfer, JournalEntry,
             Invoice, Bill, BillPayment, Payment, Account, Vendor, Customer,
             Attachable, CreditCardPayment. String literals use single quotes;
-            LIKE supports '%'. Page with "startposition N maxresults M"
+            escape a single quote inside a literal with a backslash
+            (DisplayName = 'Joe\'s Diner'); LIKE supports '%'. Page with "startposition N maxresults M"
             (maxresults cap 1000). Count with "select count(*) from ...".
           schema:
             type: string
@@ -78,6 +79,7 @@ paths:
         path: "/v3/company/{{oauth.tenantId}}/purchase"
       parameters:
         - $ref: "#/components/parameters/minorversion"
+        - $ref: "#/components/parameters/requestid"
       requestBody:
         required: true
         content:
@@ -132,6 +134,7 @@ paths:
         path: "/v3/company/{{oauth.tenantId}}/attachable"
       parameters:
         - $ref: "#/components/parameters/minorversion"
+        - $ref: "#/components/parameters/requestid"
       requestBody:
         required: true
         content:
@@ -159,6 +162,7 @@ paths:
         path: "/v3/company/{{oauth.tenantId}}/upload"
       parameters:
         - $ref: "#/components/parameters/minorversion"
+        - $ref: "#/components/parameters/requestid"
       requestBody:
         required: true
         content:
@@ -328,6 +332,7 @@ paths:
         path: "/v3/company/{{oauth.tenantId}}/vendor"
       parameters:
         - $ref: "#/components/parameters/minorversion"
+        - $ref: "#/components/parameters/requestid"
       requestBody:
         required: true
         content:
@@ -371,6 +376,16 @@ components:
       in: query
       required: false
       description: QuickBooks API minor version (e.g. "75"). Omit for the account default.
+      schema:
+        type: string
+    requestid:
+      name: requestid
+      in: query
+      required: false
+      description: >
+        Idempotency key (max 50 chars). Set a unique value (e.g. a UUID) per
+        logical create and reuse the SAME value when retrying it, so QuickBooks
+        returns the original result instead of creating a duplicate.
       schema:
         type: string
 

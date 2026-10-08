@@ -20,7 +20,8 @@ paths:
           required: false
           description: >
             Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
+            out of the previous response's @odata.nextLink URL and URL-decode it
+            before passing it (the platform URL-encodes it again).
           schema:
             type: string
         - name: $skip
@@ -61,7 +62,8 @@ paths:
           required: false
           description: >
             Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
+            out of the previous response's @odata.nextLink URL and URL-decode it
+            before passing it (the platform URL-encodes it again).
           schema:
             type: string
         - name: $skip
@@ -106,7 +108,8 @@ paths:
           required: false
           description: >
             Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
+            out of the previous response's @odata.nextLink URL and URL-decode it
+            before passing it (the platform URL-encodes it again).
           schema:
             type: string
         - name: $skip

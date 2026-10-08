@@ -11,7 +11,7 @@ this app operates on known documentIds (from a Docs URL, Drive, or `docs_create_
 | Tool | Action | Notes |
 |------|--------|-------|
 | `docs_create_document` | `Document.Create` | Create a new empty document with a title; returns its `documentId`. |
-| `docs_get_document` | `Document.Get` | Full structured content: body structural elements, headers, footers. |
+| `docs_get_document` | `Document.Get` | Full structured content: body structural elements, headers, footers. `includeTabsContent=true` returns every tab; optional `fields` mask trims the payload. |
 | `docs_update_document` | `Document.Update` | **Confirmation-gated.** `:batchUpdate` — an ordered list of Docs API request objects (insertText, replaceAllText, styling, …). `{"insertText": {"endOfSegmentLocation": {}, "text": "..."}}` appends to the body. |
 
 ## OAuth setup
@@ -71,7 +71,7 @@ on the shared global workspace, which is per-user only.
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.google/docs/doc-viewer` and `com.google/docs/doc-composer`:
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.google/docs/doc-viewer` and `com.google/docs/doc-composer`:
 
 - **doc-viewer** — renders a document by `documentId` via the `Document.Get` binding: headings, styled text runs (bold/italic/underline), bullet and
   numbered lists (glyph types from the document's list metadata), and tables. Links render for http(s) URLs only; images, drawings, and other embeds

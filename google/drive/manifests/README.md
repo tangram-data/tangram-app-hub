@@ -18,7 +18,7 @@ document as plain text/CSV via `drive_export_file`.
 | Tool | Action | Notes |
 |------|--------|-------|
 | `drive_list_file` | `File.List` | List/search with a Drive query, e.g. `fullText contains 'roadmap'` or `name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'`. Paginated via `nextPageToken`. |
-| `drive_get_file` | `File.Get` | Metadata by file id (name, mimeType, size, owners, modifiedTime, webViewLink), with a `fields` mask. |
+| `drive_get_file` | `File.Get` | Metadata by file id. `fields` defaults to id, name, mimeType, size, modifiedTime, owners, parents, webViewLink (same mask for `drive_list_file`); override as needed. |
 | `drive_export_file` | `File.Export` | Export a Google Workspace document's content: Docs → `text/plain`/`text/markdown`, Sheets → `text/csv`, etc. Fails with 400 on unsupported mimeType/file combos. |
 
 All actions are `Read`-privileged and stateless; there are no mutating tools.
@@ -31,7 +31,7 @@ inlined up to 32 KB; anything larger (and any binary export mimeType, e.g.
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.google/drive/file-browser` and
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.google/drive/file-browser` and
 `com.google/drive/file-viewer`:
 
 - **file-browser** — search/browse files via the `File.List` binding. An agent can prefill a Drive query via render inputs; the user
@@ -123,8 +123,7 @@ manifests/
   api/spec.pkl            # endpoint, auth header template, OAuth2 config
   api/open_api.yml        # curated subset of the Drive v3 REST API
   api/resources.pkl  # File actions → tools
-  ui/spec.pkl             # logo + deployment mode
-  ui/components.pkl       # published UI components (browser + viewer)
+  ui/spec.pkl             # logo, deployment mode, published UI components (browser + viewer)
   ui/components/*.tsx     # sandboxed component sources
 ```
 

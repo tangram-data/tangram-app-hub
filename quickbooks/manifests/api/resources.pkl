@@ -38,7 +38,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "Run a QuickBooks SQL-like SELECT — the universal read. Receipt matching: find candidate bank/card expenses with e.g. \"select * from Purchase where TotalAmt = '42.17' and TxnDate >= '2026-07-01' and TxnDate <= '2026-07-15'\" (widen the date window or drop cents-exactness if nothing matches), list spend accounts with \"select * from Account where AccountType in ('Bank','Credit Card')\", find payees with \"select * from Vendor where DisplayName like 'Uber%'\", and check existing attachments with \"select * from Attachable\". Page with 'startposition N maxresults M'."
+          doc = "Run a QuickBooks SQL-like SELECT — the universal read. Receipt matching: find candidate bank/card expenses with e.g. \"select * from Purchase where TotalAmt = '42.17' and TxnDate >= '2026-07-01' and TxnDate <= '2026-07-15'\" (widen the date window or drop cents-exactness if nothing matches), list spend accounts with \"select * from Account where AccountType in ('Bank','Credit Card')\", find payees with \"select * from Vendor where DisplayName like 'Uber%'\", and check existing attachments with \"select * from Attachable\". Escape a single quote in a string literal as \\' (e.g. 'Joe\\'s Diner'). Page with 'startposition N maxresults M'."
           openApiMapping = new resources.OpenApiMapping { operationId = "queryEntities" }
         }
       )
@@ -63,7 +63,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = true
-          doc = "Record a new expense (PaymentType Cash/Check/CreditCard) against a bank or credit-card AccountRef, with expense lines and an optional vendor EntityRef. Use when a receipt has no matching transaction in the books. Writes to the ledger — confirmation-gated."
+          doc = "Record a new expense (PaymentType Cash/Check/CreditCard) against a bank or credit-card AccountRef, with expense lines and an optional vendor EntityRef. Use when a receipt has no matching transaction in the books. Writes to the ledger — confirmation-gated. Pass a unique requestid (idempotency key) per logical create and reuse it on retry to avoid duplicates."
           openApiMapping = new resources.OpenApiMapping { operationId = "createPurchase" }
         },
         new resources.Action {
@@ -97,7 +97,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = false
-          doc = "Attach a NOTE-ONLY attachable to one or more transactions via AttachableRef (EntityRef.type e.g. Purchase + the transaction Id) — e.g. a receipt summary (merchant, date, total). To upload the receipt file itself, use the Upload action instead. Read existing attachments via Entity Query, e.g. \"select * from Attachable where AttachableRef.EntityRef.Type = 'purchase' and AttachableRef.EntityRef.value = '145'\"."
+          doc = "Attach a NOTE-ONLY attachable to one or more transactions via AttachableRef (EntityRef.type e.g. Purchase + the transaction Id) — e.g. a receipt summary (merchant, date, total). To upload the receipt file itself, use the Upload action instead. Read existing attachments via Entity Query, e.g. \"select * from Attachable where AttachableRef.EntityRef.Type = 'purchase' and AttachableRef.EntityRef.value = '145'\". Pass a unique requestid (idempotency key) per logical create and reuse it on retry to avoid duplicates."
           openApiMapping = new resources.OpenApiMapping { operationId = "createAttachable" }
         },
         new resources.Action {
@@ -106,7 +106,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = false
-          doc = "Upload a receipt file into QuickBooks and attach it to matched transactions in one call: file_metadata_01 carries FileName/ContentType/AttachableRef, file_content_01 is the Tangram volume file reference '<folder>/<name>' (chat attachment or app_action_result file) — the platform streams the bytes. Each upload creates a new attachable; check existing attachments via Entity Query first to avoid duplicates."
+          doc = "Upload a receipt file into QuickBooks and attach it to matched transactions in one call: file_metadata_01 carries FileName/ContentType/AttachableRef, file_content_01 is the Tangram volume file reference '<folder>/<name>' (chat attachment or app_action_result file) — the platform streams the bytes. Each upload creates a new attachable; check existing attachments via Entity Query first to avoid duplicates. Pass a unique requestid (idempotency key) per logical create and reuse it on retry to avoid duplicates."
           openApiMapping = new resources.OpenApiMapping { operationId = "uploadAttachable" }
         },
         new resources.Action {
@@ -151,7 +151,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = false
-          doc = "Create a vendor for a receipt's merchant when none exists. DisplayName must be unique across vendors/customers/employees — query Vendor first (\"select * from Vendor where DisplayName like '...%'\") to avoid duplicates."
+          doc = "Create a vendor for a receipt's merchant when none exists. DisplayName must be unique across vendors/customers/employees — query Vendor first (\"select * from Vendor where DisplayName like '...%'\") to avoid duplicates. Pass a unique requestid (idempotency key) per logical create and reuse it on retry to avoid duplicates."
           openApiMapping = new resources.OpenApiMapping { operationId = "createVendor" }
         }
       )

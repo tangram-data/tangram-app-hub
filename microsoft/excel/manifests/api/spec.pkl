@@ -23,6 +23,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
   // Files.ReadWrite covers the whole workbook API — range updates and table
   // row adds write to the file, so read-only file access is not enough.
+  // Unverified: workbooks shared by others or in SharePoint libraries may
+  // need Files.ReadWrite.All; scopes intentionally left unchanged.
   // offline_access is what makes Azure AD issue a refresh token (Microsoft's
   // analog of Google's access_type=offline).
   scopes = List(

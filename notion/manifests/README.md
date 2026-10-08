@@ -82,12 +82,12 @@ supported by Notion and is disabled in the manifest.
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.notion/notion/page-viewer` and
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.notion/notion/page-viewer` and
 `com.notion/notion/page-composer`:
 
 - **page-viewer** — renders a page by `pageId` via the `Page.Get` + `Block.List` bindings: headings, paragraphs with annotations
   (bold/italic/strikethrough/underline/code), bulleted and numbered lists, to-dos, toggles, quotes, callouts, code blocks, dividers, bookmarks, and
-  child page/database markers. Links render for http(s) URLs only. Top-level blocks are paged 100 at a time (capped at 500 with a truncation notice);
+  child page/database markers. Links render for https URLs only. Top-level blocks are paged 100 at a time (capped at 500 with a truncation notice);
   collapsed sections fetch their subtree lazily on click. The pencil button toggles a Notion-style edit mode: hovering a top-level block reveals
   controls to edit its text in place (`Block.Update`, plain text — saving flattens formatting), insert new blocks after it (`Block.Append` with
   `after`), or delete it (`Block.Delete`, confirmation-gated), plus an append editor for the end of the page. Edit-mode drafts parse markdown-style

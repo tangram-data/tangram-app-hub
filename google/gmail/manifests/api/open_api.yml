@@ -25,7 +25,10 @@ paths:
         - name: labelIds
           in: query
           required: false
-          description: Only return messages with all of these label ids (e.g. INBOX, UNREAD).
+          description: >
+            Only return messages carrying ALL of these label ids (e.g. INBOX, UNREAD).
+            For anything more complex (OR, negation, sender, dates, attachments) use
+            the `q` search query instead (e.g. "in:inbox -label:promotions has:attachment").
           schema:
             type: array
             items:
@@ -70,6 +73,12 @@ paths:
     get:
       operationId: getMessage
       summary: Fetch one message by id
+      description: >
+        With format=full the response adds decoded.text / decoded.html (the
+        message's plain-text and HTML bodies, decoded, up to 64K chars each) —
+        read those instead of the base64url payload parts.
+      x-tangram-response-adapter:
+        name: mime-text-parts
       parameters:
         - name: id
           in: path
@@ -84,6 +93,16 @@ paths:
           schema:
             type: string
             enum: [full, metadata, minimal, raw]
+        - name: metadataHeaders
+          in: query
+          required: false
+          description: >
+            With format=metadata, only return these headers (e.g. ["From", "To", "Subject", "Date"]).
+            Ignored for other formats.
+          schema:
+            type: array
+            items:
+              type: string
       responses:
         "200":
           description: The message with headers, labels, and payload.
@@ -119,10 +138,14 @@ paths:
         "400":
           description: Invalid raw message.
 
-  /gmail/v1/users/me/messages/{messageId}/attachments/{id}:
+  /gmail/v1/users/me/messages/{messageId}/attachments/{attachmentId}:
     get:
       operationId: getAttachment
       summary: Fetch an attachment's content by id
+      description: >
+        Returns the attachment bytes as base64url (not standard base64) in `data`.
+        Responses can be very large (roughly 4/3 of the file size); check the part's
+        body.size from getMessage first and avoid fetching big files unnecessarily.
       parameters:
         - name: messageId
           in: path
@@ -130,7 +153,7 @@ paths:
           description: The message the attachment belongs to.
           schema:
             type: string
-        - name: id
+        - name: attachmentId
           in: path
           required: true
           description: The attachmentId from the message part's body.attachmentId.

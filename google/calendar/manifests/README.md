@@ -72,7 +72,7 @@ on the shared global workspace, which is per-user only.
 
 ## UI components
 
-Two sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.google/calendar/event-list` and
+Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.google/calendar/event-list` and
 `com.google/calendar/event-composer`:
 
 - **event-list** — agenda view over `Event.List` (an agent scopes it via `calendarId`/`timeMin`/`timeMax`/`q` render inputs). Calendar picker fed by

@@ -14,7 +14,7 @@ use the Google Drive connector's `drive_list_file` tool with the MIME type
 | Tool | Action | Notes |
 |------|--------|-------|
 | `slides_create_presentation` | `Presentation.Create` | Create an empty presentation with a title; returns its presentation id. |
-| `slides_get_presentation` | `Presentation.Get` | Read slides, layouts, masters, and page elements. |
+| `slides_get_presentation` | `Presentation.Get` | Read slides, layouts, masters, and page elements; optional `fields` mask trims the payload. |
 | `slides_update_presentation` | `Presentation.Update` | **Confirmation-gated.** Apply an ordered batch of Slides edit requests. |
 | `slides_get_page_presentation` | `Presentation.GetPage` | Read one slide by its page object id. |
 

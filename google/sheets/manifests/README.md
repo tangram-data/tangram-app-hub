@@ -14,7 +14,7 @@ use the Google Drive connector's `drive_list_file` tool with the MIME type
 | Tool | Action | Notes |
 |------|--------|-------|
 | `sheets_create_spreadsheet` | `Spreadsheet.Create` | Create an empty spreadsheet with a title; returns its id and URL. |
-| `sheets_get_spreadsheet` | `Spreadsheet.Get` | Read spreadsheet metadata, sheet names, ids, and dimensions. |
+| `sheets_get_spreadsheet` | `Spreadsheet.Get` | Read spreadsheet metadata, sheet names, ids, and dimensions; optional `fields` mask. |
 | `sheets_read_values_spreadsheet` | `Spreadsheet.ReadValues` | Read values from an A1 range such as `Sheet1!A1:D10`. |
 | `sheets_update_values_spreadsheet` | `Spreadsheet.UpdateValues` | **Confirmation-gated.** Overwrite values in an A1 range. |
 | `sheets_append_values_spreadsheet` | `Spreadsheet.AppendValues` | Append rows after the table containing the selected range. |

@@ -40,6 +40,15 @@ paths:
           description: The presentation id from its URL.
           schema:
             type: string
+        - name: fields
+          in: query
+          required: false
+          description: >
+            Optional response field mask to trim the payload, e.g.
+            presentationId,title,slides(objectId,pageElements(objectId,shape(text(textElements(textRun(content)))))).
+            Omit for the full presentation.
+          schema:
+            type: string
       responses:
         "200":
           description: The full presentation, including slides and page elements.

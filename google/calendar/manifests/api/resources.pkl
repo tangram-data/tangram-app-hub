@@ -60,7 +60,7 @@ types: List<resources.ResourceTypeDefinition> = List(
         },
         new resources.Action {
           name = "Update"
-          privilege = "Update"
+          privilege = "Write"
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = true
@@ -79,7 +79,7 @@ types: List<resources.ResourceTypeDefinition> = List(
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read", "Create", "Update", "Delete")
+        permissions = List("Read", "Create", "Write", "Delete")
         description = "Read and manage events through the Google Calendar connector."
       })
     })

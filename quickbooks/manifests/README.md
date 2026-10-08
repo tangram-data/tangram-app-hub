@@ -11,7 +11,7 @@ for Intuit sandbox companies.
 |------|--------|-------|
 | `quickbooks_get_company` | `Company.Get` | Company profile; cheapest connection check. |
 | `quickbooks_query_entity` | `Entity.Query` | The universal read — QuickBooks SQL-like SELECT over Purchase, Deposit, Transfer, Invoice, Bill, Payment, Account, Vendor, Customer, Attachable, ... |
-| `quickbooks_create_purchase` | `Purchase.Create` | **Confirmation-gated.** Record an expense (Cash/Check/CreditCard) against a bank or credit-card account. |
+| `quickbooks_create_purchase` | `Purchase.Create` | **Confirmation-gated.** Record an expense (Cash/Check/CreditCard) against a bank or credit-card account. Pass `requestid` (idempotency key, reused on retry) to avoid duplicates. |
 | `quickbooks_update_purchase` | `Purchase.Update` | **Confirmation-gated.** Sparse update by `Id` + `SyncToken` (`sparse: true`) — e.g. set `PrivateNote` after a receipt match. |
 | `quickbooks_upload_attachable` | `Attachable.Upload` | Upload the receipt file itself (multipart, streamed from the workspace files by volume reference) and attach it to transactions. |
 | `quickbooks_create_attachable` | `Attachable.Create` | Attach a note-only attachable to transactions via `AttachableRef`. |

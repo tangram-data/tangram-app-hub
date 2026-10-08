@@ -40,6 +40,8 @@ client credentials stored in Tangram, then each user connects their own account.
 4. **API permissions → Microsoft Graph → Delegated:** add `Files.ReadWrite`. The workbook API needs write access to the file even for range updates and
    table row adds; it is not admin-restricted by default, but many tenants require admin consent — grant it once via *Grant admin consent* to spare every
    user the consent prompt.
+   Note (unverified): workbooks shared by other users or stored in SharePoint libraries may need `Files.ReadWrite.All`; the manifest still requests only
+   `Files.ReadWrite`.
 
 You do **not** need to request offline access manually — the manifest includes the `offline_access` scope (`api/spec.pkl`), which is what makes Azure AD issue
 a refresh token. Tokens are refreshed automatically (10-minute refresh window before expiry).

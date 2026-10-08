@@ -10,13 +10,14 @@ tools. All operations are pinned to `/me`, so a caller can only act on the conne
 
 | Tool | Action | Notes |
 |------|--------|-------|
-| `outlook_list_message` | `Message.List` | `$search` for free-text/KQL, `$filter` for structured queries (e.g. `parentFolderId eq 'inbox'`, `isRead eq false`); page with `$top` + `@odata.nextLink`. |
+| `outlook_list_message` | `Message.List` | `$search` for free-text/KQL (value wrapped in double quotes, e.g. `"from:alice@contoso.com"`), `$filter` for structured queries (e.g. `isRead eq false`); page with `$top` + `@odata.nextLink`. |
+| `outlook_listinfolder_message` | `Message.ListInFolder` | Same as `Message.List`, scoped to one folder: `folderId` is a `MailFolder.List` id or a well-known name (`inbox`, `sentitems`, `drafts`, `deleteditems`, `archive`). |
 | `outlook_get_message` | `Message.Get` | Full message: subject, sender, recipients, body (`$select` to trim). |
 | `outlook_send_message` | `Message.Send` | **Confirmation-gated** (irreversible). Graph `sendMail` — structured JSON body, no MIME assembly needed. |
 | `outlook_create_draft` | `Draft.Create` | Same message shape, saved to Drafts for the user to review. |
-| `outlook_list_attachment` | `Attachment.List` | Attachment metadata; `fileAttachment` entries carry base64 `contentBytes` up to ~3MB. |
+| `outlook_list_attachment` | `Attachment.List` | Attachment metadata; pass `$select=id,name,contentType,size,isInline` to skip base64 `contentBytes` (up to ~3MB each). |
 | `outlook_get_attachment` | `Attachment.Get` | One attachment with content, by `messageId` + `attachmentId`. |
-| `outlook_list_mailfolder` | `MailFolder.List` | Folder ids feed the `parentFolderId` filter; well-known names like `inbox` also work. |
+| `outlook_list_mailfolder` | `MailFolder.List` | Folder ids feed `folderId` of `Message.ListInFolder`; well-known names like `inbox` also work. |
 
 ### Calendar
 
@@ -72,7 +73,7 @@ shared service account.
 
 ## UI components
 
-Four sandboxed components ship with the app (`manifests/ui/components.pkl`), catalogued as `com.microsoft/outlook/mail-viewer`,
+Four sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.microsoft/outlook/mail-viewer`,
 `com.microsoft/outlook/mail-composer`, `com.microsoft/outlook/event-list`, and `com.microsoft/outlook/event-composer`:
 
 - **mail-viewer** — renders a message by `messageId` via the `Message.Get` binding. HTML bodies go through a strict allowlist sanitizer

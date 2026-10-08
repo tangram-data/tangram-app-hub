@@ -186,7 +186,10 @@ export default function MailViewer() {
         // Attachment metadata loads after the message; failures surface in
         // the attachment section without breaking the body view.
         tangram
-          .performAction({ resourceType: "Attachment", action: "List" }, { parameters: { messageId } })
+          .performAction(
+            { resourceType: "Attachment", action: "List" },
+            { parameters: { messageId, $select: "id,name,contentType,size,isInline" } },
+          )
           .then((r: { value?: GraphAttachment[] }) => {
             if (seq !== loadSeq.current) return;
             setAttachments(

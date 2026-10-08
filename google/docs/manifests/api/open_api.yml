@@ -40,6 +40,23 @@ paths:
           description: The document id from its URL.
           schema:
             type: string
+        - name: includeTabsContent
+          in: query
+          required: false
+          description: >
+            Set true to return every tab's content under `tabs` (multi-tab documents).
+            When false/omitted, only the first tab is returned in `body`.
+          schema:
+            type: boolean
+        - name: fields
+          in: query
+          required: false
+          description: >
+            Optional response field mask to trim the payload, e.g.
+            documentId,title,body(content(paragraph(elements(textRun(content))))).
+            Omit for the full document.
+          schema:
+            type: string
       responses:
         "200":
           description: The full document, including body content as structural elements.

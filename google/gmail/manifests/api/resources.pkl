@@ -22,7 +22,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "Fetch a single message, including headers and body, by message id."
+          doc = "Fetch a single message by id. With format=full, read the body from decoded.text / decoded.html (already decoded); payload keeps the raw MIME tree."
           openApiMapping = new resources.OpenApiMapping { operationId = "getMessage" }
           presentation = new resources.ComponentPresentation {
             component = "mail-viewer"
@@ -64,7 +64,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "Fetch an attachment's content (base64url) by messageId and attachmentId from getMessage's MIME parts."
+          doc = "Fetch an attachment's content by messageId and attachmentId from getMessage's MIME parts. data is base64url (not standard base64) and can be very large; check the part's body.size first."
           openApiMapping = new resources.OpenApiMapping { operationId = "getAttachment" }
         }
       )
