@@ -100,3 +100,14 @@
 .g-doc table { border-collapse: collapse; margin: 8px 0; width: 100%; } .g-doc td { border: 1px solid #c7c7c7; padding: 4px 8px; vertical-align: top; }
 .g-doc textarea { width: 100%; min-height: 220px; border: 0; outline: none; resize: vertical; font: inherit; color: inherit; background: transparent; }
 @media (max-width: 600px) { .g-doc { padding: 20px 24px; } }
+/* Focus + narrow-frame fixes */
+.g-field:focus-within { border-bottom-color: var(--g-blue); box-shadow: inset 0 -1px 0 var(--g-blue); }
+.g-field.body:focus-within { box-shadow: none; }
+.g-field > input:focus-visible, .g-field > textarea:focus-visible, .g-doc textarea:focus-visible { outline: 2px solid var(--g-blue); outline-offset: 2px; border-radius: 2px; }
+.g-appbar input.t:focus-visible { border-color: var(--g-blue); }
+.g-search input { min-width: 0; width: 100%; }
+.g-toolbar { flex-wrap: wrap; }
+@media (max-width: 420px) { .g-toolbar > .g-search { flex-basis: 100% !important; order: 3; } }
+@media (max-width: 520px) { .g-sender { flex-wrap: wrap; } .g-sender .g-date { flex-basis: 100%; white-space: normal; padding-left: 52px; } }
+.g-evdetail .full { color: var(--g-text); margin-bottom: 6px; overflow-wrap: anywhere; }
+.g-appbar { flex-wrap: wrap; }

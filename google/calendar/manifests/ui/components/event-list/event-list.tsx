@@ -4,6 +4,7 @@
 // list response already carries full event resources — and emit a `select`
 // output for wiring to the event-composer.
 import {
+  EnvironmentOutlined,
   ExportOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -237,7 +238,7 @@ export default function EventList() {
         />
         <form
           className="g-search sm"
-          style={{ flex: 1, minWidth: 0 }}
+          style={{ flex: 1, minWidth: 160 }}
           onSubmit={(e) => {
             e.preventDefault();
             if (criteria) setCriteria({ ...criteria, q: search });
@@ -320,6 +321,19 @@ export default function EventList() {
                   </div>
                   {expanded === ev.id ? (
                     <div className="g-evdetail">
+                      <div className="full">
+                        <b>{ev.summary || "(no title)"}</b>
+                        <div>
+                          {timeLabel(ev)}
+                          {tz ? ` · ${tz}` : ""}
+                          {ev.recurringEventId ? " · Recurring" : ""}
+                        </div>
+                        {ev.location ? (
+                          <div>
+                            <EnvironmentOutlined aria-hidden="true" /> {ev.location}
+                          </div>
+                        ) : null}
+                      </div>
                       {ev.description ? <div className="desc">{ev.description}</div> : null}
                       {ev.attendees?.length ? (
                         <div style={{ marginBottom: 6 }}>

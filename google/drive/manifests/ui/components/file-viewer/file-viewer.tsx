@@ -242,7 +242,7 @@ export default function FileViewer() {
           <div className="t" title={file.name}>
             {file.name}
           </div>
-          <div className="g-faint" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div className="g-faint" style={{ overflowWrap: "anywhere" }}>
             {meta.join(" · ")}
           </div>
         </div>
