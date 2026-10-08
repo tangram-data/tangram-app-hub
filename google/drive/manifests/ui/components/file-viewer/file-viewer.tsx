@@ -5,10 +5,12 @@
 // non-JSON, so the platform wraps them in an `app_action_result` envelope —
 // inline text ≤32 KB, larger content saved to workspace files — and this
 // component unwraps both shapes.
-import { ExportOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Skeleton, Table, Typography } from "antd";
+import { ExportOutlined, FolderFilled } from "@ant-design/icons";
+import { Button, Skeleton, Table } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -114,8 +116,14 @@ function formatSize(size: string | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+// Drive's typed file badges: Docs blue, Sheets green, Slides yellow, PDF red.
+function fileBadge(mime: string): { text: string; color: string } {
+  if (mime === "application/vnd.google-apps.document") return { text: "DOC", color: "#4285f4" };
+  if (mime === "application/vnd.google-apps.spreadsheet") return { text: "SH", color: "#0f9d58" };
+  if (mime === "application/vnd.google-apps.presentation") return { text: "SL", color: "#f4b400" };
+  if (mime === "application/pdf" || mime.startsWith("image/")) return { text: mime.startsWith("image/") ? "IMG" : "PDF", color: "#d93025" };
+  return { text: "FILE", color: "#5f6368" };
+}
 
 export default function FileViewer() {
   const [file, setFile] = useState<DriveFile | null>(null);
@@ -179,20 +187,31 @@ export default function FileViewer() {
     tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
   }, []);
 
-  if (state === "loading") return <Skeleton active style={{ padding: 16 }} />;
+  if (state === "loading")
+    return (
+      <div className="g-root g-pad">
+        <Skeleton active />
+      </div>
+    );
   if (state === "error" || !file)
-    return <Alert type="error" showIcon message="Couldn't load file" description={error} style={{ margin: 16 }} />;
+    return (
+      <div className="g-root">
+        <div className="g-error">
+          <b>Couldn't load file</b>
+          {error ? <div>{error}</div> : null}
+        </div>
+      </div>
+    );
 
   const mime = file.mimeType ?? "";
   const owner = file.owners?.[0]?.displayName ?? file.owners?.[0]?.emailAddress ?? "";
-  const metaRows: [string, string][] = [
-    ["Type", TYPE_LABEL[mime] ?? mime ?? "File"],
-    ...(owner ? ([["Owner", owner]] as [string, string][]) : []),
-    ...(file.modifiedTime
-      ? ([["Modified", dayjs(file.modifiedTime).format("MMM D, YYYY HH:mm")]] as [string, string][])
-      : []),
-    ...(file.size ? ([["Size", formatSize(file.size)]] as [string, string][]) : []),
-  ];
+  const badge = fileBadge(mime);
+  const meta = [
+    TYPE_LABEL[mime] ?? mime ?? "File",
+    owner ? `Owner: ${owner}` : "",
+    file.modifiedTime ? `Modified ${dayjs(file.modifiedTime).format("MMM D, YYYY HH:mm")}` : "",
+    file.size ? formatSize(file.size) : "",
+  ].filter(Boolean);
 
   const sheetColumns =
     content.kind === "sheet" && content.rows.length > 0
@@ -210,78 +229,76 @@ export default function FileViewer() {
   const sheetOverflow = content.kind === "sheet" && content.rows.length - 1 > MAX_SHEET_ROWS;
 
   return (
-    <div style={{ padding: 16, fontSize: 14, fontFamily: FONT_STACK, color: "rgba(0,0,0,0.88)" }}>
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
-        {file.name}
-      </Typography.Title>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
-        {metaRows.map(([label, value]) => (
-          <React.Fragment key={label}>
-            <Typography.Text type="secondary">{label}</Typography.Text>
-            <Typography.Text>{value}</Typography.Text>
-          </React.Fragment>
-        ))}
-      </div>
-      {file.webViewLink ? (
-        <Button
-          size="small"
-          icon={<ExportOutlined />}
-          style={{ marginTop: 12 }}
-          href={file.webViewLink}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open in Drive
-        </Button>
-      ) : null}
-      {content.kind !== "none" || exportNote ? <Divider style={{ margin: "12px 0" }} /> : null}
-      {content.kind === "text" || content.kind === "sheet" ? (
-        content.truncated ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="Preview truncated — content exceeds the inline limit. Open in Drive for the full document."
-            style={{ marginBottom: 12 }}
-          />
-        ) : null
-      ) : null}
-      {content.kind === "text" ? (
-        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55, wordBreak: "break-word" }}>
-          {content.text || "(empty document)"}
+    <div className="g-root">
+      <div className="g-appbar">
+        {mime === "application/vnd.google-apps.folder" ? (
+          <FolderFilled style={{ color: "#5f6368", fontSize: 24 }} aria-hidden="true" />
+        ) : (
+          <span className="g-fileicon lg" style={{ background: badge.color }} aria-hidden="true">
+            {badge.text}
+          </span>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="t" title={file.name}>
+            {file.name}
+          </div>
+          <div className="g-faint" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {meta.join(" · ")}
+          </div>
         </div>
-      ) : null}
-      {content.kind === "sheet" ? (
-        <>
-          <Table
-            size="small"
-            columns={sheetColumns}
-            dataSource={sheetRows}
-            pagination={sheetRows.length > 50 ? { pageSize: 50, size: "small" } : false}
-            scroll={{ x: "max-content" }}
-          />
-          {sheetOverflow ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Showing the first {MAX_SHEET_ROWS} rows — open in Drive for the full sheet.
-            </Typography.Text>
+        {file.webViewLink ? (
+          <Button icon={<ExportOutlined aria-hidden="true" />} href={file.webViewLink} target="_blank" rel="noopener noreferrer">
+            Open in Drive
+          </Button>
+        ) : null}
+      </div>
+      {content.kind !== "none" || exportNote ? (
+        <div className="g-canvas">
+          {content.kind === "text" || content.kind === "sheet" ? (
+            content.truncated ? (
+              <div className="g-warn">
+                Preview truncated — content exceeds the inline limit. Open in Drive for the full document.
+              </div>
+            ) : null
           ) : null}
-        </>
-      ) : null}
-      {content.kind === "saved" ? (
-        <Alert
-          type="info"
-          showIcon
-          message="Content too large to preview inline"
-          description={
-            content.where
-              ? `Exported content was saved to workspace files: ${content.where}`
-              : "Exported content was saved to workspace files."
-          }
-        />
-      ) : null}
-      {exportNote && content.kind !== "saved" ? (
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
-          {exportNote}
-        </Typography.Text>
+          {content.kind === "text" ? (
+            <div className="g-doc page" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {content.text || "(empty document)"}
+            </div>
+          ) : null}
+          {content.kind === "sheet" ? (
+            <div style={{ background: "#fff", border: "1px solid var(--g-line)" }}>
+              <Table
+                size="small"
+                bordered
+                columns={sheetColumns}
+                dataSource={sheetRows}
+                pagination={sheetRows.length > 50 ? { pageSize: 50, size: "small" } : false}
+                scroll={{ x: "max-content" }}
+              />
+            </div>
+          ) : null}
+          {sheetOverflow ? (
+            <div className="g-faint" style={{ marginTop: 8 }}>
+              Showing the first {MAX_SHEET_ROWS} rows — open in Drive for the full sheet.
+            </div>
+          ) : null}
+          {content.kind === "saved" ? (
+            <div className="g-info" style={{ margin: 0 }}>
+              <b>Content too large to preview inline</b>
+              <div>
+                {content.where
+                  ? `Exported content was saved to workspace files: ${content.where}`
+                  : "Exported content was saved to workspace files."}
+              </div>
+            </div>
+          ) : null}
+          {exportNote && content.kind !== "saved" ? (
+            <div className="g-faint" style={{ marginTop: 8 }}>
+              {exportNote}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

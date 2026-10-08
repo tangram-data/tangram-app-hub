@@ -4,14 +4,18 @@
 // list response already carries full event resources — and emit a `select`
 // output for wiring to the event-composer.
 import {
-  EnvironmentOutlined,
-  LinkOutlined,
+  ExportOutlined,
   ReloadOutlined,
+  SearchOutlined,
+  SyncOutlined,
   TeamOutlined,
+  VideoCameraOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Empty, Input, Select, Space, Spin, Tag, Typography } from "antd";
+import { Button, Select, Spin } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -29,6 +33,7 @@ type CalEvent = {
   attendees?: Attendee[];
   recurringEventId?: string;
   hangoutLink?: string;
+  colorId?: string;
 };
 type Calendar = { id: string; summary?: string; primary?: boolean };
 
@@ -91,10 +96,16 @@ function eventTzLabel(ev: CalEvent, listTz: string): string {
 }
 
 const RESPONSE_COLORS: Record<string, string> = {
-  accepted: "green",
-  declined: "red",
-  tentative: "orange",
-  needsAction: "default",
+  accepted: "#188038",
+  declined: "#d93025",
+  tentative: "#e37400",
+  needsAction: "#9aa0a6",
+};
+
+// Google Calendar's event colorId palette.
+const EVENT_COLORS: Record<string, string> = {
+  "1": "#7986cb", "2": "#33b679", "3": "#8e24aa", "4": "#e67c73", "5": "#f6bf26", "6": "#f4511e",
+  "7": "#039be5", "8": "#616161", "9": "#3f51b5", "10": "#0b8043", "11": "#d50000",
 };
 
 export default function EventList() {
@@ -209,19 +220,14 @@ export default function EventList() {
     const key = startOf(ev).format("YYYY-MM-DD");
     byDay.set(key, [...(byDay.get(key) ?? []), ev]);
   });
+  const today = dayjs().format("YYYY-MM-DD");
 
   return (
-    <div
-      style={{
-        padding: 16,
-        maxWidth: 720,
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      }}
-    >
-      <Space.Compact style={{ display: "flex", marginBottom: 12 }}>
+    <div className="g-root">
+      <div className="g-toolbar">
         <Select
-          style={{ minWidth: 180 }}
+          variant="borderless"
+          style={{ minWidth: 150, maxWidth: 220 }}
           value={criteria?.calendarId ?? "primary"}
           disabled={loading}
           options={(calendars.length ? calendars : [{ id: "primary", summary: "Primary" }]).map(
@@ -229,119 +235,131 @@ export default function EventList() {
           )}
           onChange={(id) => criteria && setCriteria({ ...criteria, calendarId: id })}
         />
-        <Input.Search
-          placeholder="Search events"
-          value={search}
-          disabled={loading}
-          onChange={(e) => setSearch(e.target.value)}
-          onSearch={(q) => criteria && setCriteria({ ...criteria, q })}
-        />
+        <form
+          className="g-search sm"
+          style={{ flex: 1, minWidth: 0 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (criteria) setCriteria({ ...criteria, q: search });
+          }}
+        >
+          <SearchOutlined aria-hidden="true" />
+          <input
+            aria-label="Search events"
+            placeholder="Search events"
+            value={search}
+            disabled={loading}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </form>
         <Button
-          icon={<ReloadOutlined />}
+          type="text"
+          shape="circle"
+          aria-label="Refresh"
+          icon={<ReloadOutlined aria-hidden="true" />}
           disabled={loading || !criteria}
           onClick={() => criteria && load(criteria, "")}
         />
-      </Space.Compact>
+      </div>
       {LOCAL_TZ ? (
-        <Typography.Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 8 }}>
+        <div className="g-faint" style={{ padding: "0 16px 4px" }}>
           Times shown in {LOCAL_TZ}
-        </Typography.Text>
+        </div>
       ) : null}
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginBottom: 12 }} />
-      ) : null}
-      {loading && events.length === 0 ? (
-        <Spin style={{ display: "block", margin: "24px auto" }} />
-      ) : null}
+      {status.kind === "error" ? <div className="g-error">{status.message}</div> : null}
+      {loading && events.length === 0 ? <Spin style={{ display: "block", margin: "24px auto" }} /> : null}
       {!loading && events.length === 0 && status.kind !== "error" ? (
-        <Empty description="No events in this window" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <div className="g-empty">No events in this window</div>
       ) : null}
       {[...byDay.entries()].map(([day, dayEvents]) => (
-        <div key={day} style={{ marginBottom: 8 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "8px 0 4px" }}>
-            {dayjs(day).format("dddd, MMM D")}
-          </Typography.Text>
-          {dayEvents.map((ev) => (
-            <div
-              key={ev.id}
-              onClick={() => select(ev)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                cursor: "pointer",
-                background: expanded === ev.id ? "rgba(22,119,255,0.06)" : undefined,
-                border: "1px solid #f0f0f0",
-                marginBottom: 4,
-              }}
-            >
-              <Space size={8} style={{ width: "100%" }}>
-                <Tag style={{ minWidth: 90, textAlign: "center" }}>{timeLabel(ev)}</Tag>
-                <Typography.Text strong>{ev.summary || "(no title)"}</Typography.Text>
-                {eventTzLabel(ev, listTz) ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {eventTzLabel(ev, listTz)}
-                  </Typography.Text>
-                ) : null}
-                {ev.recurringEventId ? <Tag color="blue">recurring</Tag> : null}
-                {ev.location ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    <EnvironmentOutlined /> {ev.location}
-                  </Typography.Text>
-                ) : null}
-                {ev.attendees?.length ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    <TeamOutlined /> {ev.attendees.length}
-                  </Typography.Text>
-                ) : null}
-              </Space>
-              {expanded === ev.id ? (
-                <div style={{ marginTop: 8, marginLeft: 4 }} onClick={(e) => e.stopPropagation()}>
-                  {ev.description ? (
-                    <div
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        marginBottom: 6,
-                        maxHeight: 200,
-                        overflow: "auto",
-                      }}
-                    >
-                      {ev.description}
+        <div key={day} className="g-day">
+          <div className={`g-daylabel${day === today ? " today" : ""}`} title={dayjs(day).format("dddd, MMM D, YYYY")}>
+            <div className="dow">{dayjs(day).format("ddd").toUpperCase()}</div>
+            <div className="dn">{dayjs(day).format("D")}</div>
+            {dayjs(day).year() !== dayjs().year() || dayjs(day).month() !== dayjs().month() ? (
+              <div className="g-faint">{dayjs(day).format("MMM")}</div>
+            ) : null}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            {dayEvents.map((ev) => {
+              const tz = eventTzLabel(ev, listTz);
+              return (
+                <React.Fragment key={ev.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={expanded === ev.id}
+                    className={`g-ev${expanded === ev.id ? " sel" : ""}`}
+                    onClick={() => select(ev)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        select(ev);
+                      }
+                    }}
+                  >
+                    <span className="g-dot" style={{ background: EVENT_COLORS[ev.colorId ?? ""] ?? "#039be5" }} />
+                    <span className="t">{timeLabel(ev)}</span>
+                    <span className="ti">
+                      {ev.summary || "(no title)"}
+                      {ev.location ? <span className="loc"> · {ev.location}</span> : null}
+                      {tz ? <span className="loc"> · {tz}</span> : null}
+                      {ev.recurringEventId ? (
+                        <span className="loc">
+                          {" "}
+                          <SyncOutlined aria-label="Recurring" />
+                        </span>
+                      ) : null}
+                      {ev.attendees?.length ? (
+                        <span className="loc">
+                          {" "}
+                          · <TeamOutlined aria-hidden="true" /> {ev.attendees.length}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                  {expanded === ev.id ? (
+                    <div className="g-evdetail">
+                      {ev.description ? <div className="desc">{ev.description}</div> : null}
+                      {ev.attendees?.length ? (
+                        <div style={{ marginBottom: 6 }}>
+                          {ev.attendees.map((a, i) => (
+                            <span key={`${a.email}-${i}`} className="g-person" title={a.responseStatus ?? ""}>
+                              <span
+                                className="g-dot"
+                                style={{ width: 8, height: 8, background: RESPONSE_COLORS[a.responseStatus ?? ""] ?? "#9aa0a6" }}
+                              />
+                              {a.displayName || a.email}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="g-bar" style={{ flexWrap: "wrap" }}>
+                        {ev.hangoutLink ? (
+                          <Button size="small" icon={<VideoCameraOutlined aria-hidden="true" />} href={ev.hangoutLink} target="_blank" rel="noreferrer">
+                            Join Meet
+                          </Button>
+                        ) : null}
+                        {ev.htmlLink ? (
+                          <Button size="small" icon={<ExportOutlined aria-hidden="true" />} href={ev.htmlLink} target="_blank" rel="noreferrer">
+                            Open in Google Calendar
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   ) : null}
-                  {ev.attendees?.length ? (
-                    <Space size={4} wrap style={{ marginBottom: 6 }}>
-                      {ev.attendees.map((a, i) => (
-                        <Tag key={`${a.email}-${i}`} color={RESPONSE_COLORS[a.responseStatus ?? ""] ?? "default"}>
-                          {a.displayName || a.email}
-                        </Tag>
-                      ))}
-                    </Space>
-                  ) : null}
-                  <Space size={12}>
-                    {ev.htmlLink ? (
-                      <Typography.Link href={ev.htmlLink} target="_blank" rel="noreferrer">
-                        <LinkOutlined /> Open in Google Calendar
-                      </Typography.Link>
-                    ) : null}
-                    {ev.hangoutLink ? (
-                      <Typography.Link href={ev.hangoutLink} target="_blank" rel="noreferrer">
-                        Meet link
-                      </Typography.Link>
-                    ) : null}
-                  </Space>
-                </div>
-              ) : null}
-            </div>
-          ))}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       ))}
       {nextToken ? (
-        <Button size="small" loading={loading} onClick={() => criteria && load(criteria, nextToken)}>
-          Load more
-        </Button>
+        <div className="g-toolbar">
+          <Button size="small" loading={loading} onClick={() => criteria && load(criteria, nextToken)}>
+            Load more
+          </Button>
+        </div>
       ) : null}
     </div>
   );

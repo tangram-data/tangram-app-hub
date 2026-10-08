@@ -4,9 +4,11 @@
 // Referenced cid: raster images are resolved through Attachment.Get after
 // signature/size/dimension checks; remote/data/SVG images remain blocked so
 // untrusted email markup cannot track the reader or reach connector actions.
-import { PaperClipOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Skeleton, Space, Typography } from "antd";
+import { LoadingOutlined, RollbackOutlined } from "@ant-design/icons";
+import { Button, Skeleton } from "antd";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -580,13 +582,10 @@ function MessageBody({
         }}
       />
       {blockedImages > 0 ? (
-        <Typography.Text
-          type="secondary"
-          style={{ display: "block", marginTop: 8, fontSize: 12 }}
-        >
+        <div className="g-faint" style={{ marginTop: 8 }}>
           {blockedImages} inline{" "}
           {blockedImages === 1 ? "image was" : "images were"} blocked.
-        </Typography.Text>
+        </div>
       ) : null}
     </>
   );
@@ -600,35 +599,86 @@ function header(msg: GmailMessage, name: string): string {
   );
 }
 
-// antd's default font token stack; plain elements inside the sandbox iframe
-// would otherwise fall back to the browser's serif default.
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, ' +
-  '"Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji"';
-
 // Our own presentation styles for the sanitized body (email styles are gone).
 const BODY_CSS = `
 .mail-body { line-height: 1.55; word-break: break-word; }
-.mail-body a { color: #1677ff; text-decoration: none; }
-.mail-body a:hover { text-decoration: underline; }
 .mail-body p, .mail-body div { margin: 0 0 0.6em; }
 .mail-body ul, .mail-body ol { margin: 0.4em 0 0.8em; padding-left: 1.4em; }
 .mail-body li { margin-bottom: 0.25em; }
-.mail-body blockquote { margin: 0.6em 0; padding: 0.2em 0 0.2em 0.9em; border-left: 3px solid #d9d9d9; color: #666; }
+.mail-body blockquote { margin: 0.6em 0; padding: 0.2em 0 0.2em 0.9em; border-left: 3px solid #dadce0; color: #5e5e5e; }
 .mail-body table { border-collapse: collapse; max-width: 100%; }
 .mail-body td, .mail-body th { padding: 4px 8px; vertical-align: top; }
 .mail-body pre, .mail-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.mail-body pre { background: #fafafa; padding: 8px; border-radius: 4px; overflow-x: auto; }
+.mail-body pre { background: #f8fafd; padding: 8px; border-radius: 4px; overflow-x: auto; }
 .mail-body h1, .mail-body h2, .mail-body h3 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
 .mail-body img[data-tangram-cid] { display: none; }
 .mail-body img[data-tangram-cid][src^="data:image/"] { display: inline-block; max-width: 100%; height: auto; }
 `;
+
+const AVATAR_COLORS = ["#1a73e8", "#d93025", "#188038", "#e37400", "#7b1fa2", "#00897b", "#c2185b", "#5e35b1", "#3949ab", "#6d4c41"];
+
+function avatarColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+// "Ana Lopez <ana@acme.com>" → { name, addr }.
+function parseAddress(value: string): { name: string; addr: string } {
+  const m = value.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1].trim() || m[2].trim(), addr: m[2].trim() };
+  return { name: value.trim(), addr: "" };
+}
+
+// Display names of a recipient header, for Gmail's "to Ana, Ben" line.
+function recipientNames(value: string): string {
+  return (value.match(/(?:[^,"]|"[^"]*")+/g) ?? [])
+    .map((part) => {
+      const { name, addr } = parseAddress(part);
+      const n = name || addr;
+      return n.includes("@") ? n.split("@")[0] : n.split(/\s+/)[0];
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+function relativeAge(date: Date): string {
+  const mins = Math.round((Date.now() - date.getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  if (days < 31) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return "";
+}
+
+const SYSTEM_LABELS: [string, string][] = [
+  ["INBOX", "Inbox"],
+  ["SENT", "Sent"],
+  ["DRAFT", "Draft"],
+  ["SPAM", "Spam"],
+  ["TRASH", "Trash"],
+];
+
+// Typed, colored badge for an attachment (Drive-style file icon).
+function fileBadge(name: string, mime: string): { label: string; color: string } {
+  const ext = (name.split(".").pop() ?? "").toLowerCase();
+  if (mime === "application/pdf" || ext === "pdf") return { label: "PDF", color: "#d93025" };
+  if (mime.startsWith("image/")) return { label: "IMG", color: "#d93025" };
+  if (/sheet|excel|csv/.test(mime) || /^(xlsx?|csv)$/.test(ext)) return { label: "XLS", color: "#188038" };
+  if (/presentation|powerpoint/.test(mime) || /^pptx?$/.test(ext)) return { label: "PPT", color: "#f4b400" };
+  if (/word|document/.test(mime) || /^docx?$/.test(ext)) return { label: "DOC", color: "#4285f4" };
+  if (/zip|compressed|tar/.test(mime)) return { label: "ZIP", color: "#5f6368" };
+  return { label: (ext || "file").slice(0, 3).toUpperCase(), color: "#5f6368" };
+}
 
 export default function MailViewer() {
   const [msg, setMsg] = useState<GmailMessage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string>("");
   const [downloading, setDownloading] = useState<string>("");
+  const [showDetails, setShowDetails] = useState(false);
 
   const load = useCallback((inputs: Record<string, unknown>) => {
     const messageId = String(inputs?.messageId ?? "").trim();
@@ -658,22 +708,29 @@ export default function MailViewer() {
     tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
   }, [load]);
 
-  if (state === "loading") return <Skeleton active style={{ padding: 16 }} />;
+  if (state === "loading")
+    return (
+      <div className="g-root g-pad">
+        <Skeleton active avatar />
+      </div>
+    );
   if (state === "error" || !msg)
     return (
-      <Alert
-        type="error"
-        showIcon
-        message="Couldn't load message"
-        description={error}
-        style={{ margin: 16 }}
-      />
+      <div className="g-root">
+        <div className="g-error">
+          <b>Couldn't load message</b>
+          {error ? <div>{error}</div> : null}
+        </div>
+      </div>
     );
 
-  const date = msg.internalDate
-    ? new Date(Number(msg.internalDate)).toLocaleString()
-    : header(msg, "Date");
+  const sentAt = msg.internalDate ? new Date(Number(msg.internalDate)) : null;
+  const date = sentAt ? sentAt.toLocaleString() : header(msg, "Date");
+  const age = sentAt ? relativeAge(sentAt) : "";
   const attachments = extractAttachments(msg.payload);
+  const from = parseAddress(header(msg, "From"));
+  const label = SYSTEM_LABELS.find(([id]) => msg.labelIds?.includes(id))?.[1];
+  const toNames = recipientNames([header(msg, "To"), header(msg, "Cc")].filter(Boolean).join(", "));
 
   function download(att: AttachmentRef) {
     setDownloading(att.attachmentId);
@@ -706,93 +763,105 @@ export default function MailViewer() {
       });
   }
   const metaRows: [string, string][] = [
-    ["From", header(msg, "From")],
-    ["To", header(msg, "To")],
+    ["from", header(msg, "From")],
+    ["to", header(msg, "To")],
     ...(header(msg, "Cc")
-      ? ([["Cc", header(msg, "Cc")]] as [string, string][])
+      ? ([["cc", header(msg, "Cc")]] as [string, string][])
       : []),
-    ["Date", date],
+    ["date", date],
+    ["subject", header(msg, "Subject")],
   ];
 
   return (
-    <div
-      style={{
-        padding: 16,
-        fontSize: 14,
-        fontFamily: FONT_STACK,
-        color: "rgba(0,0,0,0.88)",
-      }}
-    >
+    <div className="g-root g-pad">
       <style>{BODY_CSS}</style>
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
+      <h2 className="g-title" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         {header(msg, "Subject") || "(no subject)"}
-      </Typography.Title>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          columnGap: 12,
-          rowGap: 2,
-        }}
-      >
-        {metaRows.map(([label, value]) => (
-          <React.Fragment key={label}>
-            <Typography.Text type="secondary">{label}</Typography.Text>
-            <Typography.Text>{value}</Typography.Text>
-          </React.Fragment>
-        ))}
+        {label ? <span className="g-label">{label}</span> : null}
+      </h2>
+      <div className="g-sender">
+        <div className="g-avatar" style={{ background: avatarColor(from.addr || from.name) }} aria-hidden="true">
+          {(from.name || "?").replace(/^[^A-Za-z0-9]+/, "").charAt(0).toUpperCase() || "?"}
+        </div>
+        <div className="g-from">
+          <b>{from.name || "(unknown sender)"}</b>{" "}
+          {from.addr ? <span className="addr">&lt;{from.addr}&gt;</span> : null}
+          <div className="g-to">
+            to {toNames || "(no recipients)"}
+            <button type="button" aria-expanded={showDetails} aria-label="Show details" onClick={() => setShowDetails((v) => !v)}>
+              {showDetails ? "▴" : "▾"}
+            </button>
+          </div>
+        </div>
+        <div className="g-date">
+          {date}
+          {age ? ` (${age})` : ""}
+        </div>
       </div>
-      <Divider style={{ margin: "12px 0" }} />
-      <MessageBody
-        messageId={msg.id}
-        payload={msg.payload}
-        snippet={msg.snippet}
-      />
-      {attachments.length > 0 ? (
-        <>
-          <Divider style={{ margin: "12px 0" }} />
-          <Space direction="vertical" size={4}>
-            {attachments.map((att) => (
-              <Button
-                key={att.attachmentId}
-                size="small"
-                icon={<PaperClipOutlined />}
-                loading={downloading === att.attachmentId}
-                onClick={() => download(att)}
-              >
-                {att.filename} ({formatSize(att.size)})
-              </Button>
+      <div className="g-indent">
+        {showDetails ? (
+          <div className="g-meta">
+            {metaRows.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <span>{k}:</span>
+                <span>{v}</span>
+              </React.Fragment>
             ))}
-          </Space>
-          {error ? (
-            <Alert
-              type="error"
-              showIcon
-              message={error}
-              style={{ marginTop: 8 }}
-            />
-          ) : null}
-        </>
-      ) : null}
-      <Divider style={{ margin: "12px 0" }} />
-      <Button
-        size="small"
-        onClick={() =>
-          tangram.emit("reply", {
-            to: header(msg, "Reply-To") || header(msg, "From"),
-            subject: /^re:/i.test(header(msg, "Subject"))
-              ? header(msg, "Subject")
-              : `Re: ${header(msg, "Subject")}`,
-            threadId: msg.threadId ?? "",
-            inReplyTo: header(msg, "Message-ID") || header(msg, "Message-Id"),
-            references: [header(msg, "References"), header(msg, "Message-ID") || header(msg, "Message-Id")]
-              .filter(Boolean)
-              .join(" "),
-          })
-        }
-      >
-        Reply
-      </Button>
+          </div>
+        ) : null}
+        <div style={{ marginTop: 16 }}>
+          <MessageBody messageId={msg.id} payload={msg.payload} snippet={msg.snippet} />
+        </div>
+        {attachments.length > 0 ? (
+          <>
+            <div className="g-atts">
+              {attachments.map((att) => {
+                const badge = fileBadge(att.filename, att.mimeType);
+                const busy = downloading === att.attachmentId;
+                return (
+                  <button
+                    type="button"
+                    key={att.attachmentId}
+                    className="g-chip"
+                    disabled={busy}
+                    title={`Download ${att.filename}`}
+                    onClick={() => download(att)}
+                  >
+                    <span className="g-fileicon" style={{ background: badge.color }} aria-hidden="true">
+                      {busy ? <LoadingOutlined /> : badge.label}
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <div className="n">{att.filename}</div>
+                      <div className="s">{busy ? "Downloading…" : formatSize(att.size)}</div>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {error ? <div className="g-error inline">{error}</div> : null}
+          </>
+        ) : null}
+        <div className="g-actions">
+          <Button
+            icon={<RollbackOutlined aria-hidden="true" />}
+            onClick={() =>
+              tangram.emit("reply", {
+                to: header(msg, "Reply-To") || header(msg, "From"),
+                subject: /^re:/i.test(header(msg, "Subject"))
+                  ? header(msg, "Subject")
+                  : `Re: ${header(msg, "Subject")}`,
+                threadId: msg.threadId ?? "",
+                inReplyTo: header(msg, "Message-ID") || header(msg, "Message-Id"),
+                references: [header(msg, "References"), header(msg, "Message-ID") || header(msg, "Message-Id")]
+                  .filter(Boolean)
+                  .join(" "),
+              })
+            }
+          >
+            Reply
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

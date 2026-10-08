@@ -3,9 +3,11 @@
 // paragraphs (bold/italic/underline/links), bullet lists, and tables — as
 // plain React nodes; anything else (images, drawings, TOC) is skipped. An
 // Edit button emits an `edit` output for wiring to the doc-composer.
-import { EditOutlined, LinkOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Space, Spin, Typography } from "antd";
+import { EditOutlined, ExportOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Spin } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -115,11 +117,12 @@ function renderRun(run: TextRun, key: number): React.ReactNode {
   return <React.Fragment key={key}>{node}</React.Fragment>;
 }
 
-// Heading render sizes; the document h1 maps below the component chrome.
-const HEADING_LEVEL: Record<string, 3 | 4 | 5> = {
-  TITLE: 3,
-  HEADING_1: 4,
-  HEADING_2: 5,
+// Heading elements inside the page (g-doc styles them like Docs).
+const HEADING_TAG: Record<string, "h1" | "h2" | "h3"> = {
+  TITLE: "h1",
+  HEADING_1: "h1",
+  HEADING_2: "h2",
+  HEADING_3: "h3",
 };
 
 function renderParagraph(p: Paragraph, key: number, ctx: RenderCtx): React.ReactNode {
@@ -134,26 +137,22 @@ function renderParagraph(p: Paragraph, key: number, ctx: RenderCtx): React.React
       </div>
     );
   }
-  const level = HEADING_LEVEL[style];
-  if (level) {
+  const Tag = HEADING_TAG[style];
+  if (Tag) {
     return (
-      <Typography.Title key={key} level={level} style={{ marginTop: 14, marginBottom: 6 }}>
+      <Tag key={key} style={style === "TITLE" ? { fontSize: 30 } : undefined}>
         {runs}
-      </Typography.Title>
+      </Tag>
     );
   }
   if (style.startsWith("HEADING_")) {
     return (
-      <Typography.Text key={key} strong style={{ display: "block", marginTop: 10, marginBottom: 4 }}>
+      <div key={key} className="h4">
         {runs}
-      </Typography.Text>
+      </div>
     );
   }
-  return (
-    <div key={key} style={{ marginBottom: 6, lineHeight: 1.55 }}>
-      {runs}
-    </div>
-  );
+  return <p key={key}>{runs}</p>;
 }
 
 function renderElements(elements: StructuralElement[], ctx: RenderCtx): React.ReactNode[] {
@@ -161,12 +160,12 @@ function renderElements(elements: StructuralElement[], ctx: RenderCtx): React.Re
     if (el.paragraph) return renderParagraph(el.paragraph, i, ctx);
     if (el.table) {
       return (
-        <table key={i} style={{ borderCollapse: "collapse", margin: "8px 0", width: "100%" }}>
+        <table key={i}>
           <tbody>
             {(el.table.tableRows ?? []).map((row, r) => (
               <tr key={r}>
                 {(row.tableCells ?? []).map((cell, c) => (
-                  <td key={c} style={{ border: "1px solid #d9d9d9", padding: "4px 8px", verticalAlign: "top" }}>
+                  <td key={c}>
                     {renderElements(cell.content ?? [], ctx)}
                   </td>
                 ))}
@@ -230,49 +229,44 @@ export default function DocViewer() {
   const docUrl = documentId ? `https://docs.google.com/document/d/${documentId}/edit` : "";
 
   return (
-    <div
-      style={{
-        padding: 16,
-        maxWidth: 760,
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      }}
-    >
-      <Space style={{ marginBottom: 8, width: "100%", justifyContent: "space-between", display: "flex" }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
+    <div className="g-root">
+      <div className="g-appbar">
+        <span className="g-fileicon lg" style={{ background: "#4285f4" }} aria-hidden="true">
+          DOC
+        </span>
+        <span className="t" title={doc?.title ?? ""}>
           {doc?.title ?? "Document"}
-        </Typography.Title>
-        <Space size={8}>
-          {docUrl ? (
-            <Typography.Link href={docUrl} target="_blank" rel="noreferrer">
-              <LinkOutlined /> Open in Google Docs
-            </Typography.Link>
-          ) : null}
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            disabled={!doc}
-            onClick={() =>
-              tangram.emit("edit", { documentId, title: doc?.title ?? "" })
-            }
-          >
-            Append
+        </span>
+        <Button
+          type="text"
+          shape="circle"
+          aria-label="Reload"
+          icon={<ReloadOutlined aria-hidden="true" />}
+          disabled={state.kind === "loading" || !documentId}
+          onClick={() => load(documentId)}
+        />
+        {docUrl ? (
+          <Button icon={<ExportOutlined aria-hidden="true" />} href={docUrl} target="_blank" rel="noreferrer">
+            Open
           </Button>
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            disabled={state.kind === "loading" || !documentId}
-            onClick={() => load(documentId)}
-          />
-        </Space>
-      </Space>
+        ) : null}
+        <Button
+          icon={<EditOutlined aria-hidden="true" />}
+          disabled={!doc}
+          onClick={() => tangram.emit("edit", { documentId, title: doc?.title ?? "" })}
+        >
+          Append
+        </Button>
+      </div>
       {state.kind === "loading" || state.kind === "init" ? (
         <Spin style={{ display: "block", margin: "24px auto" }} />
       ) : null}
-      {state.kind === "error" ? <Alert type="error" showIcon message={state.message} /> : null}
+      {state.kind === "error" ? <div className="g-error">{state.message}</div> : null}
       {doc ? (
-        <div style={{ wordBreak: "break-word" }}>
-          {renderElements(doc.body?.content ?? [], { lists: doc.lists ?? {}, counters: new Map() })}
+        <div className="g-canvas">
+          <div className="g-doc page" style={{ wordBreak: "break-word" }}>
+            {renderElements(doc.body?.content ?? [], { lists: doc.lists ?? {}, counters: new Map() })}
+          </div>
         </div>
       ) : null}
     </div>

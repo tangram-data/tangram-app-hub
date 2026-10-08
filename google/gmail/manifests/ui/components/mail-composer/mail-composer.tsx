@@ -3,9 +3,11 @@
 // everything (and attach files) before sending. Send is confirmation-gated by
 // the host. Attachments are read locally via FileReader; Tangram's connector
 // request adapter creates the provider-specific RFC 822 / MIME payload.
-import { DeleteOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Alert, Button, Divider, Input, Space, Typography } from "antd";
+import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -218,132 +220,144 @@ export default function MailComposer() {
       );
   }
 
-  const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
-      {text}
-    </Typography.Text>
-  );
-
-  const rootStyle = {
-    padding: 16,
-    maxWidth: 720,
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  };
-
   if (status.kind === "sent") {
     const mail = status.mail;
     const metaRows: [string, string][] = [
-      ["To", mail.to],
-      ...(mail.cc.trim() ? ([["Cc", mail.cc]] as [string, string][]) : []),
-      ["Date", mail.at.toLocaleString()],
+      ["to", mail.to],
+      ...(mail.cc.trim() ? ([["cc", mail.cc]] as [string, string][]) : []),
+      ["date", mail.at.toLocaleString()],
     ];
     return (
-      <div style={rootStyle}>
-        <Alert type="success" showIcon message="Message sent" style={{ marginBottom: 12 }} />
-        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
+      <div className="g-root g-pad">
+        <div className="g-ok">Message sent</div>
+        <h2 className="g-title" style={{ marginBottom: 8 }}>
           {mail.subject || "(no subject)"}
-        </Typography.Title>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 2 }}>
+        </h2>
+        <div className="g-meta" style={{ marginTop: 0 }}>
           {metaRows.map(([l, v]) => (
             <React.Fragment key={l}>
-              <Typography.Text type="secondary">{l}</Typography.Text>
-              <Typography.Text>{v}</Typography.Text>
+              <span>{l}:</span>
+              <span>{v}</span>
             </React.Fragment>
           ))}
         </div>
-        <Divider style={{ margin: "12px 0" }} />
-        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55, wordBreak: "break-word" }}>
-          {mail.body}
-        </div>
+        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 16 }}>{mail.body}</div>
         {mail.attachments.length > 0 ? (
-          <>
-            <Divider style={{ margin: "12px 0" }} />
-            <Space direction="vertical" size={4}>
-              {mail.attachments.map((a, i) => (
-                <Space key={`${a.name}-${i}`} size={6}>
+          <div className="g-atts">
+            {mail.attachments.map((a, i) => (
+              <div key={`${a.name}-${i}`} className="g-chip" style={{ cursor: "default" }}>
+                <span className="g-fileicon" style={{ background: "#5f6368" }} aria-hidden="true">
                   <PaperClipOutlined />
-                  <Typography.Text>{a.name}</Typography.Text>
-                  <Typography.Text type="secondary">({formatSize(a.size)})</Typography.Text>
-                </Space>
-              ))}
-            </Space>
-          </>
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <div className="n">{a.name}</div>
+                  <div className="s">{formatSize(a.size)}</div>
+                </span>
+              </div>
+            ))}
+          </div>
         ) : null}
-        <Divider style={{ margin: "12px 0" }} />
-        <Button size="small" onClick={composeAnother}>
-          Compose another
-        </Button>
+        <div className="g-actions">
+          <Button onClick={composeAnother}>Compose another</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={rootStyle}>
-      {label("To")}
-      <Input
-        value={to}
-        disabled={disabled}
-        placeholder="alice@example.com, bob@example.com"
-        onChange={(e) => setTo(e.target.value)}
-      />
-      {label("Cc")}
-      <Input value={cc} disabled={disabled} onChange={(e) => setCc(e.target.value)} />
-      {label("Subject")}
-      <Input value={subject} disabled={disabled} onChange={(e) => setSubject(e.target.value)} />
-      {label("Body")}
-      <Input.TextArea
-        value={body}
-        disabled={disabled}
-        autoSize={{ minRows: 8, maxRows: 24 }}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        style={{ display: "none" }}
-        onChange={(e) => {
-          addFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-      <Space direction="vertical" size={4} style={{ marginTop: 10, display: "flex" }}>
-        {attachments.map((att, i) => (
-          <Space key={`${att.name}-${i}`} size={6}>
-            <PaperClipOutlined />
-            <Typography.Text>{att.name}</Typography.Text>
-            <Typography.Text type="secondary">({formatSize(att.bytes.length)})</Typography.Text>
-            <Button
-              type="text"
-              size="small"
-              icon={<DeleteOutlined />}
-              disabled={disabled}
-              onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
-            />
-          </Space>
-        ))}
-      </Space>
-      {threadId.trim() ? (
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 6 }}>
-          Replying within thread {threadId}
-        </Typography.Text>
-      ) : null}
-      <Space style={{ marginTop: 14 }} align="center">
-        <Button type="primary" onClick={send} disabled={disabled} loading={status.kind === "busy" && status.what === "send"}>
-          Send
-        </Button>
-        <Button onClick={saveDraft} disabled={disabled} loading={status.kind === "busy" && status.what === "draft"}>
-          Save draft
-        </Button>
-        <Button icon={<PaperClipOutlined />} disabled={disabled} onClick={() => fileInput.current?.click()}>
-          Attach
-        </Button>
-        {status.kind === "drafted" ? <Typography.Text type="success">Draft saved ✓</Typography.Text> : null}
-      </Space>
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
-      ) : null}
+    <div className="g-root g-panel">
+      <div className="g-panel-head">{threadId.trim() ? "Reply" : "New message"}</div>
+      <div className="g-panel-body">
+        <div className="g-field">
+          <label htmlFor="mc-to">To</label>
+          <input
+            id="mc-to"
+            value={to}
+            disabled={disabled}
+            placeholder="alice@example.com, bob@example.com"
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        <div className="g-field">
+          <label htmlFor="mc-cc">Cc</label>
+          <input id="mc-cc" value={cc} disabled={disabled} onChange={(e) => setCc(e.target.value)} />
+        </div>
+        <div className="g-field">
+          <input
+            aria-label="Subject"
+            value={subject}
+            disabled={disabled}
+            placeholder="Subject"
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+        <div className="g-field body">
+          <textarea
+            aria-label="Body"
+            value={body}
+            disabled={disabled}
+            rows={8}
+            onChange={(e) => setBody(e.target.value)}
+          />
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {attachments.length > 0 ? (
+          <div className="g-atts" style={{ marginTop: 4, marginBottom: 8 }}>
+            {attachments.map((att, i) => (
+              <div key={`${att.name}-${i}`} className="g-chip" style={{ cursor: "default" }}>
+                <span className="g-fileicon" style={{ background: "#5f6368" }} aria-hidden="true">
+                  <PaperClipOutlined />
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <div className="n">{att.name}</div>
+                  <div className="s">{formatSize(att.bytes.length)}</div>
+                </span>
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label={`Remove ${att.name}`}
+                  icon={<CloseOutlined aria-hidden="true" />}
+                  disabled={disabled}
+                  onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {threadId.trim() ? (
+          <div className="g-faint" style={{ marginBottom: 8 }}>
+            Replying within thread {threadId}
+          </div>
+        ) : null}
+        <div className="g-bar">
+          <Button
+            type="text"
+            icon={<PaperClipOutlined aria-hidden="true" />}
+            disabled={disabled}
+            onClick={() => fileInput.current?.click()}
+          >
+            Attach
+          </Button>
+          <span className="sp" />
+          {status.kind === "drafted" ? <span className="g-muted">Draft saved</span> : null}
+          <Button onClick={saveDraft} disabled={disabled} loading={status.kind === "busy" && status.what === "draft"}>
+            Save draft
+          </Button>
+          <Button type="primary" onClick={send} disabled={disabled} loading={status.kind === "busy" && status.what === "send"}>
+            Send
+          </Button>
+        </div>
+        {status.kind === "error" ? <div className="g-error inline">{status.message}</div> : null}
+      </div>
     </div>
   );
 }

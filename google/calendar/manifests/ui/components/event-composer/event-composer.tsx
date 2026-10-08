@@ -4,10 +4,20 @@
 // set the form patches that event instead of creating a new one. All-day end
 // dates are inclusive in the form and converted to Google's exclusive
 // `end.date` on save.
-import { VideoCameraOutlined } from "@ant-design/icons";
-import { Alert, Button, DatePicker, Input, Select, Space, Switch, Typography } from "antd";
+import {
+  AlignLeftOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+  ExportOutlined,
+  TeamOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
+import { Button, Checkbox, DatePicker, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -264,108 +274,167 @@ export default function EventComposer() {
       });
   }
 
-  const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
-      {text}
-    </Typography.Text>
-  );
-
-  const rootStyle = {
-    padding: 16,
-    maxWidth: 720,
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  };
-
   if (status.kind === "saved") {
     const ev = status.event;
     return (
-      <div style={rootStyle}>
-        <Alert
-          type="success"
-          showIcon
-          message={ev.updated ? "Event updated" : "Event created"}
-          style={{ marginBottom: 12 }}
-        />
-        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
-          {ev.summary}
-        </Typography.Title>
-        <Typography.Text style={{ display: "block" }}>{ev.when}</Typography.Text>
-        {ev.location ? (
-          <Typography.Text type="secondary" style={{ display: "block" }}>
-            {ev.location}
-          </Typography.Text>
+      <div className="g-root g-pad">
+        <div className="g-ok">{ev.updated ? "Event updated" : "Event created"}</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <span className="g-dot" style={{ width: 14, height: 14, borderRadius: 4, background: "#039be5", marginTop: 7 }} />
+          <div style={{ minWidth: 0 }}>
+            <h2 className="g-title">{ev.summary}</h2>
+            <div>{ev.when}</div>
+            {ev.location ? (
+              <div className="g-muted">
+                <EnvironmentOutlined aria-hidden="true" /> {ev.location}
+              </div>
+            ) : null}
+            {ev.attendees.length ? (
+              <div className="g-muted">
+                <TeamOutlined aria-hidden="true" /> With {ev.attendees.join(", ")}
+              </div>
+            ) : null}
+            {ev.meetLink ? (
+              <div style={{ marginTop: 4 }}>
+                <VideoCameraOutlined aria-hidden="true" />{" "}
+                <a href={ev.meetLink} target="_blank" rel="noreferrer">
+                  {ev.meetLink}
+                </a>
+              </div>
+            ) : ev.meetPending ? (
+              <div className="g-muted" style={{ marginTop: 4 }}>
+                <VideoCameraOutlined aria-hidden="true" /> Meet link is being generated — open the event to see it.
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {ev.meetFailed ? (
+          <div className="g-warn" style={{ marginTop: 12 }}>
+            The event was saved but the Meet link could not be created.
+          </div>
         ) : null}
-        {ev.attendees.length ? (
-          <Typography.Text type="secondary" style={{ display: "block" }}>
-            With {ev.attendees.join(", ")}
-          </Typography.Text>
-        ) : null}
-        {ev.meetLink ? (
-          <Typography.Text style={{ display: "block", marginTop: 4 }}>
-            <VideoCameraOutlined />{" "}
-            <Typography.Link href={ev.meetLink} target="_blank" rel="noreferrer">
-              {ev.meetLink}
-            </Typography.Link>
-          </Typography.Text>
-        ) : ev.meetPending ? (
-          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            <VideoCameraOutlined /> Meet link is being generated — open the event to see it.
-          </Typography.Text>
-        ) : ev.meetFailed ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="The event was saved but the Meet link could not be created."
-            style={{ marginTop: 8 }}
-          />
-        ) : null}
-        <Space style={{ marginTop: 12 }}>
-          {ev.htmlLink ? (
-            <Typography.Link href={ev.htmlLink} target="_blank" rel="noreferrer">
-              Open in Google Calendar
-            </Typography.Link>
-          ) : null}
-          <Button size="small" onClick={() => setStatus({ kind: "idle" })}>
+        <div className="g-bar" style={{ marginTop: 16 }}>
+          <Button type="text" onClick={() => setStatus({ kind: "idle" })}>
             Back to form
           </Button>
-        </Space>
+          <span className="sp" />
+          {ev.htmlLink ? (
+            <Button icon={<ExportOutlined aria-hidden="true" />} href={ev.htmlLink} target="_blank" rel="noreferrer">
+              Open in Google Calendar
+            </Button>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={rootStyle}>
-      {editing ? (
-        <Alert type="info" showIcon message={`Editing event ${eventId}`} style={{ marginBottom: 4 }} />
-      ) : null}
-      {label("Title")}
-      <Input value={summary} disabled={disabled} onChange={(e) => setSummary(e.target.value)} />
-      <Space size={16} style={{ marginTop: 10 }} align="center">
-        <Space size={6}>
-          <Switch size="small" checked={allDay} disabled={disabled} onChange={setAllDay} />
-          <Typography.Text style={{ fontSize: 13 }}>All day</Typography.Text>
-        </Space>
+    <div className="g-root g-pad" style={{ paddingTop: 12 }}>
+      {editing ? <div className="g-info">Editing event {eventId}</div> : null}
+      <input
+        className="g-titleinput"
+        aria-label="Title"
+        placeholder="Add title"
+        value={summary}
+        disabled={disabled}
+        onChange={(e) => setSummary(e.target.value)}
+      />
+      <div className="g-field" style={{ flexWrap: "wrap" }}>
+        <span className="ic" aria-hidden="true">
+          <ClockCircleOutlined />
+        </span>
+        <DatePicker
+          aria-label={allDay ? "Start date" : "Start"}
+          placeholder={allDay ? "Start date" : "Start"}
+          value={start}
+          disabled={disabled}
+          showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
+          style={{ width: allDay ? 140 : 180 }}
+          onChange={setStart}
+        />
+        <span className="g-muted">–</span>
+        <DatePicker
+          aria-label={allDay ? "End date (inclusive)" : "End"}
+          placeholder={allDay ? "End date (inclusive)" : "End"}
+          value={end}
+          disabled={disabled}
+          showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
+          style={{ width: allDay ? 160 : 180 }}
+          onChange={setEnd}
+        />
+        <Checkbox checked={allDay} disabled={disabled} onChange={(e) => setAllDay(e.target.checked)}>
+          All day
+        </Checkbox>
+      </div>
+      <div className="g-field">
+        <span className="ic" aria-hidden="true">
+          <VideoCameraOutlined />
+        </span>
         {editing && meetLink ? (
-          <Typography.Text style={{ fontSize: 13 }}>
-            <VideoCameraOutlined />{" "}
-            <Typography.Link href={meetLink} target="_blank" rel="noreferrer">
-              Meet link attached
-            </Typography.Link>
-          </Typography.Text>
+          <a href={meetLink} target="_blank" rel="noreferrer">
+            Meet link attached
+          </a>
         ) : (
-          <Space size={6}>
-            <Switch size="small" checked={meet} disabled={disabled} onChange={setMeet} />
-            <Typography.Text style={{ fontSize: 13 }}>
-              <VideoCameraOutlined /> Google Meet
-            </Typography.Text>
-          </Space>
+          <Checkbox checked={meet} disabled={disabled} onChange={(e) => setMeet(e.target.checked)}>
+            Add Google Meet video conferencing
+          </Checkbox>
         )}
+      </div>
+      <div className="g-field">
+        <span className="ic" aria-hidden="true">
+          <TeamOutlined />
+        </span>
+        <input
+          aria-label="Attendees"
+          value={attendees}
+          disabled={disabled}
+          placeholder="Add guests — alice@example.com, bob@example.com"
+          onChange={(e) => {
+            explicitPatchFieldsRef.current.add("attendees");
+            setAttendees(e.target.value);
+          }}
+        />
+      </div>
+      <div className="g-field">
+        <span className="ic" aria-hidden="true">
+          <EnvironmentOutlined />
+        </span>
+        <input
+          aria-label="Location"
+          value={location}
+          disabled={disabled}
+          placeholder="Add location"
+          onChange={(e) => {
+            explicitPatchFieldsRef.current.add("location");
+            setLocation(e.target.value);
+          }}
+        />
+      </div>
+      <div className="g-field">
+        <span className="ic" aria-hidden="true">
+          <AlignLeftOutlined />
+        </span>
+        <textarea
+          aria-label="Description"
+          value={description}
+          disabled={disabled}
+          rows={3}
+          placeholder="Add description"
+          onChange={(e) => {
+            explicitPatchFieldsRef.current.add("description");
+            setDescription(e.target.value);
+          }}
+        />
+      </div>
+      <div className="g-bar" style={{ marginTop: 12, flexWrap: "wrap" }}>
+        <span className="g-faint">
+          <CalendarOutlined aria-hidden="true" /> {calendarId}
+        </span>
+        <span className="sp" />
         <Select
-          size="small"
           value={sendUpdates}
           disabled={disabled}
-          style={{ minWidth: 170 }}
+          style={{ minWidth: 180 }}
           onChange={setSendUpdates}
           options={[
             { value: "none", label: "Don't email attendees" },
@@ -373,63 +442,11 @@ export default function EventComposer() {
             { value: "externalOnly", label: "Email external only" },
           ]}
         />
-      </Space>
-      {label(allDay ? "Start date" : "Start")}
-      <DatePicker
-        value={start}
-        disabled={disabled}
-        showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
-        style={{ width: 220 }}
-        onChange={setStart}
-      />
-      {label(allDay ? "End date (inclusive)" : "End")}
-      <DatePicker
-        value={end}
-        disabled={disabled}
-        showTime={allDay ? undefined : { format: "HH:mm", minuteStep: 5 }}
-        style={{ width: 220 }}
-        onChange={setEnd}
-      />
-      {label("Attendees")}
-      <Input
-        value={attendees}
-        disabled={disabled}
-        placeholder="alice@example.com, bob@example.com"
-        onChange={(e) => {
-          explicitPatchFieldsRef.current.add("attendees");
-          setAttendees(e.target.value);
-        }}
-      />
-      {label("Location")}
-      <Input
-        value={location}
-        disabled={disabled}
-        onChange={(e) => {
-          explicitPatchFieldsRef.current.add("location");
-          setLocation(e.target.value);
-        }}
-      />
-      {label("Description")}
-      <Input.TextArea
-        value={description}
-        disabled={disabled}
-        autoSize={{ minRows: 3, maxRows: 12 }}
-        onChange={(e) => {
-          explicitPatchFieldsRef.current.add("description");
-          setDescription(e.target.value);
-        }}
-      />
-      <Space style={{ marginTop: 14 }}>
         <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
           {editing ? "Save changes" : "Create event"}
         </Button>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          on calendar {calendarId}
-        </Typography.Text>
-      </Space>
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
-      ) : null}
+      </div>
+      {status.kind === "error" ? <div className="g-error inline">{status.message}</div> : null}
     </div>
   );
 }

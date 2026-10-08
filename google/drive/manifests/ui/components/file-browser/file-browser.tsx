@@ -3,19 +3,12 @@
 // it — plain text becomes a name search, text with Drive operators is passed
 // through as a raw q. Folder rows drill down ('<id>' in parents); file rows
 // link to Drive, and Select emits an `open` output for the host/agent.
-import {
-  FileImageOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FileTextOutlined,
-  FileZipOutlined,
-  FolderFilled,
-  FundProjectionScreenOutlined,
-  TableOutlined,
-} from "@ant-design/icons";
-import { Alert, Breadcrumb, Button, Empty, Input, List, Typography } from "antd";
+import { FolderFilled, LoadingOutlined, SearchOutlined } from "@ant-design/icons";
+import { Button, Skeleton } from "antd";
 import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -33,38 +26,44 @@ const FIELDS = "nextPageToken,files(id,name,mimeType,modifiedTime,size,owners,we
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const DEFAULT_PAGE_SIZE = 25;
 
-// antd preset palette (blue-6/green-6/red-5 — @ant-design/colors isn't in the
-// sandbox catalog, so the token hexes are inlined): Docs/Slides blue, Sheets
-// green, PDFs red.
-const BLUE = "#1677ff";
-const GREEN = "#52c41a";
-const RED = "#f5222d";
-
-const GOOGLE_TYPES: Record<string, { label: string; icon: React.ReactNode }> = {
-  "application/vnd.google-apps.document": {
-    label: "Google Doc",
-    icon: <FileTextOutlined style={{ color: BLUE }} />,
-  },
-  "application/vnd.google-apps.spreadsheet": {
-    label: "Google Sheet",
-    icon: <TableOutlined style={{ color: GREEN }} />,
-  },
-  "application/vnd.google-apps.presentation": {
-    label: "Google Slides",
-    icon: <FundProjectionScreenOutlined style={{ color: BLUE }} />,
-  },
-  [FOLDER_MIME]: { label: "Folder", icon: <FolderFilled style={{ color: "#5f6368" }} /> },
+// Drive's typed file badges: Docs blue, Sheets green, Slides yellow, PDF red.
+type Badge = { label: string; text: string; color: string };
+const GOOGLE_TYPES: Record<string, Badge> = {
+  "application/vnd.google-apps.document": { label: "Google Doc", text: "DOC", color: "#4285f4" },
+  "application/vnd.google-apps.spreadsheet": { label: "Google Sheet", text: "SH", color: "#0f9d58" },
+  "application/vnd.google-apps.presentation": { label: "Google Slides", text: "SL", color: "#f4b400" },
+  "application/vnd.google-apps.form": { label: "Google Form", text: "FRM", color: "#7248b9" },
 };
 
-function fileType(mime: string | undefined): { label: string; icon: React.ReactNode } {
-  if (!mime) return { label: "File", icon: <FileOutlined /> };
+function fileType(mime: string | undefined): Badge {
+  if (!mime) return { label: "File", text: "FILE", color: "#5f6368" };
   const known = GOOGLE_TYPES[mime];
   if (known) return known;
-  if (mime === "application/pdf")
-    return { label: "PDF", icon: <FilePdfOutlined style={{ color: RED }} /> };
-  if (mime.startsWith("image/")) return { label: "Image", icon: <FileImageOutlined /> };
-  if (/zip|compressed|tar/.test(mime)) return { label: "Archive", icon: <FileZipOutlined /> };
-  return { label: mime.split("/").pop() ?? "File", icon: <FileOutlined /> };
+  if (mime === "application/pdf") return { label: "PDF", text: "PDF", color: "#d93025" };
+  if (mime.startsWith("image/")) return { label: "Image", text: "IMG", color: "#d93025" };
+  if (mime.startsWith("video/")) return { label: "Video", text: "VID", color: "#d93025" };
+  if (/zip|compressed|tar/.test(mime)) return { label: "Archive", text: "ZIP", color: "#5f6368" };
+  if (/spreadsheet|excel|csv/.test(mime)) return { label: mime.split("/").pop() ?? "File", text: "XLS", color: "#0f9d58" };
+  if (/presentation|powerpoint/.test(mime)) return { label: mime.split("/").pop() ?? "File", text: "PPT", color: "#f4b400" };
+  if (/wordprocessing|msword/.test(mime)) return { label: mime.split("/").pop() ?? "File", text: "W", color: "#4285f4" };
+  return { label: mime.split("/").pop() ?? "File", text: "FILE", color: "#5f6368" };
+}
+
+const AVATAR_COLORS = ["#1a73e8", "#d93025", "#188038", "#e37400", "#7b1fa2", "#00897b", "#c2185b", "#5e35b1"];
+
+function avatarColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+// Drive-style "Last modified": time today, "Oct 6" this year, else full date.
+function modifiedLabel(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = dayjs(iso);
+  if (d.isSame(dayjs(), "day")) return d.format("h:mm A");
+  if (d.isSame(dayjs(), "year")) return d.format("MMM D");
+  return d.format("MMM D, YYYY");
 }
 
 function formatSize(size: string | undefined): string {
@@ -89,9 +88,6 @@ function toQuery(text: string): string {
   if (RAW_QUERY.some((re) => re.test(t))) return t;
   return `name contains '${t.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and trashed=false`;
 }
-
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 type Crumb = { name: string; query: string };
 
@@ -180,118 +176,167 @@ export default function FileBrowser() {
     load(q, orderBy, pageSize);
   }
 
+
   const busy = state === "loading" || state === "more";
 
+  function submitSearch() {
+    setPath([]);
+    load(searchText, orderBy, pageSize);
+  }
+
   return (
-    <div style={{ padding: 16, fontSize: 14, fontFamily: FONT_STACK, color: "rgba(0,0,0,0.88)" }}>
-      <Input.Search
-        value={searchText}
-        placeholder="Search by name, or a Drive query like mimeType='application/vnd.google-apps.spreadsheet'"
-        loading={state === "loading"}
-        onChange={(e) => setSearchText(e.target.value)}
-        onSearch={(value) => {
-          setPath([]);
-          load(value, orderBy, pageSize);
-        }}
-      />
-      {path.length > 0 ? (
-        <Breadcrumb
-          style={{ marginTop: 8 }}
-          items={[
-            {
-              title: (
-                <Typography.Link disabled={busy} onClick={() => goTo(0)}>
-                  Search
-                </Typography.Link>
-              ),
-            },
-            ...path.map((crumb, i) => ({
-              title:
-                i === path.length - 1 ? (
-                  crumb.name
-                ) : (
-                  <Typography.Link disabled={busy} onClick={() => goTo(i + 1)}>
-                    {crumb.name}
-                  </Typography.Link>
-                ),
-            })),
-          ]}
-        />
-      ) : null}
-      {state === "error" ? (
-        <Alert type="error" showIcon message="Couldn't list files" description={error} style={{ marginTop: 12 }} />
-      ) : (
-        <List
-          style={{ marginTop: 8 }}
-          size="small"
-          loading={state === "loading"}
-          dataSource={files}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No files match" /> }}
-          renderItem={(f) => {
-            const type = fileType(f.mimeType);
-            const isFolder = f.mimeType === FOLDER_MIME;
-            const owner = f.owners?.[0]?.displayName ?? f.owners?.[0]?.emailAddress ?? "";
-            const meta = [
-              type.label,
-              owner,
-              f.modifiedTime ? dayjs(f.modifiedTime).format("MMM D, YYYY HH:mm") : "",
-              formatSize(f.size),
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <List.Item
-                actions={[
-                  <Button
-                    key="select"
-                    size="small"
-                    disabled={busy}
-                    onClick={() =>
-                      tangram.emit("open", {
-                        fileId: f.id,
-                        name: f.name,
-                        mimeType: f.mimeType ?? "",
-                        webViewLink: f.webViewLink ?? "",
-                      })
-                    }
-                  >
-                    Select
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={<span style={{ fontSize: 18, color: "#5f6368" }}>{type.icon}</span>}
-                  title={
-                    isFolder ? (
-                      <Typography.Link disabled={busy} onClick={() => openFolder(f)}>
-                        {f.name}
-                      </Typography.Link>
-                    ) : f.webViewLink ? (
-                      <a href={f.webViewLink} target="_blank" rel="noopener noreferrer">
-                        {f.name}
-                      </a>
-                    ) : (
-                      f.name
-                    )
-                  }
-                  description={meta}
-                />
-              </List.Item>
-            );
-          }}
-        />
-      )}
-      {nextToken && state !== "error" ? (
-        <Button
-          size="small"
-          loading={state === "more"}
-          disabled={state === "loading"}
-          onClick={() => {
-            if (!busy) load(active.current.q, active.current.order, active.current.size, nextToken);
+    <div className="g-root">
+      <div className="g-toolbar" style={{ paddingTop: 12 }}>
+        <form
+          className="g-search"
+          style={{ flex: 1, minWidth: 0 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitSearch();
           }}
         >
-          Load more
-        </Button>
+          <button type="submit" className="g-iconbtn" aria-label="Search">
+            {state === "loading" ? <LoadingOutlined aria-hidden="true" /> : <SearchOutlined aria-hidden="true" />}
+          </button>
+          <input
+            aria-label="Search in Drive"
+            value={searchText}
+            placeholder="Search in Drive — name, or a query like mimeType='application/vnd.google-apps.spreadsheet'"
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </form>
+      </div>
+      <nav className="g-crumbs" aria-label="Location">
+        {path.length === 0 ? (
+          <span className="cur">{active.current.q.trim() ? "Search results" : "Drive"}</span>
+        ) : (
+          <>
+            <button type="button" disabled={busy} onClick={() => goTo(0)}>
+              {rootQuery.trim() ? "Search results" : "Drive"}
+            </button>
+            {path.map((crumb, i) => (
+              <React.Fragment key={`${crumb.query}-${i}`}>
+                <span className="sep" aria-hidden="true">
+                  ›
+                </span>
+                {i === path.length - 1 ? (
+                  <span className="cur">{crumb.name}</span>
+                ) : (
+                  <button type="button" disabled={busy} onClick={() => goTo(i + 1)}>
+                    {crumb.name}
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
+          </>
+        )}
+      </nav>
+      {state === "error" ? (
+        <div className="g-error">
+          <b>Couldn't list files</b>
+          {error ? <div>{error}</div> : null}
+        </div>
+      ) : state === "loading" ? (
+        <div style={{ padding: "8px 16px" }}>
+          <Skeleton active title={false} paragraph={{ rows: 5 }} />
+        </div>
+      ) : files.length === 0 ? (
+        <div className="g-empty">No files match</div>
+      ) : (
+        <table className="g-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th className="g-wide" style={{ width: "26%" }}>
+                Owner
+              </th>
+              <th style={{ width: "22%" }}>Last modified</th>
+              <th className="g-wide" style={{ width: 90 }}>
+                File size
+              </th>
+              <th style={{ width: 84 }}>
+                <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {files.map((f) => {
+              const type = fileType(f.mimeType);
+              const isFolder = f.mimeType === FOLDER_MIME;
+              const owner = f.owners?.[0]?.displayName ?? f.owners?.[0]?.emailAddress ?? "";
+              return (
+                <tr key={f.id}>
+                  <td>
+                    <span className="g-name">
+                      {isFolder ? (
+                        <FolderFilled style={{ color: "#5f6368", fontSize: 20, flex: "none" }} aria-label="Folder" />
+                      ) : (
+                        <span className="g-fileicon" style={{ background: type.color }} title={type.label}>
+                          {type.text}
+                        </span>
+                      )}
+                      {isFolder ? (
+                        <button type="button" className="g-linkbtn" disabled={busy} onClick={() => openFolder(f)}>
+                          {f.name}
+                        </button>
+                      ) : f.webViewLink ? (
+                        <a href={f.webViewLink} target="_blank" rel="noopener noreferrer" title={f.name}>
+                          {f.name}
+                        </a>
+                      ) : (
+                        <span title={f.name}>{f.name}</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="g-wide g-muted" title={owner}>
+                    {owner ? (
+                      <>
+                        <span className="g-avatar sm" style={{ background: avatarColor(owner), marginRight: 8 }} aria-hidden="true">
+                          {owner.charAt(0).toUpperCase()}
+                        </span>
+                        {owner}
+                      </>
+                    ) : null}
+                  </td>
+                  <td className="g-muted" title={f.modifiedTime ? dayjs(f.modifiedTime).format("MMM D, YYYY HH:mm") : ""}>
+                    {modifiedLabel(f.modifiedTime)}
+                  </td>
+                  <td className="g-wide g-muted">{isFolder ? "—" : formatSize(f.size) || "—"}</td>
+                  <td className="act">
+                    <Button
+                      size="small"
+                      disabled={busy}
+                      onClick={() =>
+                        tangram.emit("open", {
+                          fileId: f.id,
+                          name: f.name,
+                          mimeType: f.mimeType ?? "",
+                          webViewLink: f.webViewLink ?? "",
+                        })
+                      }
+                    >
+                      Select
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {nextToken && state !== "error" ? (
+        <div className="g-toolbar">
+          <Button
+            size="small"
+            loading={state === "more"}
+            disabled={state === "loading"}
+            onClick={() => {
+              if (!busy) load(active.current.q, active.current.order, active.current.size, nextToken);
+            }}
+          >
+            Load more
+          </Button>
+        </div>
       ) : null}
     </div>
   );

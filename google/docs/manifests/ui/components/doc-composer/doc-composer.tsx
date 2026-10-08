@@ -4,8 +4,11 @@
 // insertText batchUpdate (endOfSegmentLocation appends to the body), which is
 // confirmation-gated by the host. When `documentId` is set the form appends
 // to that document instead of creating a new one.
-import { Alert, Button, Input, Space, Typography } from "antd";
+import { ExportOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/google.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -132,38 +135,27 @@ export default function DocComposer() {
       );
   }
 
-  const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "10px 0 4px" }}>
-      {text}
-    </Typography.Text>
-  );
 
-  const rootStyle = {
-    padding: 16,
-    maxWidth: 720,
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  };
+  const docIcon = (
+    <span className="g-fileicon lg" style={{ background: "#4285f4" }} aria-hidden="true">
+      DOC
+    </span>
+  );
 
   if (status.kind === "saved") {
     const doc = status.doc;
     return (
-      <div style={rootStyle}>
-        <Alert
-          type="success"
-          showIcon
-          message={doc.appended ? "Content appended" : "Document created"}
-          style={{ marginBottom: 12 }}
-        />
-        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
-          {doc.title || "Untitled document"}
-        </Typography.Title>
-        <Space>
-          <Typography.Link href={docUrl(doc.documentId)} target="_blank" rel="noreferrer">
-            Open in Google Docs
-          </Typography.Link>
+      <div className="g-root g-pad">
+        <div className="g-ok">{doc.appended ? "Content appended" : "Document created"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {docIcon}
+          <h2 className="g-h2" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {doc.title || "Untitled document"}
+          </h2>
+        </div>
+        <div className="g-bar" style={{ marginTop: 16 }}>
           <Button
-            size="small"
+            type="text"
             onClick={() => {
               // Continue as an append to the saved document; re-saving the same
               // fields would create (or append) a duplicate.
@@ -174,27 +166,28 @@ export default function DocComposer() {
           >
             Back to form
           </Button>
-        </Space>
+          <span className="sp" />
+          <Button icon={<ExportOutlined aria-hidden="true" />} href={docUrl(doc.documentId)} target="_blank" rel="noreferrer">
+            Open in Google Docs
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (status.kind === "created-write-failed") {
     return (
-      <div style={rootStyle}>
-        <Alert
-          type="warning"
-          showIcon
-          message="Document created, but writing the content failed"
-          description={status.message}
-          style={{ marginBottom: 12 }}
-        />
-        <Space>
-          <Typography.Link href={docUrl(status.documentId)} target="_blank" rel="noreferrer">
+      <div className="g-root g-pad">
+        <div className="g-warn">
+          <b>Document created, but writing the content failed</b>
+          <div>{status.message}</div>
+        </div>
+        <div className="g-bar">
+          <Button icon={<ExportOutlined aria-hidden="true" />} href={docUrl(status.documentId)} target="_blank" rel="noreferrer">
             Open the empty document
-          </Typography.Link>
+          </Button>
+          <span className="sp" />
           <Button
-            size="small"
             onClick={() => {
               // Retry as an append against the document that already exists.
               freshDocRef.current = status.documentId;
@@ -204,42 +197,45 @@ export default function DocComposer() {
           >
             Retry write
           </Button>
-        </Space>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={rootStyle}>
-      {appending ? (
-        <Alert
-          type="info"
-          showIcon
-          message={`Appending to document ${documentId}`}
-          style={{ marginBottom: 4 }}
-        />
-      ) : (
-        <>
-          {label("Title")}
-          <Input value={title} disabled={disabled} onChange={(e) => setTitle(e.target.value)} />
-        </>
-      )}
-      {label("Content")}
-      <Input.TextArea
-        value={content}
-        disabled={disabled}
-        autoSize={{ minRows: 10, maxRows: 30 }}
-        placeholder="Plain text — it is inserted as-is."
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <Space style={{ marginTop: 14 }}>
+    <div className="g-root">
+      <div className="g-appbar">
+        {docIcon}
+        {appending ? (
+          <span className="t g-muted" title={documentId}>
+            Appending to document {documentId}
+          </span>
+        ) : (
+          <input
+            className="t"
+            aria-label="Title"
+            placeholder="Untitled document"
+            value={title}
+            disabled={disabled}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        )}
         <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
           {appending ? "Append" : "Create document"}
         </Button>
-      </Space>
-      {status.kind === "error" ? (
-        <Alert type="error" showIcon message={status.message} style={{ marginTop: 12 }} />
-      ) : null}
+      </div>
+      {status.kind === "error" ? <div className="g-error">{status.message}</div> : null}
+      <div className="g-canvas">
+        <div className="g-doc page">
+          <textarea
+            aria-label="Content"
+            value={content}
+            disabled={disabled}
+            placeholder="Plain text — it is inserted as-is."
+            onChange={(e) => setContent(e.target.value)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
