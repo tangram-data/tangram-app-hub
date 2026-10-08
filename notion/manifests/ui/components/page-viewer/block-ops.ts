@@ -5,7 +5,7 @@ import { MutableRefObject } from "react";
 import { continueType } from "./block-row";
 import { editableIn, focusEnd, focusStart, NewBlock } from "./editable";
 import { Block, echoRich, errText, newBlockOf, payload, plainText, spansOf } from "./notion-blocks";
-import { WriteQueue, writeKey } from "./write-queue";
+import { WriteQueue, writeKey, Writer } from "./write-queue";
 
 export type Guard = { target: string; stale: () => boolean };
 
@@ -34,28 +34,31 @@ export function blockOps(ctx: OpsCtx) {
   const setNewBlock = (v: NewBlock | null | ((cur: NewBlock | null) => NewBlock | null)) =>
     ctx.setNewBlock(typeof v === "function" ? v : () => v);
 
-  // Block.Update for one block's text, as a write-queue sender: the newest
-  // response patches rich_text only when no newer edit is still queued.
-  function textSender(block: Block, g: Guard, q: WriteQueue) {
-    return async (v: string) => {
-      const updated: Block = await tracked(() =>
-        act("Block", "Update", {
-          parameters: { block_id: block.id },
-          requestBody: { [block.type]: { rich_text: spansOf(v) } },
+  // Block.Update for one block's text as a queue writer: a completed value
+  // patches rich_text only when no different edit is still queued.
+  function textWriter(block: Block, g: Guard, q: WriteQueue, onError?: (e: unknown) => void): Writer {
+    return {
+      send: (v) =>
+        tracked(() =>
+          act("Block", "Update", {
+            parameters: { block_id: block.id },
+            requestBody: { [block.type]: { rich_text: spansOf(v) } },
+          }),
+        ),
+      onDone: (v, result) => {
+        const queued = q.pending(writeKey(g.target, block.id));
+        if (g.stale() || (queued !== undefined && queued !== v)) return;
+        // Patch only rich_text so a concurrent to-do toggle can't be undone.
+        const updated = result as Block | undefined;
+        const rich = updated?.type === block.type ? payload(updated).rich_text : undefined;
+        patchBlock(block.id, (b) => ({ ...b, [b.type]: { ...payload(b), rich_text: rich ?? echoRich(v) } }));
+      },
+      onError:
+        onError ??
+        ((e) => {
+          // The typed text stays in the line; the next blur retries.
+          if (!g.stale()) setBlockError(`Couldn't save a block: ${errText(e)} — your text is kept; click in and out of it to retry.`);
         }),
-      );
-      const queued = q.pending(writeKey(g.target, block.id));
-      if (g.stale() || (queued !== undefined && queued !== v)) return;
-      // Patch only rich_text so a concurrent to-do toggle can't be undone.
-      const rich = updated?.type === block.type ? payload(updated).rich_text : undefined;
-      patchBlock(block.id, (b) => ({ ...b, [b.type]: { ...payload(b), rich_text: rich ?? echoRich(v) } }));
-    };
-  }
-
-  function textError(g: Guard) {
-    return (e: unknown) => {
-      // The typed text stays in the line; the next blur retries.
-      if (!g.stale()) setBlockError(`Couldn't save a block: ${errText(e)} — your text is kept; click in and out of it to retry.`);
     };
   }
 
@@ -63,7 +66,7 @@ export function blockOps(ctx: OpsCtx) {
   function saveText(block: Block, text: string) {
     const g = guard();
     const q = writes.current;
-    q.submit(writeKey(g.target, block.id), text, plainText(block), textSender(block, g, q), textError(g));
+    q.submit(writeKey(g.target, block.id), text, plainText(block), textWriter(block, g, q));
   }
 
   async function toggleTodo(block: Block) {
@@ -157,15 +160,14 @@ export function blockOps(ctx: OpsCtx) {
     if (draftBlocked()) return false;
     const g = guard();
     const q = writes.current;
-    const send = textSender(block, g, q);
-    const onErr = (e: unknown) => {
+    const headWriter = textWriter(block, g, q, (e) => {
       if (!g.stale()) setBlockError(`Split saved the new block, but shortening the original failed: ${errText(e)} — click in and out of it to retry.`);
-    };
+    });
     const key = writeKey(g.target, block.id);
     const token = ++splitToken;
     // Queue the shortened head now (held until the tail lands); later edits
     // to the head are simply newer queued values on the same key.
-    q.hold(key, plainText(block), before, send, onErr, token);
+    q.hold(key, plainText(block), before, headWriter, token);
     const type = continueType(block.type);
     const nb: NewBlock = { key: ++nbKey.current, after: block.id, type, initial: after, busy: true };
     draftText.current = after;
@@ -192,7 +194,7 @@ export function blockOps(ctx: OpsCtx) {
         if (head) {
           const restored = (head.textContent ?? "") + after;
           head.textContent = restored;
-          q.submit(key, restored, plainText(block), send, textError(g));
+          q.submit(key, restored, plainText(block), textWriter(block, g, q));
         } else {
           q.dropIf(key, token);
         }
@@ -215,5 +217,5 @@ export function blockOps(ctx: OpsCtx) {
     return true;
   }
 
-  return { saveText, toggleTodo, openDraft, createBlock, splitBlock, textSender };
+  return { saveText, toggleTodo, openDraft, createBlock, splitBlock };
 }

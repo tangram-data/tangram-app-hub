@@ -4,9 +4,14 @@
 // visit (A→B→A) reports to that visit. Keys are `${pageId}:${blockId|"title"}`;
 // one shared instance (below) outlives navigation, so A's in-flight writes
 // stay ordered before new edits.
-export type Send = (v: string) => Promise<void>;
-export type OnError = (e: unknown) => void;
-type Entry = { value: string; send: Send; onError: OnError; token?: number };
+// `send` persists; `onDone` applies the result to the caller's state — also
+// when the value is deduped as already confirmed (result then undefined).
+export type Writer = {
+  send: (v: string) => Promise<unknown>;
+  onDone: (v: string, result: unknown) => void;
+  onError: (e: unknown) => void;
+};
+type Entry = { value: string; w: Writer; token?: number };
 type Slot = {
   inflight: boolean;
   holds: number;
@@ -31,25 +36,26 @@ export class WriteQueue {
     return s;
   }
 
-  // Queue `value`. Identical to what's queued: refresh its callbacks, keep it.
+  // Queue `value`. Identical to what's queued: keep the value, take the new
+  // callbacks, and drop any split token (the entry is no longer the split's).
   // Nothing queued and equal to the last sent value: nothing to do.
-  submit(key: string, value: string, server: string, send: Send, onError: OnError) {
+  submit(key: string, value: string, server: string, w: Writer) {
     const s = this.slot(key, server);
     if (s.desired && s.desired.value === value) {
-      s.desired = { ...s.desired, send, onError };
+      s.desired = { value, w };
       return;
     }
     if (!s.desired && value === s.latest) return;
-    s.desired = { value, send, onError };
+    s.desired = { value, w };
     void this.pump(s);
   }
 
   // Holds a key and queues `value` (always — pump dedupes against last sent);
   // nothing is sent until every hold is released. `token` tags the entry.
-  hold(key: string, server: string, value: string, send: Send, onError: OnError, token: number) {
+  hold(key: string, server: string, value: string, w: Writer, token: number) {
     const s = this.slot(key, server);
     s.holds++;
-    s.desired = { value, send, onError, token };
+    s.desired = { value, w, token };
   }
 
   release(key: string) {
@@ -77,18 +83,25 @@ export class WriteQueue {
     while (s.desired && !s.holds) {
       const e = s.desired;
       s.desired = undefined;
-      if (e.value === s.latest && e.value === s.confirmed) continue;
+      if (e.value === s.latest && e.value === s.confirmed) {
+        // Already persisted (e.g. by an older visit's write): still complete.
+        e.w.onDone(e.value, undefined);
+        continue;
+      }
       s.inflight = true;
       s.latest = e.value;
+      let result: unknown;
       try {
-        await e.send(e.value);
+        result = await e.w.send(e.value);
         s.confirmed = e.value;
       } catch (err) {
         s.latest = s.confirmed;
-        e.onError(err);
-      } finally {
         s.inflight = false;
+        e.w.onError(err);
+        continue;
       }
+      s.inflight = false;
+      e.w.onDone(e.value, result);
     }
   }
 }

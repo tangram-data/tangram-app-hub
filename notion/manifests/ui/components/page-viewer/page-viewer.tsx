@@ -285,23 +285,26 @@ export default function PageViewer() {
       key,
       text,
       pageTitle(page),
-      async (v) => {
-        await tracked(() =>
-          act("Page", "Update", {
-            parameters: { page_id: g.target },
-            requestBody: { properties: { [tp.key]: { title: spansOf(v) } } },
-          }),
-        );
-        const queued = q.pending(key);
-        if (g.stale() || (queued !== undefined && queued !== v)) return;
-        setState((s) => {
-          if (s.kind !== "ready") return s;
-          const props = s.page.properties ?? {};
-          return { ...s, page: { ...s.page, properties: { ...props, [tp.key]: { ...props[tp.key], title: echoRich(v) } } } };
-        });
-      },
-      (e) => {
-        if (!g.stale()) setBlockError(`Couldn't rename the page: ${errText(e)}`);
+      {
+        send: (v) =>
+          tracked(() =>
+            act("Page", "Update", {
+              parameters: { page_id: g.target },
+              requestBody: { properties: { [tp.key]: { title: spansOf(v) } } },
+            }),
+          ),
+        onDone: (v) => {
+          const queued = q.pending(key);
+          if (g.stale() || (queued !== undefined && queued !== v)) return;
+          setState((s) => {
+            if (s.kind !== "ready") return s;
+            const props = s.page.properties ?? {};
+            return { ...s, page: { ...s.page, properties: { ...props, [tp.key]: { ...props[tp.key], title: echoRich(v) } } } };
+          });
+        },
+        onError: (e) => {
+          if (!g.stale()) setBlockError(`Couldn't rename the page: ${errText(e)}`);
+        },
       },
     );
   }
