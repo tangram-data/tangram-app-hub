@@ -11,6 +11,8 @@ type Slot = {
   confirmed: string;
 };
 
+// Keys are `${pageId}:${blockId|"title"}`; one shared instance (below) outlives
+// navigation, so A→B→A keeps A's in-flight writes ordered before new edits.
 export class WriteQueue {
   private slots = new Map<string, Slot>();
 
@@ -35,17 +37,19 @@ export class WriteQueue {
     onError: (e: unknown) => void,
   ) {
     const s = this.slot(key, server);
-    if (value === (s.desired ?? s.latest)) {
-      s.desired = undefined;
-      return;
-    }
+    // Same as what's already queued (or, with nothing queued, already sent):
+    // nothing to do — and never clear a queued edit or pending revert.
+    if (s.desired !== undefined ? value === s.desired : value === s.latest) return;
     s.desired = value;
     void this.pump(s, send, onError);
   }
 
   // Holds a key: submissions queue but nothing is sent until release().
-  hold(key: string, server: string) {
-    this.slot(key, server).held = true;
+  // `value`, if given, is queued as the held key's desired value.
+  hold(key: string, server: string, value?: string) {
+    const s = this.slot(key, server);
+    s.held = true;
+    if (value !== undefined && value !== s.latest) s.desired = value;
   }
 
   release(key: string, send: (v: string) => Promise<void>, onError: (e: unknown) => void) {
@@ -85,3 +89,6 @@ export class WriteQueue {
     }
   }
 }
+
+export const sharedWrites = new WriteQueue();
+export const writeKey = (pageId: string, id: string) => `${pageId}:${id}`;

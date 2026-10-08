@@ -18,7 +18,7 @@ import { BlockRow, RowApi } from "./block-row";
 import { DraftBlock, Editable, editableIn, focusEnd, NewBlock } from "./editable";
 import { blockOps } from "./block-ops";
 import { PendingDraft } from "./pending-draft";
-import { WriteQueue } from "./write-queue";
+import { sharedWrites, writeKey } from "./write-queue";
 import {
   AppendFailure,
   appendBlocks,
@@ -73,7 +73,7 @@ export default function PageViewer() {
   // under an older generation must not clear or replace the editor (covers A→B→A).
   const editorGenRef = useRef(0);
   // Serialized text writes per block id and for the title.
-  const writes = useRef(new WriteQueue());
+  const writes = useRef(sharedWrites);
   // Live text of the unsaved new block (decides whether it may be replaced).
   const draftText = useRef("");
   const todoInflight = useRef(new Set<string>());
@@ -121,8 +121,6 @@ export default function PageViewer() {
         setPendingOpen(false);
         setNewBlock(null);
         draftText.current = "";
-        // Old queues keep flushing their writes; their patches are page-guarded.
-        writes.current = new WriteQueue();
         setDeletingId("");
         setSaveError("");
         setBlockError("");
@@ -282,8 +280,9 @@ export default function PageViewer() {
     if (!page || !tp || !isPlainRich(tp.rich)) return;
     const g = guard();
     const q = writes.current;
+    const key = writeKey(g.target, "title");
     q.submit(
-      "title",
+      key,
       text,
       pageTitle(page),
       async (v) => {
@@ -293,7 +292,7 @@ export default function PageViewer() {
             requestBody: { properties: { [tp.key]: { title: spansOf(v) } } },
           }),
         );
-        if (g.stale() || q.pending("title") !== undefined) return;
+        if (g.stale() || q.pending(key) !== undefined) return;
         setState((s) => {
           if (s.kind !== "ready") return s;
           const props = s.page.properties ?? {};

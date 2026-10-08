@@ -5,7 +5,7 @@ import { MutableRefObject } from "react";
 import { continueType } from "./block-row";
 import { editableIn, focusEnd, focusStart, NewBlock } from "./editable";
 import { Block, echoRich, errText, newBlockOf, payload, plainText, spansOf } from "./notion-blocks";
-import { WriteQueue } from "./write-queue";
+import { WriteQueue, writeKey } from "./write-queue";
 
 export type Guard = { target: string; stale: () => boolean };
 
@@ -41,7 +41,7 @@ export function blockOps(ctx: OpsCtx) {
           requestBody: { [block.type]: { rich_text: spansOf(v) } },
         }),
       );
-      if (g.stale() || q.pending(block.id) !== undefined) return;
+      if (g.stale() || q.pending(writeKey(g.target, block.id)) !== undefined) return;
       // Patch only rich_text so a concurrent to-do toggle can't be undone.
       const rich = updated?.type === block.type ? payload(updated).rich_text : undefined;
       patchBlock(block.id, (b) => ({ ...b, [b.type]: { ...payload(b), rich_text: rich ?? echoRich(v) } }));
@@ -59,7 +59,7 @@ export function blockOps(ctx: OpsCtx) {
   function saveText(block: Block, text: string) {
     const g = guard();
     const q = writes.current;
-    q.submit(block.id, text, plainText(block), textSender(block, g, q), textError(g));
+    q.submit(writeKey(g.target, block.id), text, plainText(block), textSender(block, g, q), textError(g));
   }
 
   async function toggleTodo(block: Block) {
@@ -157,7 +157,10 @@ export function blockOps(ctx: OpsCtx) {
     const onErr = (e: unknown) => {
       if (!g.stale()) setBlockError(`Split saved the new block, but shortening the original failed: ${errText(e)} — click in and out of it to retry.`);
     };
-    q.hold(block.id, plainText(block));
+    const key = writeKey(g.target, block.id);
+    // Queue the shortened head now (held until the tail lands); later edits
+    // to the head are simply newer desired values on the same key.
+    q.hold(key, plainText(block), before);
     const type = continueType(block.type);
     const nb: NewBlock = { key: ++nbKey.current, after: block.id, type, initial: after, busy: true };
     draftText.current = after;
@@ -172,22 +175,22 @@ export function blockOps(ctx: OpsCtx) {
           }),
         );
       } catch (e) {
-        // Tail not written: drop the head's queued shrink and put the tail back.
-        q.drop(block.id);
-        q.release(block.id, send, textError(g));
+        // Tail not written: put it back on the head line and queue that
+        // (identical to the server text when nothing else changed → no write).
+        const head = g.stale() ? null : editableIn(`#blk-${CSS.escape(block.id)}`);
+        const restored = head ? (head.textContent ?? "") + after : undefined;
+        if (head) head.textContent = restored ?? "";
+        q.drop(key);
+        q.release(key, send, textError(g));
+        if (restored !== undefined) q.submit(key, restored, plainText(block), send, textError(g));
         if (g.stale()) return;
-        const head = editableIn(`#blk-${CSS.escape(block.id)}`);
-        if (head) head.textContent = (head.textContent ?? "") + after;
         draftText.current = "";
         setNewBlock((cur) => (cur?.key === nb.key ? null : cur));
         setBlockError(`Couldn't split the block: ${errText(e)}`);
         return;
       }
-      // Tail landed: shrink the head to its queued edit, else its live text.
-      const headText = q.pending(block.id) ?? editableIn(`#blk-${CSS.escape(block.id)}`)?.textContent ?? before;
-      q.drop(block.id);
-      q.release(block.id, send, onErr);
-      q.submit(block.id, headText, plainText(block), send, onErr);
+      // Tail landed: send the head's latest queued value.
+      q.release(key, send, onErr);
       if (g.stale()) return;
       const created = singleCreated(res, type);
       if (created) insertLocal(block.id, created);
