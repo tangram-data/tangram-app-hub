@@ -13,7 +13,7 @@ connections that is the set of pages the user picks on the consent screen (and a
 | `notion_search_workspace` | `Workspace.Search` | Title search across accessible pages and databases; the discovery entry point. Notion's search index can lag recent edits and is not guaranteed exhaustive. |
 | `notion_get_page` | `Page.Get` | Page properties (title, database fields, url) — content blocks come from `notion_list_block`. |
 | `notion_create_page` | `Page.Create` | Under a parent page (title only), as a database item (schema properties), or — parent omitted — as a private workspace-level page; optional initial `children` blocks. |
-| `notion_update_page` | `Page.Update` | Patch properties, or `archived=true/false` to trash/restore. |
+| `notion_update_page` | `Page.Update` | Patch properties or icon. Trashing goes through the confirmation-gated `Block.Delete`. |
 | `notion_list_block` | `Block.List` | A block's children; pass a page id to read page content. Nested blocks need further calls. |
 | `notion_append_block` | `Block.Append` | Append content blocks to a page or block (max 100 per call); `after` inserts mid-page. |
 | `notion_update_block` | `Block.Update` | Replace fields of a block in place (e.g. `paragraph.rich_text`, `to_do.checked`); rich_text is replaced wholesale and the block's type cannot change. |

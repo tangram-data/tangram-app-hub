@@ -11,7 +11,7 @@ Drive, Calendar v3 has no dedicated service host and is served under `/calendar/
 | `calendar_list_event` | `Event.List` | Free-text `q` search plus `timeMin`/`timeMax` window; `singleEvents=true&orderBy=startTime` for agenda order. |
 | `calendar_get_event` | `Event.Get` | Full event: times, attendees, description, links. |
 | `calendar_create_event` | `Event.Create` | **Confirmation-gated** (`sendUpdates=all` emails invitations; default `none`). `start`/`end` take `{date}` (all-day, end exclusive) or `{dateTime, timeZone}`. |
-| `calendar_update_event` | `Event.Update` | PATCH semantics — only fields present in the body change. |
+| `calendar_update_event` | `Event.Update` | **Confirmation-gated.** PATCH semantics — only fields present in the body change; `attendees` replaces the whole list. |
 | `calendar_delete_event` | `Event.Delete` | **Confirmation-gated** (irreversible; `sendUpdates=all` sends cancellations). |
 | `calendar_query_freebusy` | `FreeBusy.Query` | Busy intervals over a window for one or more calendars — find open slots before scheduling. |
 

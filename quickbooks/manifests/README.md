@@ -15,7 +15,7 @@ for Intuit sandbox companies.
 | `quickbooks_update_purchase` | `Purchase.Update` | **Confirmation-gated.** Sparse update by `Id` + `SyncToken` (`sparse: true`) — e.g. set `PrivateNote` after a receipt match. |
 | `quickbooks_upload_attachable` | `Attachable.Upload` | Upload the receipt file itself (multipart, streamed from the workspace files by volume reference) and attach it to transactions. |
 | `quickbooks_create_attachable` | `Attachable.Create` | Attach a note-only attachable to transactions via `AttachableRef`. |
-| `quickbooks_update_attachable` | `Attachable.Update` | Full update by `Id` + `SyncToken` — fix a note or re-point it after a mis-match. |
+| `quickbooks_update_attachable` | `Attachable.Update` | **Confirmation-gated.** Full update by `Id` + `SyncToken` — fix a note or re-point it after a mis-match. |
 | `quickbooks_delete_attachable` | `Attachable.Delete` | **Confirmation-gated.** Permanent — QuickBooks has no undo for deleted attachables. |
 | `quickbooks_create_vendor` | `Vendor.Create` | Create a merchant/payee; query first to avoid `DisplayName` duplicates. |
 

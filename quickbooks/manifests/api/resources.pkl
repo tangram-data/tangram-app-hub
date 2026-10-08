@@ -114,7 +114,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Update"
           effect = "Reversible"
           idempotent = false
-          requiresConfirmation = false
+          requiresConfirmation = true
           doc = "Full-update an attachable note by Id + current SyncToken (e.g. fix or re-point a receipt note after a mis-match). QuickBooks full update clears omitted writable fields — query the attachable first and re-supply the complete Note and AttachableRef list you want to keep; omitting AttachableRef detaches the note from all transactions."
           openApiMapping = new resources.OpenApiMapping { operationId = "updateAttachable" }
         },

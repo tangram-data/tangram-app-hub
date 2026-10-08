@@ -65,7 +65,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = false
-          doc = "Patch a page's properties (only the listed properties change) or set archived=true/false to trash/restore it."
+          doc = "Patch a page's properties (only the listed properties change) or its icon. To trash a page use Block.Delete with the page id."
           openApiMapping = new resources.OpenApiMapping { operationId = "updatePage" }
         }
       )

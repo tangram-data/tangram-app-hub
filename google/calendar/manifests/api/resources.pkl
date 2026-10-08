@@ -63,8 +63,8 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Update"
           effect = "Reversible"
           idempotent = false
-          requiresConfirmation = false
-          doc = "Patch fields of an existing event (only the fields in the body change); sendUpdates=all notifies attendees (default none)."
+          requiresConfirmation = true
+          doc = "Patch fields of an existing event (only the fields in the body change); attendees replaces the whole list, so Get first and send the merged list. sendUpdates=all notifies attendees (default none). Confirmation-gated: it can invite people and reschedule shared meetings."
           openApiMapping = new resources.OpenApiMapping { operationId = "updateEvent" }
         },
         new resources.Action {

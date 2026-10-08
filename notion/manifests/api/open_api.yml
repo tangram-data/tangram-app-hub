@@ -95,15 +95,13 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
                 properties:
                   type: object
                   description: >
                     Property values to change, keyed by property name. Same
                     shape as on create; only the listed properties change.
-                archived:
-                  type: boolean
-                  description: true moves the page to trash; false restores it.
                 icon:
                   $ref: "#/components/schemas/IconInput"
       responses:
@@ -253,11 +251,12 @@ paths:
                 changed), holding the fields to replace — e.g.
                 {"paragraph": {"rich_text": [...]}} or
                 {"to_do": {"checked": true}}. rich_text is replaced
-                wholesale, not merged. archived=true/false trashes/restores
-                the block.
+                wholesale, not merged. To trash a block use deleteBlock.
               properties:
-                archived:
-                  type: boolean
+                paragraph:
+                  type: object
+              additionalProperties:
+                type: object
       responses:
         "200":
           description: The updated block.
@@ -277,7 +276,7 @@ paths:
             type: string
       responses:
         "200":
-          description: The block, now archived (restorable from Notion's trash or via updatePage archived=false for pages).
+          description: The block, now archived (restorable from Notion's trash in the Notion UI).
         "404":
           description: Block not found.
 
@@ -546,6 +545,8 @@ components:
       properties:
         type:
           type: string
+      additionalProperties:
+        type: object
     Page:
       type: object
       properties:
