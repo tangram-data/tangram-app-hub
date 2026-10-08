@@ -103,8 +103,30 @@ async function dedupStillCompletes() {
   assert.deepEqual(old.done, ["X"]);
   assert.deepEqual(cur.done, ["X"]);                 // but the new visit is completed
 }
+// Round 5: identical resubmission while that value is IN FLIGHT completes the
+// current visit on success and retries with its callbacks on failure.
+async function identicalWhileInflight() {
+  const q = new WriteQueue(); const log: string[] = [];
+  const old = fake(log, "old:"); const cur = fake(log, "new:");
+  q.submit("A:b", "X", "O", old.w());                // old visit's X in flight
+  q.submit("A:b", "X", "O", cur.w());                // new visit blurs with X
+  assert.equal(q.pending("A:b"), "X");
+  old.waits[0].ok(); await tick();
+  assert.deepEqual(log, ["old:X"]);                  // not resent
+  assert.deepEqual(cur.done, ["X"]);                 // current visit completed
+  const q2 = new WriteQueue(); const log2: string[] = [];
+  const old2 = fake(log2, "old:"); const cur2 = fake(log2, "new:");
+  q2.submit("A:b", "X", "O", old2.w());
+  q2.submit("A:b", "X", "O", cur2.w());
+  old2.waits[0].fail(); await tick();
+  assert.deepEqual(old2.errs, ["old:"]);
+  assert.deepEqual(log2, ["old:X", "new:X"]);        // retried with current callbacks
+  cur2.waits[0].ok(); await tick();
+  assert.deepEqual(cur2.done, ["X"]);
+}
+
 (async () => {
-  for (const t of [identicalBlur, revertWhilePending, holdRelease, splitFailureNewerEdit, abaCallbacks, identicalClearsToken, dedupStillCompletes]) {
+  for (const t of [identicalBlur, revertWhilePending, holdRelease, splitFailureNewerEdit, abaCallbacks, identicalClearsToken, dedupStillCompletes, identicalWhileInflight]) {
     await t(); console.log("ok", t.name);
   }
 })().catch((e) => { console.error(e); process.exit(1); });

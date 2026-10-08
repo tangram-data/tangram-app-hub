@@ -38,14 +38,16 @@ export class WriteQueue {
 
   // Queue `value`. Identical to what's queued: keep the value, take the new
   // callbacks, and drop any split token (the entry is no longer the split's).
-  // Nothing queued and equal to the last sent value: nothing to do.
+  // Nothing queued and equal to the last sent value: nothing to do — unless
+  // that write is still in flight, then queue it so this caller completes
+  // (deduped on success) or retries (on failure).
   submit(key: string, value: string, server: string, w: Writer) {
     const s = this.slot(key, server);
     if (s.desired && s.desired.value === value) {
       s.desired = { value, w };
       return;
     }
-    if (!s.desired && value === s.latest) return;
+    if (!s.desired && value === s.latest && !s.inflight) return;
     s.desired = { value, w };
     void this.pump(s);
   }
