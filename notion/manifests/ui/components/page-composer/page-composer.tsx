@@ -1,7 +1,7 @@
 // Notion-editor-style composer over the connector's Page.Create /
-// Block.Append actions. Styled like Notion's page editor: a large borderless
-// title ("New page" placeholder) over a seamless content area, with the
-// parent-page picker tucked into the sticky header. Content is plain text
+// Block.Append actions. Looks like a fresh Notion page (shared Notion kit): a
+// big "Untitled" title over a seamless body, the parent-page picker as the
+// breadcrumb line, and a docked Tangram primary button to commit. Content is plain text
 // where markdown-style prefixes become real Notion blocks — #/##/### headings,
 // -/* bullets, "1." numbered items, []/[x] to-dos, > quotes, --- dividers,
 // ``` fenced code — and every other line a paragraph (long lines split at
@@ -11,8 +11,10 @@
 // set) — goes through Block.Append in batches of 100. Without a parentPageId,
 // create makes a private workspace-level page (supported for public OAuth
 // connections, which is what this connector uses).
-import { Alert, Button, Space, Typography } from "antd";
+import { Button } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import "../../shared/notion.css";
+import "../../shared/tangram-buttons.css";
 
 const tangram = (window as any).tangram;
 
@@ -165,27 +167,6 @@ type Status =
   | { kind: "created-append-failed"; pageId: string; url: string; message: string; remaining: string }
   | { kind: "error"; message: string };
 
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-
-const EDITOR_CSS = `
-.ncomposer-title, .ncomposer-body, .ncomposer-parent {
-  border: none; outline: none; background: transparent; width: 100%;
-  resize: none; padding: 0; font-family: inherit; color: #37352f;
-  display: block; overflow: hidden;
-}
-.ncomposer-title::placeholder { color: #e3e2e0; }
-.ncomposer-body::placeholder, .ncomposer-parent::placeholder { color: #c3c1bd; }
-`;
-
-const pageStyle: React.CSSProperties = {
-  background: "#fff",
-  minHeight: "100vh",
-  fontFamily: FONT_STACK,
-  color: "#37352f",
-};
-const columnStyle: React.CSSProperties = { maxWidth: 708, margin: "0 auto", padding: "0 28px 48px" };
-
 function autosize(el: HTMLTextAreaElement | null) {
   if (!el) return;
   el.style.height = "auto";
@@ -336,33 +317,27 @@ export default function PageComposer() {
       .catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));
   }
 
+  const openLink = (url: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (url) openExternal(url);
+  };
+
   if (status.kind === "saved") {
     const page = status.page;
     return (
-      <div style={pageStyle}>
-        <div style={{ ...columnStyle, paddingTop: 48 }}>
-          <Alert
-            type="success"
-            showIcon
-            message={page.appended ? "Content appended" : "Page created"}
-            style={{ marginBottom: 12 }}
-          />
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 8 }}>
-            {page.title || "Untitled page"}
-          </Typography.Title>
-          <Space>
-            <Typography.Link
-              href={page.url}
-              rel="noreferrer"
-              onClick={(e) => {
-                e.preventDefault();
-                if (page.url) openExternal(page.url);
-              }}
-            >
+      <div className="n-root">
+        <div className="n-page">
+          <div className="n-callout" style={{ marginBottom: 20 }}>
+            <span>✅</span>
+            <span>{page.appended ? "Content appended" : "Page created"}</span>
+          </div>
+          <h1 className="n-title">{page.title || "Untitled"}</h1>
+          <div className="n-bar">
+            <Button href={page.url} onClick={openLink(page.url)}>
               Open in Notion
-            </Typography.Link>
+            </Button>
             <Button
-              size="small"
+              type="text"
               onClick={() => {
                 // Continue as an append to the saved page; re-saving the same
                 // fields would create (or append) a duplicate.
@@ -373,7 +348,7 @@ export default function PageComposer() {
             >
               Back to editor
             </Button>
-          </Space>
+          </div>
         </div>
       </div>
     );
@@ -381,28 +356,18 @@ export default function PageComposer() {
 
   if (status.kind === "created-append-failed") {
     return (
-      <div style={pageStyle}>
-        <div style={{ ...columnStyle, paddingTop: 48 }}>
-          <Alert
-            type="warning"
-            showIcon
-            message="Page created, but appending part of the content failed"
-            description={status.message}
-            style={{ marginBottom: 12 }}
-          />
-          <Space>
-            <Typography.Link
-              href={status.url}
-              rel="noreferrer"
-              onClick={(e) => {
-                e.preventDefault();
-                if (status.url) openExternal(status.url);
-              }}
-            >
+      <div className="n-root">
+        <div className="n-page">
+          <div className="n-error" style={{ display: "block" }}>
+            <strong>Page created, but appending part of the content failed.</strong>
+            <div>{status.message}</div>
+          </div>
+          <div className="n-bar">
+            <Button href={status.url} onClick={openLink(status.url)}>
               Open the partial page
-            </Typography.Link>
+            </Button>
             <Button
-              size="small"
+              type="primary"
               onClick={() => {
                 // Retry as an append of only the not-yet-written lines.
                 saveSeq.current++;
@@ -413,7 +378,7 @@ export default function PageComposer() {
             >
               Retry as append
             </Button>
-          </Space>
+          </div>
         </div>
       </div>
     );
@@ -421,68 +386,42 @@ export default function PageComposer() {
 
   return (
     <div
-      style={pageStyle}
+      className="n-root"
       onKeyDown={(e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !disabled) save();
       }}
     >
-      <style>{EDITOR_CSS}</style>
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #f1f0ee" }}>
-        <div
-          style={{
-            ...columnStyle,
-            padding: "10px 28px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            {appending ? (
-              <Typography.Text type="secondary" style={{ fontSize: 13 }} ellipsis>
-                Appending to page {pageId}
-              </Typography.Text>
-            ) : parentOpen || parentPageId ? (
-              <input
-                className="ncomposer-parent"
-                value={parentPageId}
-                disabled={disabled}
-                autoFocus={parentOpen}
-                placeholder="Parent page id — leave empty for a private page"
-                onChange={(e) => setParentPageId(e.target.value)}
-                onBlur={() => {
-                  if (!parentPageId.trim()) setParentOpen(false);
-                }}
-                style={{ fontSize: 13, color: "#787774" }}
-              />
-            ) : (
-              <span
-                role="button"
-                onClick={() => setParentOpen(true)}
-                style={{ cursor: "pointer", fontSize: 13, color: "#9b9a97" }}
-              >
-                Add to a parent page…
-              </span>
-            )}
-          </div>
-          <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
-            {appending ? "Append" : "Create page"}
-          </Button>
+      <div className="n-page">
+        <div className="n-crumbline">
+          {appending ? (
+            <span>Appending to page {pageId}</span>
+          ) : parentOpen || parentPageId ? (
+            <input
+              className="n-plain"
+              value={parentPageId}
+              disabled={disabled}
+              autoFocus={parentOpen}
+              placeholder="Parent page id — leave empty for a private page"
+              onChange={(e) => setParentPageId(e.target.value)}
+              onBlur={() => {
+                if (!parentPageId.trim()) setParentOpen(false);
+              }}
+            />
+          ) : (
+            <span role="button" onClick={() => setParentOpen(true)}>
+              📄 Private page · Add to a parent page…
+            </span>
+          )}
         </div>
-      </div>
-      <div style={columnStyle}>
-        {status.kind === "error" ? (
-          <Alert type="error" showIcon message={status.message} style={{ marginTop: 16 }} />
-        ) : null}
+        {status.kind === "error" ? <div className="n-error">{status.message}</div> : null}
         {!appending ? (
           <textarea
-            className="ncomposer-title"
+            className="n-plain n-title"
             ref={titleRef}
             rows={1}
             value={title}
             disabled={disabled}
-            placeholder="New page"
+            placeholder="Untitled"
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               // Enter moves into the body, like Notion's title line.
@@ -491,24 +430,25 @@ export default function PageComposer() {
                 bodyRef.current?.focus();
               }
             }}
-            style={{ marginTop: 48, fontSize: 34, fontWeight: 700, lineHeight: 1.2 }}
           />
         ) : null}
         <textarea
-          className="ncomposer-body"
+          className="n-plain n-body"
           ref={bodyRef}
           rows={1}
           value={content}
           disabled={disabled}
           placeholder={
-            "Write something…  # heading · - bullet · 1. numbered · [] to-do · > quote · --- divider · ``` code"
+            "Write something…  Start a line with # heading · - bullet · 1. numbered · [] to-do · > quote · --- divider · ``` code"
           }
           onChange={(e) => setContent(e.target.value)}
-          style={{ marginTop: appending ? 32 : 14, fontSize: 16, lineHeight: 1.65, minHeight: "50vh" }}
         />
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          ⌘⏎ to {appending ? "append" : "create the page"}
-        </Typography.Text>
+      </div>
+      <div className="n-dock">
+        <span>⌘⏎</span>
+        <Button type="primary" onClick={save} disabled={disabled} loading={status.kind === "busy"}>
+          {appending ? "Append" : "Create page"}
+        </Button>
       </div>
     </div>
   );

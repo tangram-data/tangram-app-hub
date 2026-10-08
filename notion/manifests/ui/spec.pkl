@@ -14,7 +14,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
     entry = "components/page-viewer/page-viewer.tsx"
     spec = new ui.UIComponentContract {
       title = "Page viewer"
-      description = "Render a Notion page's title and content blocks (headings, lists, to-dos, quotes, code, tables) by page id; collapsed sections (toggles, toggle headings) expand on click, fetching nested blocks on demand. The pencil button toggles a Notion-style edit mode: top-level blocks can be edited in place (plain text), new blocks inserted after any block, blocks deleted (host-confirmed), plus an append editor for the end of the page. Markdown-style prefixes in drafts (#, ##, ###, -, 1., [], [x], >, ---, ```) become matching block types. The append draft is readable via component state, and a re-render with a `draft` input prefills/refines it."
+      description = "Render a Notion page as a native-feeling Notion editor: title, icon, properties, and content blocks (headings, lists, to-dos, quotes, callouts, code, tables); toggles expand on click, fetching nested blocks on demand. Plain-text blocks (and the page title) edit inline and save on blur; to-dos toggle on click; hover handles add a block below or delete one (host-confirmed); Enter continues into a new block and '/' picks its type. Formatted text and complex blocks stay read-only so formatting is never lost. A `draft` input shows as a pending insertion the user confirms with Append to page; markdown-style prefixes in it (#, ##, ###, -, 1., [], [x], >, ---, ```) become matching block types, and it is readable via component state."
       inputs {
         type = "object"
         required {
@@ -27,7 +27,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           }
           ["draft"] = new Dynamic {
             type = "string"
-            description = "Optional: opens the inline append editor prefilled with this text. Re-render with a new draft to assist or refine what the user is writing (read their current draft via component state first)."
+            description = "Optional: proposed content shown as a pending insertion at the end of the page, which the user can edit, discard, or append. Re-render with a new draft to assist or refine what the user is writing (read their current draft via component state first)."
           }
         }
       }
