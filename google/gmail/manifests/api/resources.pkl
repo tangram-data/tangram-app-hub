@@ -48,8 +48,8 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Write"
           effect = "Reversible"
           idempotent = true
-          requiresConfirmation = false
-          doc = "Add or remove labels on a message: mark read = removeLabelIds [\"UNREAD\"], archive = removeLabelIds [\"INBOX\"], star = addLabelIds [\"STARRED\"]. User label ids come from gmail_list_label."
+          requiresConfirmation = true
+          doc = "Confirmation-gated (labels like TRASH/SPAM are destructive). Add or remove labels on a message: mark read = removeLabelIds [\"UNREAD\"], archive = removeLabelIds [\"INBOX\"], star = addLabelIds [\"STARRED\"]. User label ids come from gmail_list_label."
           openApiMapping = new resources.OpenApiMapping { operationId = "modifyMessage" }
         },
         new resources.Action {

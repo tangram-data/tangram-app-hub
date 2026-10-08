@@ -46,8 +46,8 @@ types: List<resources.ResourceTypeDefinition> = List(
           privilege = "Create"
           effect = "Reversible"
           idempotent = false
-          requiresConfirmation = false
-          doc = "Copy a file (not a folder), optionally with a new name and a single destination folder id in parents; returns the new file's id and webViewLink."
+          requiresConfirmation = true
+          doc = "Confirmation-gated: a copy inherits the destination folder's sharing. Copy a file (not a folder), optionally with a new name and a single destination folder id in parents; returns the new file's id and webViewLink."
           openApiMapping = new resources.OpenApiMapping { operationId = "copyFile" }
         }
       )

@@ -48,6 +48,7 @@ paths:
                       $ref: "#/components/schemas/Worksheet"
         "404":
           description: Drive item not found or not an Excel workbook.
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/add:
     post:
       operationId: addWorksheet
       summary: Add a new worksheet (tab) to a workbook

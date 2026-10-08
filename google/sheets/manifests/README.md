@@ -18,9 +18,9 @@ use the Google Drive connector's `drive_list_file` tool with the MIME type
 | `sheets_read_values_spreadsheet` | `Spreadsheet.ReadValues` | Read values from an A1 range such as `Sheet1!A1:D10`. |
 | `sheets_update_values_spreadsheet` | `Spreadsheet.UpdateValues` | **Confirmation-gated.** Overwrite values in an A1 range. |
 | `sheets_append_values_spreadsheet` | `Spreadsheet.AppendValues` | Append rows after the table containing the selected range. |
-| `sheets_batch_read_values_spreadsheet` | `Spreadsheet.BatchReadValues` | Read several A1 ranges in one call (`ranges` array). |
-| `sheets_clear_values_spreadsheet` | `Spreadsheet.ClearValues` | **Confirmation-gated** (irreversible). Clear values in an A1 range; formatting stays. |
-| `sheets_batch_update_spreadsheet` | `Spreadsheet.BatchUpdate` | **Confirmation-gated.** Atomic Sheets API `requests`, e.g. `[{"addSheet": {"properties": {"title": "Q3"}}}]`; rename/delete sheets, formatting, etc. |
+| `sheets_batchreadvalues_spreadsheet` | `Spreadsheet.BatchReadValues` | Read several A1 ranges in one call (`ranges` array). |
+| `sheets_clearvalues_spreadsheet` | `Spreadsheet.ClearValues` | **Confirmation-gated** (irreversible). Clear values in an A1 range; formatting stays. |
+| `sheets_batchupdate_spreadsheet` | `Spreadsheet.BatchUpdate` | **Confirmation-gated.** Atomic Sheets API `requests`, e.g. `[{"addSheet": {"properties": {"title": "Q3"}}}]`; rename/delete sheets, formatting, etc. |
 
 ## OAuth setup
 

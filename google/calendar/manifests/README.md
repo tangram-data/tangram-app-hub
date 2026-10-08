@@ -10,8 +10,8 @@ Drive, Calendar v3 has no dedicated service host and is served under `/calendar/
 | `calendar_list_calendar` | `Calendar.List` | Calendars on the account's calendar list; ids feed `calendarId` (or use `primary`). |
 | `calendar_list_event` | `Event.List` | Free-text `q` search plus `timeMin`/`timeMax` window; `singleEvents=true&orderBy=startTime` for agenda order. |
 | `calendar_get_event` | `Event.Get` | Full event: times, attendees, description, links. |
-| `calendar_list_instances_event` | `Event.ListInstances` | Occurrences of a recurring event; each instance id can be updated/deleted on its own. |
-| `calendar_quick_add_event` | `Event.QuickAdd` | **Confirmation-gated.** Create from one sentence ("Lunch with Ana tomorrow 12pm"); emails in the text can become attendees. |
+| `calendar_listinstances_event` | `Event.ListInstances` | Occurrences of a recurring event; each instance id can be updated/deleted on its own. |
+| `calendar_quickadd_event` | `Event.QuickAdd` | **Confirmation-gated.** Create from one sentence ("Lunch with Ana tomorrow 12pm"); emails in the text can become attendees. |
 | `calendar_create_event` | `Event.Create` | **Confirmation-gated** (`sendUpdates=all` emails invitations; default `none`). `start`/`end` take `{date}` (all-day, end exclusive) or `{dateTime, timeZone}`. |
 | `calendar_update_event` | `Event.Update` | **Confirmation-gated.** PATCH semantics — only fields present in the body change; `attendees` replaces the whole list. RSVP: Get the event, set `responseStatus` on your own attendee entry, send the full list (`sendUpdates=all` tells the organizer). |
 | `calendar_delete_event` | `Event.Delete` | **Confirmation-gated** (irreversible; `sendUpdates=all` sends cancellations). |

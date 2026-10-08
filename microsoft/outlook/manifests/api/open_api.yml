@@ -1125,11 +1125,23 @@ components:
       properties:
         comment:
           type: string
-          description: Reply text (plain text or HTML).
+          description: >
+            Reply text (plain text or HTML). Use either comment or
+            message.body, not both — Graph rejects the combination.
         message:
           type: object
           additionalProperties: false
           properties:
+            body:
+              type: object
+              additionalProperties: false
+              description: Full reply body instead of comment.
+              properties:
+                contentType:
+                  type: string
+                  enum: [text, html]
+                content:
+                  type: string
             toRecipients:
               type: array
               items:
