@@ -6,5 +6,5 @@ appType = "Connector"
 providerWebsite = "https://learn.microsoft.com/graph/api/resources/teams-api-overview"
 category = "communication"
 tags = List("microsoft", "teams", "chat", "messaging", "graph", "oauth")
-description = "Microsoft Teams connector: browse teams and channels, read and send channel and chat messages via Microsoft Graph."
+description = "Microsoft Teams connector: browse teams and channels, post to channels, and read and send chat messages via Microsoft Graph. No admin consent needed; reading channel messages is in teams-channels."
 readme      = read("README.md").text

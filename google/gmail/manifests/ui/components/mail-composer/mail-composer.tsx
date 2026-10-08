@@ -28,6 +28,7 @@ function actionBody(
   fields: { to: string; cc: string; subject: string; body: string },
   attachments: Attachment[],
   threadId: string,
+  reply: { inReplyTo: string; references: string },
 ) {
   return {
     to: [fields.to],
@@ -35,6 +36,8 @@ function actionBody(
     subject: fields.subject,
     text: fields.body,
     ...(threadId.trim() ? { threadId } : {}),
+    ...(reply.inReplyTo.trim() ? { inReplyTo: reply.inReplyTo.trim() } : {}),
+    ...(reply.references.trim() ? { references: reply.references.trim() } : {}),
     ...(attachments.length
       ? {
           attachments: attachments.map((attachment) => ({
@@ -77,6 +80,7 @@ export default function MailComposer() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [threadId, setThreadId] = useState("");
+  const [reply, setReply] = useState({ inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -106,6 +110,7 @@ export default function MailComposer() {
       setSubject(String(inputs?.subject ?? ""));
       setBody(String(inputs?.body ?? ""));
       setThreadId(String(inputs?.threadId ?? ""));
+      setReply({ inReplyTo: String(inputs?.inReplyTo ?? ""), references: String(inputs?.references ?? "") });
       setStatus({ kind: "idle" });
     };
     apply(tangram.getInputs() ?? {});
@@ -167,7 +172,7 @@ export default function MailComposer() {
     setStatus({ kind: "busy", what: "send" });
     tangram
       .performAction({ resourceType: "Message", action: "Send" }, {
-        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId),
+        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId, reply),
       })
       .then((m: { id?: string; threadId?: string }) => {
         setStatus({
@@ -204,7 +209,7 @@ export default function MailComposer() {
     setStatus({ kind: "busy", what: "draft" });
     tangram
       .performAction({ resourceType: "Draft", action: "Create" }, {
-        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId),
+        requestBody: actionBody({ to, cc, subject, body }, attachments, threadId, reply),
       })
       .then(() => setStatus({ kind: "drafted" }))
       .catch((e: unknown) =>

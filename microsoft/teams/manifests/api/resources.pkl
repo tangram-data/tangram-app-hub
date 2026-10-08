@@ -58,14 +58,6 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         new resources.Action {
-          name = "List"
-          privilege = "Read"
-          effect = "Stateless"
-          idempotent = true
-          doc = "List a channel's messages, newest first; $top for page size, $expand=replies for threads, page via @odata.nextLink."
-          openApiMapping = new resources.OpenApiMapping { operationId = "listChannelMessages" }
-        },
-        new resources.Action {
           name = "Send"
           privilege = "Create"
           effect = "Irreversible"
@@ -77,8 +69,8 @@ types: List<resources.ResourceTypeDefinition> = List(
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read", "Create")
-        description = "Read and send channel messages through the Teams connector."
+        permissions = List("Create")
+        description = "Send channel messages through the Teams connector."
       })
     })
   },

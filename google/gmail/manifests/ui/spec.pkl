@@ -35,6 +35,8 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
               ["to"] = new Dynamic { type = "string" }
               ["subject"] = new Dynamic { type = "string" }
               ["threadId"] = new Dynamic { type = "string" }
+              ["inReplyTo"] = new Dynamic { type = "string" }
+              ["references"] = new Dynamic { type = "string" }
             }
           }
         }
@@ -65,6 +67,14 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           ["threadId"] = new Dynamic {
             type = "string"
             description = "Set to reply within an existing Gmail thread."
+          }
+          ["inReplyTo"] = new Dynamic {
+            type = "string"
+            description = "Parent Message-ID when replying, so recipients' clients thread the reply."
+          }
+          ["references"] = new Dynamic {
+            type = "string"
+            description = "Parent References + Message-ID, space-separated, when replying."
           }
         }
       }

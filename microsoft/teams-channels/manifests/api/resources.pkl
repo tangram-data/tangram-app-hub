@@ -1,0 +1,76 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Team"
+    activeVersion = "v1"
+    doc = "A Microsoft Teams team the connected user is a member of."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the teams the connected user has joined; team ids scope channel and message operations."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listTeams" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List joined teams through the Teams channels connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Channel"
+    activeVersion = "v1"
+    doc = "A channel within a team."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a team's channels; channel ids scope message listing and sending."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listChannels" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List team channels through the Teams channels connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "ChannelMessage"
+    activeVersion = "v1"
+    doc = "A message posted to a team channel."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a channel's messages, newest first; $top for page size, $expand=replies for threads, page via @odata.nextLink."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listChannelMessages" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read channel messages through the Teams channels connector."
+      })
+    })
+  }
+)

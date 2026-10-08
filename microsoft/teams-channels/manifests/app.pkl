@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.microsoft"
+name = "teams-channels"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://learn.microsoft.com/graph/api/resources/teams-api-overview"
+category = "communication"
+tags = List("microsoft", "teams", "channels", "messaging", "graph", "oauth")
+description = "Microsoft Teams channels connector: read channel messages and threads via Microsoft Graph. Requires tenant admin consent (ChannelMessage.Read.All)."
+readme      = read("README.md").text

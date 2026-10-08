@@ -1,0 +1,237 @@
+openapi: 3.0.3
+info:
+  title: Microsoft Teams channels (Microsoft Graph)
+  version: "1.0"
+  description: >
+    Subset of the Microsoft Graph Teams API exposed through the Tangram
+    connector. Team/chat listing acts on the connected account (/me);
+    channel operations are scoped by teamId and channelId.
+servers:
+  - url: https://graph.microsoft.com
+
+paths:
+  /v1.0/me/joinedTeams:
+    get:
+      operationId: listTeams
+      summary: List the teams the connected user has joined
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: >
+            The user's teams; use each team's id for channel and message
+            operations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Team"
+                  "@odata.nextLink":
+                    type: string
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /v1.0/teams/{teamId}/channels:
+    get:
+      operationId: listChannels
+      summary: List a team's channels
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: teamId
+          in: path
+          required: true
+          description: The team id returned by listTeams.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The team's channels, e.g. General.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Channel"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Team not found or not a member.
+
+  /v1.0/teams/{teamId}/channels/{channelId}/messages:
+    get:
+      operationId: listChannelMessages
+      summary: List a channel's messages (newest first)
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — copy the $skiptoken value
+            out of the previous response's @odata.nextLink URL.
+          schema:
+            type: string
+        - name: $skip
+          in: query
+          required: false
+          description: >
+            Offset continuation — copy the $skip value out of the previous
+            response's @odata.nextLink URL when it uses $skip instead of
+            $skiptoken.
+          schema:
+            type: integer
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channelId
+          in: path
+          required: true
+          description: The channel id returned by listChannels.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 20, max 50).
+          schema:
+            type: integer
+        - name: $expand
+          in: query
+          required: false
+          description: Set to "replies" to include each message's thread replies.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            Messages ordered newest first; follow @odata.nextLink for older
+            messages.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChatMessage"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Team or channel not found.
+
+components:
+  schemas:
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Team id — use in channel and message operations.
+        displayName:
+          type: string
+        description:
+          type: string
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Channel id — use in message operations.
+        displayName:
+          type: string
+          description: Channel name, e.g. General.
+        description:
+          type: string
+        membershipType:
+          type: string
+          description: standard, private, or shared.
+    ChatMessage:
+      type: object
+      description: A message in a channel or chat.
+      properties:
+        id:
+          type: string
+        messageType:
+          type: string
+          description: message for user posts; systemEventMessage for system events.
+        createdDateTime:
+          type: string
+        from:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                displayName:
+                  type: string
+        body:
+          type: object
+          properties:
+            contentType:
+              type: string
+              description: text or html.
+            content:
+              type: string
+              description: >
+                Message content; when contentType is html this contains raw
+                HTML markup (mentions, formatting, inline images).
+        webUrl:
+          type: string
+          description: Link to the message in the Teams client.
+        attachments:
+          type: array
+          description: Attachment summaries (files, cards); content is not inlined.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              contentType:
+                type: string
+              contentUrl:
+                type: string

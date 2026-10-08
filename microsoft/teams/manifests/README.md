@@ -10,7 +10,6 @@ teams the connected user is a member of.
 |------|--------|-------|
 | `teams_list_team` | `Team.List` | Teams the connected user has joined; team ids scope everything else. |
 | `teams_list_channel` | `Channel.List` | A team's channels (e.g. General); channel ids scope message calls. |
-| `teams_list_channelmessage` | `ChannelMessage.List` | Newest first; `$top` for page size, `$expand=replies` for threads, page with `@odata.nextLink`. |
 | `teams_send_channelmessage` | `ChannelMessage.Send` | **Confirmation-gated** (irreversible). Body `{body:{contentType,content}}`, contentType `text` or `html`. |
 | `teams_list_chat` | `Chat.List` | 1:1 and group chats; `$expand=members` reveals who each chat is with. |
 | `teams_list_chatmessage` | `ChatMessage.List` | Newest first; `$top` + `@odata.nextLink` paging. |
@@ -24,7 +23,7 @@ client credentials stored in Tangram, then each user connects their own account.
 ### 1. Azure portal (Entra ID)
 
 1. **App registrations → New registration.** Supported account types: *Accounts in any organizational directory* — this package's Graph APIs are not
-   available to personal Microsoft accounts (or restrict to your tenant and change the manifest's `/common/` endpoints to `/{tenantId}/`).
+   available to personal Microsoft accounts (or restrict to your tenant and change the manifest's `/organizations/` endpoints to `/{tenantId}/`).
 2. Add a **Web** redirect URI, using your Tangram instance's public base URL:
 
    ```
@@ -32,10 +31,9 @@ client credentials stored in Tangram, then each user connects their own account.
    ```
 
 3. **Certificates & secrets → New client secret** — this is the value for `microsoftClientSecret` below.
-4. **API permissions → Microsoft Graph → Delegated:** add `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Read.All`,
-   `ChannelMessage.Send`, and `Chat.ReadWrite`. **`ChannelMessage.Read.All` requires admin consent in most tenants** — grant it once via
-   *Grant admin consent* or users will be blocked at the consent prompt. (Reading channel messages is a Graph "protected API" for *application*
-   permissions, requiring a Microsoft approval process — but this connector uses *delegated* permissions, which are fine.)
+4. **API permissions → Microsoft Graph → Delegated:** add `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Send`, `Chat.Read`, and
+   `ChatMessage.Send`. None needs admin consent, so every user can connect. Reading channel messages needs the admin-consented
+   `ChannelMessage.Read.All` and is provided by the separate **teams-channels** connector.
 
 You do **not** need to request offline access manually — the manifest includes the `offline_access` scope (`api/spec.pkl`), which is what makes Azure AD issue
 a refresh token. Tokens are refreshed automatically (10-minute refresh window before expiry).

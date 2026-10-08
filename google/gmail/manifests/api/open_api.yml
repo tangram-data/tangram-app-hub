@@ -244,6 +244,17 @@ components:
         threadId:
           type: string
           description: Set to reply or draft within an existing Gmail thread.
+        inReplyTo:
+          type: string
+          description: >
+            When replying, the parent's Message-ID header (e.g. "<abc@mail.gmail.com>").
+            Required with threadId so recipients' clients thread the reply; also
+            keep the parent's Subject (prefixed "Re:").
+        references:
+          type: string
+          description: >
+            When replying, the parent's References header followed by its
+            Message-ID, space-separated.
         attachments:
           type: array
           description: Attachments whose content is standard base64 (not base64url).

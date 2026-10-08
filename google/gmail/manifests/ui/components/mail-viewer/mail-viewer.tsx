@@ -766,6 +766,10 @@ export default function MailViewer() {
               ? header(msg, "Subject")
               : `Re: ${header(msg, "Subject")}`,
             threadId: msg.threadId ?? "",
+            inReplyTo: header(msg, "Message-ID") || header(msg, "Message-Id"),
+            references: [header(msg, "References"), header(msg, "Message-ID") || header(msg, "Message-Id")]
+              .filter(Boolean)
+              .join(" "),
           })
         }
       >

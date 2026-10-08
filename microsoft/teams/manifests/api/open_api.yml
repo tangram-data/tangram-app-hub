@@ -97,68 +97,6 @@ paths:
           description: Team not found or not a member.
 
   /v1.0/teams/{teamId}/channels/{channelId}/messages:
-    get:
-      operationId: listChannelMessages
-      summary: List a channel's messages (newest first)
-      parameters:
-        - name: $skiptoken
-          in: query
-          required: false
-          description: >
-            Continuation token for the next page — copy the $skiptoken value
-            out of the previous response's @odata.nextLink URL.
-          schema:
-            type: string
-        - name: $skip
-          in: query
-          required: false
-          description: >
-            Offset continuation — copy the $skip value out of the previous
-            response's @odata.nextLink URL when it uses $skip instead of
-            $skiptoken.
-          schema:
-            type: integer
-        - name: teamId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: channelId
-          in: path
-          required: true
-          description: The channel id returned by listChannels.
-          schema:
-            type: string
-        - name: $top
-          in: query
-          required: false
-          description: Page size (default 20, max 50).
-          schema:
-            type: integer
-        - name: $expand
-          in: query
-          required: false
-          description: Set to "replies" to include each message's thread replies.
-          schema:
-            type: string
-      responses:
-        "200":
-          description: >
-            Messages ordered newest first; follow @odata.nextLink for older
-            messages.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  value:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ChatMessage"
-                  "@odata.nextLink":
-                    type: string
-        "404":
-          description: Team or channel not found.
     post:
       operationId: sendChannelMessage
       summary: Post a new message to a channel
