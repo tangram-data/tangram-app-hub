@@ -201,6 +201,7 @@ export default function MailComposer() {
     setSubject("");
     setBody("");
     setThreadId("");
+    setReply({ inReplyTo: "", references: "" });
     setAttachments([]);
     setStatus({ kind: "idle" });
   }

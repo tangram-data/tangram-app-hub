@@ -19,20 +19,15 @@ auth = new connector.ConnectorAuth {
 }
 
 oauth = new oauthTypes.OAuth2AuthCode {
-  authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-  tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-  // Team.ReadBasic.All / Channel.ReadBasic.All cover team and channel
-  // browsing; ChannelMessage.Read.All covers reading channel messages
-  // (admin-consent required in most tenants); ChannelMessage.Send covers
-  // posting to channels; Chat.ReadWrite covers reading and sending 1:1/group
-  // chats. offline_access is what makes Azure AD issue a refresh token
-  // (Microsoft's analog of Google's access_type=offline).
+  authorizationUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
+  tokenUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
+  // Read-only channel access. ChannelMessage.Read.All requires tenant admin
+  // consent; that is why it is split from the teams connector.
+  // offline_access makes Entra issue a refresh token.
   scopes = List(
     "https://graph.microsoft.com/Team.ReadBasic.All",
     "https://graph.microsoft.com/Channel.ReadBasic.All",
     "https://graph.microsoft.com/ChannelMessage.Read.All",
-    "https://graph.microsoft.com/ChannelMessage.Send",
-    "https://graph.microsoft.com/Chat.ReadWrite",
     "offline_access"
   )
   clientIdSecret = "microsoftClientId"
