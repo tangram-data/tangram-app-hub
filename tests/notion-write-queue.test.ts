@@ -1,4 +1,4 @@
-import { WriteQueue, Writer } from "../manifests/ui/components/page-viewer/write-queue";
+import { WriteQueue, Writer } from "../notion/manifests/ui/components/page-viewer/write-queue";
 import assert from "node:assert/strict";
 const tick = async () => { for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0)); };
 // Fake server: each send waits for manual resolve/reject; done/errors are logged.
