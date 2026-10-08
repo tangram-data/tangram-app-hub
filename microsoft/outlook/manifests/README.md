@@ -18,6 +18,12 @@ tools. All operations are pinned to `/me`, so a caller can only act on the conne
 | `outlook_list_attachment` | `Attachment.List` | Attachment metadata; pass `$select=id,name,contentType,size,isInline` to skip base64 `contentBytes` (up to ~3MB each). |
 | `outlook_get_attachment` | `Attachment.Get` | One attachment with content, by `messageId` + `attachmentId`. |
 | `outlook_list_mailfolder` | `MailFolder.List` | Folder ids feed `folderId` of `Message.ListInFolder`; well-known names like `inbox` also work. |
+| `outlook_reply_message` | `Message.Reply` | **Confirmation-gated** (irreversible). Threaded reply to the sender; `comment` is the reply text, `message.toRecipients`/`ccRecipients` add recipients. |
+| `outlook_replyall_message` | `Message.ReplyAll` | **Confirmation-gated** (irreversible). Same as `Message.Reply`, to the sender and all recipients. |
+| `outlook_forward_message` | `Message.Forward` | **Confirmation-gated** (irreversible). Forwards with attachments; `toRecipients` required, `comment` above the forwarded content. |
+| `outlook_senddraft_message` | `Message.SendDraft` | **Confirmation-gated** (irreversible). Sends an existing draft (e.g. from `Draft.Create`) by id. |
+| `outlook_update_message` | `Message.Update` | Mark read/unread (`isRead`), replace `categories`, set `flag.flagStatus` (`flagged`/`complete`/`notFlagged`). Closed body — no other fields. |
+| `outlook_move_message` | `Message.Move` | `destinationId` = folder id or well-known name (`archive`, `deleteditems`, `inbox`, ...). The moved message gets a **new id** (returned). |
 
 ### Calendar
 
@@ -29,7 +35,17 @@ tools. All operations are pinned to `/me`, so a caller can only act on the conne
 | `outlook_create_event` | `Event.Create` | **Confirmation-gated**. `start`/`end` are `{dateTime, timeZone}`; `isOnlineMeeting` + `onlineMeetingProvider=teamsForBusiness` attaches a Teams link. |
 | `outlook_update_event` | `Event.Update` | **Confirmation-gated** (Graph emails attendees about the change). PATCH semantics — only fields present in the body change. |
 | `outlook_delete_event` | `Event.Delete` | **Confirmation-gated** (irreversible). Attendees receive a cancellation. |
+| `outlook_accept_event` | `Event.Accept` | **Confirmation-gated**. RSVP accept; optional `comment`, `sendResponse=false` to accept without notifying the organizer. |
+| `outlook_decline_event` | `Event.Decline` | **Confirmation-gated**. RSVP decline (the event leaves the calendar); same body as accept. |
+| `outlook_tentativelyaccept_event` | `Event.TentativelyAccept` | **Confirmation-gated**. RSVP tentative; same body as accept. |
+| `outlook_findmeetingtimes_event` | `Event.FindMeetingTimes` | Ranked slot suggestions for `attendees` within `timeConstraint.timeSlots` for a `meetingDuration` (e.g. `PT30M`); work/school accounts only. |
 | `outlook_query_schedule` | `Schedule.Query` | `getSchedule` free/busy — find open slots before scheduling; queries any SMTP addresses. |
+
+### People
+
+| Tool | Action | Notes |
+|------|--------|-------|
+| `outlook_list_person` | `Person.List` | `/me/people?$search=` — resolve a name to an email address (contacts, colleagues, frequent correspondents), ranked by relevance. |
 
 ## OAuth setup
 
@@ -48,7 +64,8 @@ client credentials stored in Tangram, then each user connects their own account 
    ```
 
 3. **Certificates & secrets → New client secret** — this is the value for `microsoftClientSecret` below.
-4. **API permissions → Microsoft Graph → Delegated:** add `Mail.ReadWrite`, `Mail.Send`, and `Calendars.ReadWrite`. These are not admin-restricted by
+4. **API permissions → Microsoft Graph → Delegated:** add `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`,
+   `Calendars.Read.Shared` (required by `findMeetingTimes`), and `People.Read`. These are not admin-restricted by
    default, but many tenants require admin consent — grant it once via *Grant admin consent* to spare every user the consent prompt.
 
 You do **not** need to request offline access manually — the manifest includes the `offline_access` scope (`api/spec.pkl`), which is what makes Azure AD issue

@@ -11,6 +11,7 @@ every user connect **teams** without an admin.
 | `teams_channels_list_team` | `Team.List` | Teams the connected user has joined. |
 | `teams_channels_list_channel` | `Channel.List` | A team's channels; channel ids scope message calls. |
 | `teams_channels_list_channelmessage` | `ChannelMessage.List` | Newest first; `$top` for page size, `$expand=replies` for threads, page with `@odata.nextLink`. |
+| `teams_channels_listreplies_channelmessage` | `ChannelMessage.ListReplies` | Full reply thread of one root message (`messageId` from `ChannelMessage.List`); `$top` + `@odata.nextLink` paging. |
 
 ## OAuth setup
 

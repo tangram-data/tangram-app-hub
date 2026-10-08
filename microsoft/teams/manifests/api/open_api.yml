@@ -129,6 +129,104 @@ paths:
         "400":
           description: Invalid message body.
 
+  /v1.0/teams/{teamId}/channels/{channelId}/messages/{messageId}/replies:
+    post:
+      operationId: replyChannelMessage
+      summary: Reply in the thread of a channel message
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          description: >
+            Id of the thread's root message (a reply's own id is not accepted —
+            replies are one level deep).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageInput"
+      responses:
+        "201":
+          description: The created reply, including its id and webUrl.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "404":
+          description: Root message not found.
+
+  /v1.0/chats:
+    post:
+      operationId: createChat
+      summary: Create a 1:1 or group chat
+      description: >
+        For oneOnOne, if a chat between the two users already exists Graph
+        returns it instead of creating a new one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [chatType, members]
+              properties:
+                chatType:
+                  type: string
+                  enum: [oneOnOne, group]
+                topic:
+                  type: string
+                  description: Group chat title (group only).
+                members:
+                  type: array
+                  minItems: 2
+                  description: >
+                    All participants INCLUDING the connected user; oneOnOne takes
+                    exactly 2. Each entry:
+                    {"@odata.type":"#microsoft.graph.aadUserConversationMember",
+                    "roles":["owner"],
+                    "user@odata.bind":"https://graph.microsoft.com/v1.0/users('alice@contoso.com')"}
+                    (user id or userPrincipalName inside users('...')).
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: ["@odata.type", roles, "user@odata.bind"]
+                    properties:
+                      "@odata.type":
+                        type: string
+                        enum: ["#microsoft.graph.aadUserConversationMember"]
+                      roles:
+                        type: array
+                        description: '["owner"] for members; ["guest"] for guests.'
+                        items:
+                          type: string
+                          enum: [owner, guest]
+                      "user@odata.bind":
+                        type: string
+                        description: https://graph.microsoft.com/v1.0/users('<user id or UPN>')
+      responses:
+        "201":
+          description: The created (or existing 1:1) chat; its id feeds ChatMessage.Send.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          description: Invalid members (e.g. connected user missing, wrong count for oneOnOne).
+
   /v1.0/me/chats:
     get:
       operationId: listChats

@@ -6,5 +6,5 @@ appType = "Connector"
 providerWebsite = "https://learn.microsoft.com/graph/api/resources/sharepoint"
 category = "productivity"
 tags = List("microsoft", "sharepoint", "sites", "lists", "documents", "graph", "oauth")
-description = "SharePoint connector: search sites, browse lists and document libraries, and read list items and files via Microsoft Graph."
+description = "SharePoint connector: search sites and content, browse lists and document libraries, read files, and read/create/update list items via Microsoft Graph."
 readme      = read("README.md").text

@@ -6,5 +6,5 @@ appType = "Connector"
 providerWebsite = "https://learn.microsoft.com/graph/api/resources/onedrive"
 category = "productivity"
 tags = List("microsoft", "onedrive", "files", "storage", "graph", "oauth")
-description = "OneDrive connector: browse, search, and read files in the connected account's drive via Microsoft Graph."
+description = "OneDrive connector: browse, search, read, organize, and share files in the connected account's drive via Microsoft Graph."
 readme      = read("README.md").text

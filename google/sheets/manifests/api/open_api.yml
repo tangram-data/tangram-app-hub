@@ -68,6 +68,106 @@ paths:
         "404":
           description: Spreadsheet not found.
 
+  /v4/spreadsheets/{spreadsheetId}:batchUpdate:
+    post:
+      operationId: batchUpdateSpreadsheet
+      summary: Apply structural or formatting changes to a spreadsheet
+      description: >
+        Applies a list of Sheets API Request objects atomically (all succeed or none).
+        Each item has exactly one key naming the request kind, e.g.
+        {"addSheet": {"properties": {"title": "Q3"}}},
+        {"deleteSheet": {"sheetId": 123}},
+        {"updateSheetProperties": {"properties": {"sheetId": 0, "title": "Summary"}, "fields": "title"}},
+        {"repeatCell": {...}}, {"autoResizeDimensions": {...}}. sheetId values come from getSpreadsheet.
+      parameters:
+        - name: spreadsheetId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  minItems: 1
+                  description: Sheets API Request objects, applied in order.
+                  items:
+                    type: object
+                    additionalProperties: true
+                includeSpreadsheetInResponse:
+                  type: boolean
+                  description: Return the updated spreadsheet metadata in updatedSpreadsheet.
+      responses:
+        "200":
+          description: One reply per request (e.g. addSheet returns the new sheet's properties).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spreadsheetId:
+                    type: string
+                  replies:
+                    type: array
+                    items:
+                      type: object
+                  updatedSpreadsheet:
+                    $ref: "#/components/schemas/Spreadsheet"
+        "400":
+          description: Invalid request (e.g. duplicate sheet title, unknown sheetId).
+
+  /v4/spreadsheets/{spreadsheetId}/values:batchGet:
+    get:
+      operationId: batchGetValues
+      summary: Read cell values from several ranges in one call
+      parameters:
+        - name: spreadsheetId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ranges
+          in: query
+          required: true
+          description: A1-notation ranges, e.g. ["Sheet1!A1:D10", "Summary!B2:B5"].
+          schema:
+            type: array
+            minItems: 1
+            items:
+              type: string
+        - name: majorDimension
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ROWS, COLUMNS]
+        - name: valueRenderOption
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [FORMATTED_VALUE, UNFORMATTED_VALUE, FORMULA]
+      responses:
+        "200":
+          description: One ValueRange per requested range, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spreadsheetId:
+                    type: string
+                  valueRanges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ValueRange"
+
   /v4/spreadsheets/{spreadsheetId}/values/{range}:
     get:
       operationId: getValues
@@ -195,6 +295,36 @@ paths:
                     type: string
                   updates:
                     type: object
+
+  /v4/spreadsheets/{spreadsheetId}/values/{range}:clear:
+    post:
+      operationId: clearValues
+      summary: Clear cell values in a range
+      description: Removes values only; formatting, data validation, and notes are kept.
+      parameters:
+        - name: spreadsheetId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: range
+          in: path
+          required: true
+          description: A1-notation range to clear, e.g. Sheet1!A2:D100.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The range that was cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spreadsheetId:
+                    type: string
+                  clearedRange:
+                    type: string
 
 components:
   schemas:

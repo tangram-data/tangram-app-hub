@@ -22,13 +22,19 @@ oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
   tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
   // Mail.ReadWrite covers message reads, folders, attachments, and drafts;
-  // Mail.Send covers sendMail; Calendars.ReadWrite covers calendars, events,
-  // and getSchedule. offline_access is what makes Azure AD issue a refresh
+  // Mail.Send covers sendMail, reply/replyAll/forward, and sending drafts
+  // (move/flag/mark-read use Mail.ReadWrite); Calendars.ReadWrite covers
+  // calendars, events, RSVP, and getSchedule; findMeetingTimes needs
+  // Calendars.Read.Shared (its least-privileged scope; Calendars.ReadWrite
+  // does not cover it); People.Read covers /me/people. Both are
+  // user-consentable (no admin consent required by default). offline_access is what makes Azure AD issue a refresh
   // token (Microsoft's analog of Google's access_type=offline).
   scopes = List(
     "https://graph.microsoft.com/Mail.ReadWrite",
     "https://graph.microsoft.com/Mail.Send",
     "https://graph.microsoft.com/Calendars.ReadWrite",
+    "https://graph.microsoft.com/Calendars.Read.Shared",
+    "https://graph.microsoft.com/People.Read",
     "offline_access"
   )
   clientIdSecret = "microsoftClientId"

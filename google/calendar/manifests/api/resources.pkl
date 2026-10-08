@@ -50,6 +50,23 @@ types: List<resources.ResourceTypeDefinition> = List(
           openApiMapping = new resources.OpenApiMapping { operationId = "getEvent" }
         },
         new resources.Action {
+          name = "ListInstances"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the occurrences of a recurring event (eventId = the parent with recurrence) within an optional timeMin/timeMax window. Each instance has its own id, so Update/Delete on it changes just that occurrence."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listEventInstances" }
+        },
+        new resources.Action {
+          name = "QuickAdd"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Create an event from one sentence, e.g. \"Lunch with Ana at Cafe Roma tomorrow 12pm-1pm\" (parsed in the calendar's time zone). Check the returned start/end. Confirmation-gated: email addresses in the text can become attendees, and sendUpdates=all invites them."
+          openApiMapping = new resources.OpenApiMapping { operationId = "quickAddEvent" }
+        },
+        new resources.Action {
           name = "Create"
           privilege = "Create"
           effect = "Reversible"
@@ -64,7 +81,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Reversible"
           idempotent = false
           requiresConfirmation = true
-          doc = "Patch fields of an existing event (only the fields in the body change); attendees replaces the whole list, so Get first and send the merged list. sendUpdates=all notifies attendees (default none). Confirmation-gated: it can invite people and reschedule shared meetings."
+          doc = "Patch fields of an existing event (only the fields in the body change); attendees replaces the whole list, so Get first and send the merged list. To RSVP, Get the event, set responseStatus (accepted/declined/tentative) on your own attendee entry only, and send the full attendees list. sendUpdates=all notifies attendees (default none). Confirmation-gated: it can invite people and reschedule shared meetings."
           openApiMapping = new resources.OpenApiMapping { operationId = "updateEvent" }
         },
         new resources.Action {

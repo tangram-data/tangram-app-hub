@@ -369,6 +369,235 @@ paths:
         "400":
           description: Duplicate name or validation fault.
 
+  /reports/profit-and-loss:
+    get:
+      operationId: getProfitAndLossReport
+      summary: Profit and loss (income statement) report
+      description: >
+        Income, cost of goods sold, expenses, and net income for the period. Default period is this fiscal year to date.
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/ProfitAndLoss"
+      parameters:
+        - $ref: "#/components/parameters/start_date"
+        - $ref: "#/components/parameters/end_date"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/accounting_method"
+        - $ref: "#/components/parameters/summarize_column_by"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /reports/balance-sheet:
+    get:
+      operationId: getBalanceSheetReport
+      summary: Balance sheet report
+      description: >
+        Assets, liabilities, and equity as of end_date (default today).
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/BalanceSheet"
+      parameters:
+        - $ref: "#/components/parameters/start_date"
+        - $ref: "#/components/parameters/end_date"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/accounting_method"
+        - $ref: "#/components/parameters/summarize_column_by"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /reports/cash-flow:
+    get:
+      operationId: getCashFlowReport
+      summary: Statement of cash flows report
+      description: >
+        Operating, investing, and financing cash flows for the period.
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/CashFlow"
+      parameters:
+        - $ref: "#/components/parameters/start_date"
+        - $ref: "#/components/parameters/end_date"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/summarize_column_by"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /reports/transaction-list:
+    get:
+      operationId: getTransactionListReport
+      summary: Transaction list report
+      description: >
+        Every transaction in the period with date, type, number, name, account, and amount. Default period is this month to date.
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/TransactionList"
+      parameters:
+        - $ref: "#/components/parameters/start_date"
+        - $ref: "#/components/parameters/end_date"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/accounting_method"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /reports/aged-payables:
+    get:
+      operationId: getAgedPayablesReport
+      summary: Aged payables (A/P aging summary) report
+      description: >
+        Unpaid bills per vendor bucketed by days past due (Current, 1-30, 31-60, ...) as of report_date.
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/AgedPayables"
+      parameters:
+        - $ref: "#/components/parameters/report_date"
+        - $ref: "#/components/parameters/aging_period"
+        - $ref: "#/components/parameters/num_periods"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /reports/aged-receivables:
+    get:
+      operationId: getAgedReceivablesReport
+      summary: Aged receivables (A/R aging summary) report
+      description: >
+        Unpaid invoices per customer bucketed by days past due (Current, 1-30, 31-60, ...) as of report_date.
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/reports/AgedReceivables"
+      parameters:
+        - $ref: "#/components/parameters/report_date"
+        - $ref: "#/components/parameters/aging_period"
+        - $ref: "#/components/parameters/num_periods"
+        - $ref: "#/components/parameters/date_macro"
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: The report (Header, Columns, Rows).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid date or parameter.
+
+  /cdc:
+    get:
+      operationId: listChangedEntities
+      summary: List entities created, updated, or deleted since a point in time (change data capture)
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/cdc"
+      parameters:
+        - name: entities
+          in: query
+          required: true
+          description: >
+            Comma-separated entity names, e.g. "Purchase,Vendor,Attachable"
+            (any queryable entity).
+          schema:
+            type: string
+        - name: changedSince
+          in: query
+          required: true
+          description: >
+            ISO 8601 timestamp, at most 30 days ago, e.g.
+            2026-10-01T00:00:00-07:00. Returns up to 1000 objects per entity;
+            deleted objects come back with status "Deleted".
+          schema:
+            type: string
+        - $ref: "#/components/parameters/minorversion"
+      responses:
+        "200":
+          description: >
+            CDCResponse wrapper: {"CDCResponse":[{"QueryResponse":[{"Purchase":[...]},
+            {"Vendor":[...]}]}]}.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  CDCResponse:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          description: changedSince older than 30 days or unknown entity.
+
+  /purchase-delete:
+    post:
+      operationId: deletePurchase
+      summary: Delete an expense transaction
+      x-tangram-upstream:
+        path: "/v3/company/{{oauth.tenantId}}/purchase"
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          description: Must be "delete".
+          schema:
+            type: string
+            enum: [delete]
+            default: delete
+        - $ref: "#/components/parameters/minorversion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [Id, SyncToken]
+              properties:
+                Id:
+                  type: string
+                  description: Id of the Purchase to delete (from a query).
+                SyncToken:
+                  type: string
+                  description: Current SyncToken of the Purchase — stale tokens are rejected; re-query to refresh.
+      responses:
+        "200":
+          description: Deletion confirmation, e.g. {"Purchase":{"Id":"...","status":"Deleted"}}.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Stale SyncToken, unknown Id, or the transaction is reconciled/locked.
+
 components:
   parameters:
     minorversion:
@@ -378,6 +607,67 @@ components:
       description: QuickBooks API minor version (e.g. "75"). Omit for the account default.
       schema:
         type: string
+    start_date:
+      name: start_date
+      in: query
+      required: false
+      description: Period start, yyyy-MM-dd. Overrides date_macro.
+      schema:
+        type: string
+    end_date:
+      name: end_date
+      in: query
+      required: false
+      description: Period end, yyyy-MM-dd. Overrides date_macro.
+      schema:
+        type: string
+    date_macro:
+      name: date_macro
+      in: query
+      required: false
+      description: >
+        Predefined period instead of explicit dates, e.g. Today, This Month,
+        This Month-to-date, Last Month, This Quarter, Last Quarter,
+        This Fiscal Year, This Fiscal Year-to-date, Last Fiscal Year.
+      schema:
+        type: string
+    accounting_method:
+      name: accounting_method
+      in: query
+      required: false
+      description: Accrual or Cash (default is the company's preference).
+      schema:
+        type: string
+        enum: [Accrual, Cash]
+    summarize_column_by:
+      name: summarize_column_by
+      in: query
+      required: false
+      description: Column breakdown (default Total).
+      schema:
+        type: string
+        enum: [Total, Month, Week, Days, Quarter, Year, Customers, Vendors, Classes, Departments, Employees, ProductsAndServices]
+    report_date:
+      name: report_date
+      in: query
+      required: false
+      description: Aging "as of" date, yyyy-MM-dd (default today).
+      schema:
+        type: string
+    aging_period:
+      name: aging_period
+      in: query
+      required: false
+      description: Days per aging bucket (default 30).
+      schema:
+        type: integer
+    num_periods:
+      name: num_periods
+      in: query
+      required: false
+      description: Number of aging buckets (default 4).
+      schema:
+        type: integer
     requestid:
       name: requestid
       in: query
@@ -390,6 +680,20 @@ components:
         type: string
 
   schemas:
+    Report:
+      type: object
+      description: >
+        QuickBooks report: Header (ReportName, StartPeriod, EndPeriod,
+        ReportBasis, Currency), Columns.Column[] (ColTitle, ColType), and
+        Rows.Row[] — Section rows nest Header/Rows/Summary, Data rows carry
+        ColData[] ({value, id}) aligned with Columns.
+      properties:
+        Header:
+          type: object
+        Columns:
+          type: object
+        Rows:
+          type: object
     EntityRef:
       type: object
       required: [value]

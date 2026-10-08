@@ -80,12 +80,77 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "Fetch one list item by id with $expand=fields for its column values."
           openApiMapping = new resources.OpenApiMapping { operationId = "getListItem" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Create a list item: body {fields:{...}} keyed by internal column name (Column.List name, not displayName), e.g. {fields:{Title:'Widget',Status:'Open'}}."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createListItem" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Change column values of a list item: body is the field map itself at the top level (not wrapped in fields), keyed by internal column name; omitted columns are unchanged."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateListItemFields" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update")
+        description = "Read, create, and update SharePoint list items through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Column"
+    activeVersion = "v1"
+    doc = "A column definition (schema) of a SharePoint list."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a list's columns: internal name (the key for ListItem fields), displayName, type facet (text/number/choice with choices/lookup/personOrGroup), readOnly, required. Call before ListItem.Create/Update."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listColumns" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
         permissions = List("Read")
-        description = "Read SharePoint list items through the connector."
+        description = "Read SharePoint list schemas through the connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Search"
+    activeVersion = "v1"
+    doc = "Microsoft Search over SharePoint and OneDrive content the connected account can access."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Query"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Tenant-wide KQL search: body {requests:[{entityTypes:[driveItem|listItem|list|site|drive], query:{queryString}, from, size}]}; hits are in value[0].hitsContainers[0].hits, page with from/size while moreResultsAvailable."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchQuery" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search SharePoint content through the connector."
       })
     })
   },
@@ -104,6 +169,14 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "List a site's document libraries; the returned drive ids feed the DriveItem operations."
           openApiMapping = new resources.OpenApiMapping { operationId = "listDrives" }
+        },
+        new resources.Action {
+          name = "Search"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search one document library by file name, metadata, and content (driveId from Drive.List); hits are DriveItems usable with DriveItem.Download."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchDrive" }
         }
       )
       presetRoles = List(new resources.Role {

@@ -130,6 +130,169 @@ paths:
                 $ref: "#/components/schemas/Message"
         "404":
           description: Message not found.
+    patch:
+      operationId: updateMessage
+      summary: Mark read/unread, set categories, or flag a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          description: The message id returned by listMessages.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              description: Only the fields present change.
+              properties:
+                isRead:
+                  type: boolean
+                  description: true marks read, false marks unread.
+                categories:
+                  type: array
+                  description: >
+                    Replaces the full category list, e.g. ["Red category"];
+                    names must match the mailbox's master category list.
+                  items:
+                    type: string
+                flag:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    flagStatus:
+                      type: string
+                      enum: [notFlagged, flagged, complete]
+                    startDateTime:
+                      $ref: "#/components/schemas/DateTimeTimeZone"
+                    dueDateTime:
+                      $ref: "#/components/schemas/DateTimeTimeZone"
+                    completedDateTime:
+                      $ref: "#/components/schemas/DateTimeTimeZone"
+      responses:
+        "200":
+          description: The updated message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message not found.
+
+  /v1.0/me/messages/{messageId}/reply:
+    post:
+      operationId: replyMessage
+      summary: Reply to the sender of a message (threaded)
+      parameters:
+        - $ref: "#/components/parameters/messageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyInput"
+      responses:
+        "202":
+          description: Accepted — the reply was sent (empty body).
+        "404":
+          description: Message not found.
+
+  /v1.0/me/messages/{messageId}/replyAll:
+    post:
+      operationId: replyAllMessage
+      summary: Reply to the sender and all recipients of a message (threaded)
+      parameters:
+        - $ref: "#/components/parameters/messageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyInput"
+      responses:
+        "202":
+          description: Accepted — the reply was sent (empty body).
+        "404":
+          description: Message not found.
+
+  /v1.0/me/messages/{messageId}/forward:
+    post:
+      operationId: forwardMessage
+      summary: Forward a message, with its attachments, to new recipients
+      parameters:
+        - $ref: "#/components/parameters/messageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [toRecipients]
+              properties:
+                comment:
+                  type: string
+                  description: Text placed above the forwarded message.
+                toRecipients:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/Recipient"
+      responses:
+        "202":
+          description: Accepted — the message was forwarded (empty body).
+        "404":
+          description: Message not found.
+
+  /v1.0/me/messages/{messageId}/send:
+    post:
+      operationId: sendDraft
+      summary: Send an existing draft message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          description: The draft's id (from createDraft or the drafts folder).
+          schema:
+            type: string
+      responses:
+        "202":
+          description: Accepted — the draft was sent and moved to Sent Items (empty body).
+        "404":
+          description: Draft not found.
+
+  /v1.0/me/messages/{messageId}/move:
+    post:
+      operationId: moveMessage
+      summary: Move a message to another mail folder
+      parameters:
+        - $ref: "#/components/parameters/messageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [destinationId]
+              properties:
+                destinationId:
+                  type: string
+                  description: >
+                    Target folder id from listMailFolders, or a well-known name:
+                    inbox, archive, deleteditems, junkemail, drafts, sentitems.
+      responses:
+        "201":
+          description: The moved message — note it has a NEW id in the destination folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message or folder not found.
 
   /v1.0/me/sendMail:
     post:
@@ -679,8 +842,316 @@ paths:
         "403":
           description: Forbidden — reading other users' schedules may require the Calendars.Read.Shared scope.
 
+  /v1.0/me/events/{eventId}/accept:
+    post:
+      operationId: acceptEvent
+      summary: Accept a meeting invitation
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventResponseInput"
+      responses:
+        "202":
+          description: Accepted (empty body).
+        "404":
+          description: Event not found.
+
+  /v1.0/me/events/{eventId}/decline:
+    post:
+      operationId: declineEvent
+      summary: Decline a meeting invitation
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventResponseInput"
+      responses:
+        "202":
+          description: Accepted (empty body); the event is removed from the calendar.
+        "404":
+          description: Event not found.
+
+  /v1.0/me/events/{eventId}/tentativelyAccept:
+    post:
+      operationId: tentativelyAcceptEvent
+      summary: Tentatively accept a meeting invitation
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventResponseInput"
+      responses:
+        "202":
+          description: Accepted (empty body).
+        "404":
+          description: Event not found.
+
+  /v1.0/me/findMeetingTimes:
+    post:
+      operationId: findMeetingTimes
+      summary: Suggest meeting times that fit the attendees' availability
+      description: >
+        Work/school accounts only. Returns ranked meetingTimeSuggestions within
+        the timeConstraint; an empty list comes with emptySuggestionsReason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                attendees:
+                  type: array
+                  description: People to meet with (the organizer is implied).
+                  items:
+                    type: object
+                    required: [emailAddress]
+                    properties:
+                      type:
+                        type: string
+                        enum: [required, optional, resource]
+                      emailAddress:
+                        type: object
+                        required: [address]
+                        properties:
+                          address:
+                            type: string
+                          name:
+                            type: string
+                timeConstraint:
+                  type: object
+                  properties:
+                    activityDomain:
+                      type: string
+                      enum: [work, personal, unrestricted]
+                      description: Hours to consider (default work = working hours).
+                    timeSlots:
+                      type: array
+                      description: Windows to search, each {start, end} as DateTimeTimeZone.
+                      items:
+                        type: object
+                        required: [start, end]
+                        properties:
+                          start:
+                            $ref: "#/components/schemas/DateTimeTimeZone"
+                          end:
+                            $ref: "#/components/schemas/DateTimeTimeZone"
+                meetingDuration:
+                  type: string
+                  description: ISO 8601 duration, e.g. PT30M or PT1H (default PT30M).
+                maxCandidates:
+                  type: integer
+                  description: Max suggestions to return.
+                isOrganizerOptional:
+                  type: boolean
+                returnSuggestionReasons:
+                  type: boolean
+                minimumAttendeePercentage:
+                  type: number
+                  description: Minimum attendee availability (0-100) for a slot to be suggested.
+                locationConstraint:
+                  type: object
+                  properties:
+                    isRequired:
+                      type: boolean
+                    suggestLocation:
+                      type: boolean
+                    locations:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          displayName:
+                            type: string
+                          locationEmailAddress:
+                            type: string
+      responses:
+        "200":
+          description: Ranked meeting-time suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  emptySuggestionsReason:
+                    type: string
+                    description: Why no suggestions came back, e.g. attendeesUnavailable.
+                  meetingTimeSuggestions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        confidence:
+                          type: number
+                        organizerAvailability:
+                          type: string
+                        suggestionReason:
+                          type: string
+                        meetingTimeSlot:
+                          type: object
+                          properties:
+                            start:
+                              $ref: "#/components/schemas/DateTimeTimeZone"
+                            end:
+                              $ref: "#/components/schemas/DateTimeTimeZone"
+                        attendeeAvailability:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              availability:
+                                type: string
+                              attendee:
+                                type: object
+                                properties:
+                                  emailAddress:
+                                    type: object
+                                    properties:
+                                      address:
+                                        type: string
+
+  /v1.0/me/people:
+    get:
+      operationId: listPeople
+      summary: Find people relevant to the user (contacts, colleagues, frequent correspondents)
+      parameters:
+        - name: $search
+          in: query
+          required: false
+          description: >
+            Fuzzy name/email search, e.g. "alice" or "\"Alice Smith\"". Results
+            are ranked by relevance to the connected user.
+          schema:
+            type: string
+        - name: $filter
+          in: query
+          required: false
+          description: OData filter, e.g. personType/class eq 'Person'.
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields, e.g. displayName,scoredEmailAddresses,jobTitle.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 10).
+          schema:
+            type: integer
+        - name: $skip
+          in: query
+          required: false
+          description: Offset for paging.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: People ranked by relevance.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        displayName:
+                          type: string
+                        givenName:
+                          type: string
+                        surname:
+                          type: string
+                        jobTitle:
+                          type: string
+                        department:
+                          type: string
+                        companyName:
+                          type: string
+                        userPrincipalName:
+                          type: string
+                        scoredEmailAddresses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              address:
+                                type: string
+                              relevanceScore:
+                                type: number
+                  "@odata.nextLink":
+                    type: string
+
 components:
+  parameters:
+    messageId:
+      name: messageId
+      in: path
+      required: true
+      description: The message id returned by listMessages.
+      schema:
+        type: string
+    eventId:
+      name: eventId
+      in: path
+      required: true
+      description: The event id returned by listEvents (the invitation's event, not the invite email).
+      schema:
+        type: string
   schemas:
+    ReplyInput:
+      type: object
+      additionalProperties: false
+      description: >
+        Reply body. comment is placed above the quoted original; message can
+        add recipients (e.g. toRecipients/ccRecipients) to the reply.
+      properties:
+        comment:
+          type: string
+          description: Reply text (plain text or HTML).
+        message:
+          type: object
+          additionalProperties: false
+          properties:
+            toRecipients:
+              type: array
+              items:
+                $ref: "#/components/schemas/Recipient"
+            ccRecipients:
+              type: array
+              items:
+                $ref: "#/components/schemas/Recipient"
+            bccRecipients:
+              type: array
+              items:
+                $ref: "#/components/schemas/Recipient"
+    EventResponseInput:
+      type: object
+      additionalProperties: false
+      properties:
+        comment:
+          type: string
+          description: Optional note to the organizer.
+        sendResponse:
+          type: boolean
+          description: Send the response to the organizer (default true).
     EmailAddress:
       type: object
       properties:

@@ -3,9 +3,10 @@ info:
   title: OneDrive (Microsoft Graph)
   version: "1.0"
   description: >
-    Read-only subset of the Microsoft Graph drive API exposed through the
-    Tangram connector. All operations act on the connected account's drive
-    (/me/drive): browsing, search, metadata, and content download.
+    Subset of the Microsoft Graph drive API exposed through the Tangram
+    connector. All operations act on the connected account's drive
+    (/me/drive): browsing, search, metadata, content download, folder
+    creation, and sharing links.
 servers:
   - url: https://graph.microsoft.com
 
@@ -78,6 +79,102 @@ paths:
                     type: string
         "404":
           description: Item not found or not a folder.
+    post:
+      operationId: createFolder
+      summary: Create a folder inside a parent folder
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: >
+            The parent folder's item id; the literal id "root" creates at the
+            top level of the drive.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, folder]
+              properties:
+                name:
+                  type: string
+                  description: New folder name.
+                folder:
+                  type: object
+                  additionalProperties: false
+                  description: Must be an empty object {} — marks the new item as a folder.
+                  properties: {}
+                "@microsoft.graph.conflictBehavior":
+                  type: string
+                  enum: [rename, fail, replace]
+                  description: What to do if the name exists (default fail; rename appends a number).
+      responses:
+        "201":
+          description: The created folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveItem"
+        "409":
+          description: Name already exists (conflictBehavior fail).
+
+  /v1.0/me/drive/items/{itemId}/createLink:
+    post:
+      operationId: createLink
+      summary: Create a sharing link for a file or folder
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: The item id to share.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [view, edit, embed]
+                  description: view = read-only, edit = read-write, embed = embeddable (personal accounts only).
+                scope:
+                  type: string
+                  enum: [anonymous, organization, users]
+                  description: >
+                    anonymous = anyone with the link (may be disabled by tenant
+                    policy), organization = signed-in users in the tenant,
+                    users = specific people with existing access. Default is
+                    the tenant's default link scope.
+                expirationDateTime:
+                  type: string
+                  description: Optional ISO 8601 expiry, e.g. 2026-12-31T00:00:00Z (anonymous links).
+                retainInheritedPermissions:
+                  type: boolean
+                  description: Keep inherited permissions when the item is shared for the first time (default false).
+      responses:
+        "200":
+          description: An existing link of the same type/scope (returned as-is).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharingPermission"
+        "201":
+          description: The new sharing permission; link.webUrl is the shareable URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharingPermission"
+        "403":
+          description: Link type/scope blocked by tenant sharing policy.
 
   /v1.0/me/drive/search(q='{q}'):
     get:
@@ -278,6 +375,30 @@ paths:
 
 components:
   schemas:
+    SharingPermission:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Permission id.
+        roles:
+          type: array
+          items:
+            type: string
+        link:
+          type: object
+          properties:
+            type:
+              type: string
+              description: view, edit, or embed.
+            scope:
+              type: string
+              description: anonymous, organization, or users.
+            webUrl:
+              type: string
+              description: The shareable URL.
+        expirationDateTime:
+          type: string
     DriveItem:
       type: object
       description: >

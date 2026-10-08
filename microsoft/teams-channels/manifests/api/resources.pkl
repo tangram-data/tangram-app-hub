@@ -64,6 +64,14 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "List a channel's messages, newest first; $top for page size, $expand=replies for threads, page via @odata.nextLink."
           openApiMapping = new resources.OpenApiMapping { operationId = "listChannelMessages" }
+        },
+        new resources.Action {
+          name = "ListReplies"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the replies in one message's thread (messageId = root message id from List); $top for page size, page via @odata.nextLink."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listChannelMessageReplies" }
         }
       )
       presetRoles = List(new resources.Role {

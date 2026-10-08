@@ -181,6 +181,123 @@ paths:
         "400":
           description: Invalid event body (e.g. missing start/end).
 
+  /calendar/v3/calendars/{calendarId}/events/{eventId}/instances:
+    get:
+      operationId: listEventInstances
+      summary: List the occurrences of a recurring event
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          description: Calendar id from listCalendars, or "primary".
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          description: Id of the recurring (parent) event — an event with recurrence, not one instance.
+          schema:
+            type: string
+        - name: timeMin
+          in: query
+          required: false
+          description: Only instances ending at or after this RFC3339 timestamp.
+          schema:
+            type: string
+        - name: timeMax
+          in: query
+          required: false
+          description: Only instances starting before this RFC3339 timestamp.
+          schema:
+            type: string
+        - name: originalStart
+          in: query
+          required: false
+          description: Only the instance originally scheduled at this RFC3339 start time.
+          schema:
+            type: string
+        - name: showDeleted
+          in: query
+          required: false
+          description: Include cancelled instances (status=cancelled).
+          schema:
+            type: boolean
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum instances to return (default 250, max 2500).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listEventInstances response.
+          schema:
+            type: string
+        - name: timeZone
+          in: query
+          required: false
+          description: Time zone for the response (default is the calendar's time zone).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            Instances in start-time order; each has its own id (usable with getEvent /
+            updateEvent / deleteEvent to change one occurrence) and recurringEventId.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timeZone:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Event"
+                  nextPageToken:
+                    type: string
+        "404":
+          description: Event not found.
+
+  /calendar/v3/calendars/{calendarId}/events/quickAdd:
+    post:
+      operationId: quickAddEvent
+      summary: Create an event from a natural-language sentence
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          description: Calendar id from listCalendars, or "primary".
+          schema:
+            type: string
+        - name: text
+          in: query
+          required: true
+          description: >
+            Sentence describing the event, e.g. "Lunch with Ana at Cafe Roma tomorrow 12pm-1pm".
+            Times are read in the calendar's time zone. Email addresses in the text may be
+            added as attendees.
+          schema:
+            type: string
+        - name: sendUpdates
+          in: query
+          required: false
+          description: Whether added attendees receive invitation emails (default none).
+          schema:
+            type: string
+            enum: [all, externalOnly, none]
+      responses:
+        "200":
+          description: The created event — check its parsed start/end/summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          description: The text could not be parsed into an event.
+
   /calendar/v3/calendars/{calendarId}/events/{eventId}:
     get:
       operationId: getEvent
@@ -358,6 +475,15 @@ components:
                 type: string
               optional:
                 type: boolean
+              responseStatus:
+                type: string
+                description: >
+                  RSVP. Only the connected account's own entry may change it; leave
+                  other attendees' values as returned by getEvent.
+                enum: [needsAction, declined, tentative, accepted]
+              comment:
+                type: string
+                description: Optional RSVP note on the connected account's own entry.
         recurrence:
           type: array
           description: RRULE lines, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO"].

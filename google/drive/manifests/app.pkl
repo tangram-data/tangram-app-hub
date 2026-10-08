@@ -6,5 +6,5 @@ appType = "Connector"
 providerWebsite = "https://developers.google.com/drive/api"
 category = "productivity"
 tags = List("google", "drive", "files", "search", "oauth")
-description = "Google Drive connector: list, search, inspect, and export files — including finding spreadsheets, docs, and presentations by name or type."
+description = "Google Drive connector: list, search, inspect, download, export, copy, and share files — including finding spreadsheets, docs, and presentations by name or type."
 readme =read("README.md").text

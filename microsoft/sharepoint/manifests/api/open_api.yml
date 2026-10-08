@@ -4,8 +4,9 @@ info:
   version: "1.0"
   description: >
     Subset of the Microsoft Graph SharePoint API exposed through the Tangram
-    connector. Read-only: sites, lists, list items, and document libraries
-    the connected account can access.
+    connector: sites, lists, columns, list items (read + create/update),
+    document libraries, and Microsoft Search across the tenant, limited to
+    what the connected account can access.
 servers:
   - url: https://graph.microsoft.com
 
@@ -201,6 +202,129 @@ paths:
                     type: string
         "404":
           description: Site or list not found.
+    post:
+      operationId: createListItem
+      summary: Create a list item
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: listId
+          in: path
+          required: true
+          description: List id from listLists (a genericList; use internal column names from listColumns).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [fields]
+              properties:
+                fields:
+                  type: object
+                  additionalProperties: true
+                  description: >
+                    Column values keyed by INTERNAL column name (listColumns
+                    name, not displayName), e.g.
+                    {"Title":"Widget","Color":"Purple","Weight":32}. Lookup
+                    columns take <name>LookupId; multi-value columns need
+                    "<name>@odata.type":"Collection(Edm.String)".
+      responses:
+        "201":
+          description: The created list item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItem"
+        "400":
+          description: Unknown column or invalid value.
+
+  /v1.0/sites/{siteId}/lists/{listId}/items/{itemId}/fields:
+    patch:
+      operationId: updateListItemFields
+      summary: Update column values of a list item
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: Item id from listListItems.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: >
+                The column values to change, keyed by internal column name,
+                directly at the top level (NOT wrapped in fields), e.g.
+                {"Status":"Done","Owner":"Alice"}. Omitted columns are unchanged.
+      responses:
+        "200":
+          description: The item's full updated column values.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Item not found.
+
+  /v1.0/sites/{siteId}/lists/{listId}/columns:
+    get:
+      operationId: listColumns
+      summary: List a list's columns (schema)
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields, e.g. name,displayName,readOnly,required,hidden,choice.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Column definitions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Column"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Site or list not found.
 
   /v1.0/sites/{siteId}/lists/{listId}/items/{itemId}:
     get:
@@ -349,6 +473,174 @@ paths:
         "404":
           description: Drive or item not found.
 
+  /v1.0/drives/{driveId}/root/search(q='{q}'):
+    get:
+      operationId: searchDrive
+      summary: Search one document library by file name and content
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — URL-decode the value from
+            @odata.nextLink before passing it (the platform URL-encodes it again).
+          schema:
+            type: string
+        - name: driveId
+          in: path
+          required: true
+          description: Drive id from listDrives.
+          schema:
+            type: string
+        - name: q
+          in: path
+          required: true
+          description: >
+            Search text matched against names, metadata, and content. The
+            search(q='...') path is OData function syntax, so double an
+            apostrophe in the term: O'Brien → O''Brien.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size; page with @odata.nextLink.
+          schema:
+            type: integer
+        - name: $select
+          in: query
+          required: false
+          description: Comma-separated fields to return.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching items with an @odata.nextLink when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DriveItem"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Drive not found.
+
+  /v1.0/search/query:
+    post:
+      operationId: searchQuery
+      summary: Microsoft Search across SharePoint/OneDrive files, list items, and sites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  minItems: 1
+                  maxItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [entityTypes, query]
+                    properties:
+                      entityTypes:
+                        type: array
+                        minItems: 1
+                        description: What to search; driveItem, listItem, list, site, and drive may be combined.
+                        items:
+                          type: string
+                          enum: [driveItem, listItem, list, site, drive]
+                      query:
+                        type: object
+                        additionalProperties: false
+                        required: [queryString]
+                        properties:
+                          queryString:
+                            type: string
+                            description: >
+                              KQL query, e.g. "quarterly report",
+                              filetype:docx budget, or path:"https://contoso.sharepoint.com/sites/hr".
+                      from:
+                        type: integer
+                        description: Zero-based offset of the first hit (paging).
+                      size:
+                        type: integer
+                        description: Hits per page (default 25, max 500).
+                      fields:
+                        type: array
+                        description: Resource properties to return, e.g. ["name","webUrl","lastModifiedDateTime"].
+                        items:
+                          type: string
+                      sortProperties:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required: [name]
+                          properties:
+                            name:
+                              type: string
+                            isDescending:
+                              type: boolean
+      responses:
+        "200":
+          description: >
+            One result per request; hits live in value[0].hitsContainers[0].hits
+            with moreResultsAvailable for paging via from/size.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        searchTerms:
+                          type: array
+                          items:
+                            type: string
+                        hitsContainers:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              total:
+                                type: integer
+                              moreResultsAvailable:
+                                type: boolean
+                              hits:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    hitId:
+                                      type: string
+                                    rank:
+                                      type: integer
+                                    summary:
+                                      type: string
+                                      description: Snippet with <c0> highlight tags.
+                                    resource:
+                                      type: object
+                                      additionalProperties: true
+                                      description: >
+                                        The matched driveItem/listItem/site; driveItems
+                                        carry parentReference.driveId + id for
+                                        downloadDriveItem.
+        "400":
+          description: Invalid entity type combination or query.
+
   /v1.0/drives/{driveId}/items/{itemId}/content:
     get:
       operationId: downloadDriveItem
@@ -433,6 +725,56 @@ components:
           description: >
             The item's column values keyed by internal column name (present
             when $expand=fields is set), e.g. {"Title":"Q3 plan","Status":"Done"}.
+    Column:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: Internal column name — the key used in ListItem fields.
+        displayName:
+          type: string
+        description:
+          type: string
+        columnGroup:
+          type: string
+        readOnly:
+          type: boolean
+        required:
+          type: boolean
+        hidden:
+          type: boolean
+        indexed:
+          type: boolean
+        text:
+          type: object
+          description: Present for text columns.
+        number:
+          type: object
+          description: Present for number columns.
+        boolean:
+          type: object
+          description: Present for yes/no columns.
+        dateTime:
+          type: object
+          description: Present for date columns.
+        choice:
+          type: object
+          description: Present for choice columns.
+          properties:
+            choices:
+              type: array
+              items:
+                type: string
+            allowTextEntry:
+              type: boolean
+        lookup:
+          type: object
+          description: Present for lookup columns (write as <name>LookupId).
+        personOrGroup:
+          type: object
+          description: Present for person columns (write as <name>LookupId with a site user id).
     Drive:
       type: object
       properties:

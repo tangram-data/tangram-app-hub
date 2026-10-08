@@ -10,9 +10,16 @@ exposes the mailbox behind the OAuth connection as agent tools. All operations a
 | `gmail_list_message` | `Message.List` | Search with a Gmail query string (same syntax as the Gmail search box); filter by label ids from `gmail_list_label`. |
 | `gmail_get_message` | `Message.Get` | Full message: headers, body, MIME parts. |
 | `gmail_send_message` | `Message.Send` | **Confirmation-gated** (irreversible). Accepts normal `to`/`cc`/`bcc`/`subject`/`text`/`html` fields and optional attachments. |
+| `gmail_modify_message` | `Message.Modify` | Add/remove label ids: mark read = remove `UNREAD`, archive = remove `INBOX`, star = add `STARRED`. |
+| `gmail_trash_message` | `Message.Trash` | **Confirmation-gated.** Moves to Trash (restorable for 30 days). |
+| `gmail_list_thread` | `Thread.List` | Search conversations with `q` / `labelIds`; returns thread ids + snippets. |
+| `gmail_get_thread` | `Thread.Get` | Every message in a thread. Bodies stay base64url under `messages[].payload` (not decoded) — use `format=metadata` to skim, `gmail_get_message` for a decoded body. |
 | `gmail_create_draft` | `Draft.Create` | Accepts the same readable email fields, saved instead of sent. |
+| `gmail_list_draft` | `Draft.List` | Draft ids with their message id/threadId; optional `q` filter. |
+| `gmail_send_draft` | `Draft.Send` | **Confirmation-gated** (irreversible). Sends a draft by draft id. |
 | `gmail_get_attachment` | `Attachment.Get` | Fetch attachment content (base64url) by `messageId` + `attachmentId` from `getMessage`'s MIME parts. |
 | `gmail_list_label` | `Label.List` | System and user labels. |
+| `gmail_get_profile` | `Profile.Get` | The connected account's email address and message/thread totals. |
 
 ## OAuth setup
 
@@ -29,11 +36,12 @@ stored in Tangram, then each user connects their own account.
    https://<tangram-host>/api/core/v1/connector-oauth/callback/com.google/gmail
    ```
 
-4. Configure the consent screen with the two scopes the manifest requests:
+4. Configure the consent screen with the three scopes the manifest requests:
    - `https://www.googleapis.com/auth/gmail.readonly`
    - `https://www.googleapis.com/auth/gmail.compose`
+   - `https://www.googleapis.com/auth/gmail.modify` (labels + trash)
 
-**Restricted-scope warning:** both Gmail scopes are Google **restricted** scopes. A public OAuth app using them requires Google verification plus an annual CASA
+**Restricted-scope warning:** all three Gmail scopes are Google **restricted** scopes. A public OAuth app using them requires Google verification plus an annual CASA
 security assessment. The intended v1 path is bring-your-own client: register the OAuth client in your own Google Cloud project and set the consent screen's user
 type to **Internal** (Google Workspace org accounts only), which skips verification entirely.
 

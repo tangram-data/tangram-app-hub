@@ -22,8 +22,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
   tokenUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
   // All user-consentable (no admin consent): Team/Channel.ReadBasic.All for
-  // browsing, ChannelMessage.Send to post, Chat.Read + ChatMessage.Send for
-  // 1:1/group chats. Reading channel messages needs admin-consented
+  // browsing, ChannelMessage.Send to post and reply in channels, Chat.Read +
+  // ChatMessage.Send for 1:1/group chats, Chat.Create to start chats. Reading channel messages needs admin-consented
   // ChannelMessage.Read.All, so it lives in the separate teams-channels connector.
   // offline_access makes Entra issue a refresh token.
   scopes = List(
@@ -32,6 +32,7 @@ oauth = new oauthTypes.OAuth2AuthCode {
     "https://graph.microsoft.com/ChannelMessage.Send",
     "https://graph.microsoft.com/Chat.Read",
     "https://graph.microsoft.com/ChatMessage.Send",
+    "https://graph.microsoft.com/Chat.Create",
     "offline_access"
   )
   clientIdSecret = "microsoftClientId"

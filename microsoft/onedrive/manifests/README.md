@@ -1,7 +1,7 @@
 # OneDrive connector
 
 Tangram OS ConnectorApp for the Microsoft Graph drive API. Proxies exactly one upstream host (`https://graph.microsoft.com`, pinned — not overridable at
-install) and is **read-only**: browsing, search, metadata, and content download. All operations are pinned to `/me/drive`, so a caller can only see the
+install): browsing, search, metadata, content download, folder creation, and sharing links. All operations are pinned to `/me/drive`, so a caller can only see the
 connected account's files (plus items shared with it).
 
 It is the discovery connector for the `com.microsoft` family (the same role Google's `drive` connector plays for the Workspace connectors): Word and
@@ -18,8 +18,11 @@ feed the excel connector, whose tools take the workbook's `itemId`.
 | `onedrive_download_driveitem` | `DriveItem.Download` | Raw file bytes; `format=pdf` converts docx/xlsx/pptx to PDF. |
 | `onedrive_getshared_driveitem` | `DriveItem.GetShared` | Metadata of an item in another drive, by `remoteItem.parentReference.driveId` + `remoteItem.id`. |
 | `onedrive_downloadshared_driveitem` | `DriveItem.DownloadShared` | Download from another drive (shared items); `format=pdf` works here too. |
+| `onedrive_createfolder_driveitem` | `DriveItem.CreateFolder` | New folder under `itemId` (`root` for the top level); body `{name, folder:{}, "@microsoft.graph.conflictBehavior"}` (`rename`/`fail`/`replace`). |
+| `onedrive_createlink_driveitem` | `DriveItem.CreateLink` | **Confirmation-gated** (exposes the file). `type` `view`/`edit`/`embed`, `scope` `anonymous`/`organization`/`users`; returns `link.webUrl`. An existing matching link is returned as-is. |
 
-All actions are `Read`-privileged and stateless; there are no mutating tools.
+Only `CreateFolder` and `CreateLink` mutate (own drive only); there is no upload, rename, move, or delete. Path-based lookup (`root:/a/b.docx:`) is not
+exposed: the platform escapes `/` inside path parameters, so multi-segment paths cannot be passed through one parameter — use `Search` or `List` instead.
 
 Downloads are non-JSON, so the platform wraps them in a typed `app_action_result` envelope: text content is inlined up to 32 KB; anything larger (and any
 binary content, e.g. a PDF conversion) is saved to the caller's workspace files and returned as a `file` reference.
@@ -58,7 +61,8 @@ client credentials stored in Tangram, then each user connects their own account.
    ```
 
 3. **Certificates & secrets → New client secret** — this is the value for `microsoftClientSecret` below.
-4. **API permissions → Microsoft Graph → Delegated:** add `Files.Read.All`. Many tenants require admin consent for it — grant it once via *Grant admin
+4. **API permissions → Microsoft Graph → Delegated:** add `Files.Read.All` and `Files.ReadWrite`. Many tenants require admin consent for
+   `Files.Read.All` (`Files.ReadWrite` is user-consentable) — grant it once via *Grant admin
    consent* to spare every user the consent prompt.
 
 You do **not** need to request offline access manually — the manifest includes the `offline_access` scope (`api/spec.pkl`), which is what makes Azure AD issue

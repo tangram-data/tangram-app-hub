@@ -20,11 +20,14 @@ auth = new connector.ConnectorAuth {
 oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
   tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-  // Sites.Read.All covers site search, lists, list items, and document
-  // libraries (read-only v1). offline_access is what makes Azure AD issue a
+  // Sites.Read.All covers site search, lists, columns, list items, document
+  // libraries, and /search/query; Sites.ReadWrite.All (the only delegated
+  // scope Graph accepts for list-item create/update) adds list-item writes —
+  // it grants write to every site the user can edit. offline_access is what makes Azure AD issue a
   // refresh token (Microsoft's analog of Google's access_type=offline).
   scopes = List(
     "https://graph.microsoft.com/Sites.Read.All",
+    "https://graph.microsoft.com/Sites.ReadWrite.All",
     "offline_access"
   )
   clientIdSecret = "microsoftClientId"

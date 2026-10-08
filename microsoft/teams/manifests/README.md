@@ -11,7 +11,9 @@ teams the connected user is a member of.
 | `teams_list_team` | `Team.List` | Teams the connected user has joined; team ids scope everything else. |
 | `teams_list_channel` | `Channel.List` | A team's channels (e.g. General); channel ids scope message calls. |
 | `teams_send_channelmessage` | `ChannelMessage.Send` | **Confirmation-gated** (irreversible). Body `{body:{contentType,content}}`, contentType `text` or `html`. |
+| `teams_reply_channelmessage` | `ChannelMessage.Reply` | **Confirmation-gated** (irreversible). Threaded reply; `messageId` is the thread's root message. Same body as send. |
 | `teams_list_chat` | `Chat.List` | 1:1 and group chats; `$expand=members` reveals who each chat is with. |
+| `teams_create_chat` | `Chat.Create` | **Confirmation-gated**. `chatType` `oneOnOne`/`group`; `members` must include the connected user, each `{"@odata.type":"#microsoft.graph.aadUserConversationMember","roles":["owner"],"user@odata.bind":"https://graph.microsoft.com/v1.0/users('<id or UPN>')"}`. An existing 1:1 is returned as-is. |
 | `teams_list_chatmessage` | `ChatMessage.List` | Newest first; `$top` + `@odata.nextLink` paging. |
 | `teams_send_chatmessage` | `ChatMessage.Send` | **Confirmation-gated** (irreversible). Same body shape as channel send. |
 
@@ -31,8 +33,8 @@ client credentials stored in Tangram, then each user connects their own account.
    ```
 
 3. **Certificates & secrets → New client secret** — this is the value for `microsoftClientSecret` below.
-4. **API permissions → Microsoft Graph → Delegated:** add `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Send`, `Chat.Read`, and
-   `ChatMessage.Send`. None needs admin consent, so every user can connect. Reading channel messages needs the admin-consented
+4. **API permissions → Microsoft Graph → Delegated:** add `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Send`, `Chat.Read`,
+   `ChatMessage.Send`, and `Chat.Create`. None needs admin consent, so every user can connect. Reading channel messages needs the admin-consented
    `ChannelMessage.Read.All` and is provided by the separate **teams-channels** connector.
 
 You do **not** need to request offline access manually — the manifest includes the `offline_access` scope (`api/spec.pkl`), which is what makes Azure AD issue

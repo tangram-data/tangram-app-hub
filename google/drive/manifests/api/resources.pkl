@@ -32,12 +32,78 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "Export a Google Workspace document's content, e.g. Docs to text/plain or text/markdown, Sheets to text/csv."
           openApiMapping = new resources.OpenApiMapping { operationId = "exportFile" }
+        },
+        new resources.Action {
+          name = "Download"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Download an uploaded (non-Workspace) file's bytes, e.g. a PDF or image; the content is saved to a workspace file and returned as a file reference. For Docs/Sheets/Slides use drive_export_file."
+          openApiMapping = new resources.OpenApiMapping { operationId = "downloadFile" }
+        },
+        new resources.Action {
+          name = "Copy"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Copy a file (not a folder), optionally with a new name and a single destination folder id in parents; returns the new file's id and webViewLink."
+          openApiMapping = new resources.OpenApiMapping { operationId = "copyFile" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "List, inspect, download, export, and copy Drive files through the Drive connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Permission"
+    activeVersion = "v1"
+    doc = "A sharing grant on a Drive file or folder."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Share a file or folder: role reader/commenter/writer, type user or group (with emailAddress), domain (with domain), or anyone (link sharing). sendNotificationEmail=false shares silently. Confirmation-gated: it exposes content to other people."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPermission" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Create")
+        description = "Share Drive files through the Drive connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "About"
+    activeVersion = "v1"
+    doc = "The connected Drive account and its storage quota."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch the connected account (name, email) and storage quota; fields defaults to user,storageQuota."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAbout" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
         permissions = List("Read")
-        description = "List, inspect, and export Drive files through the Drive connector."
+        description = "Read account info through the Drive connector."
       })
     })
   }

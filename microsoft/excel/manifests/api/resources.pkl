@@ -16,12 +16,20 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "List a workbook's worksheets with their ids, names, positions, and visibility."
           openApiMapping = new resources.OpenApiMapping { operationId = "listWorksheets" }
+        },
+        new resources.Action {
+          name = "Add"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Add a worksheet (tab) at the end of the workbook; body {name} (unique, max 31 chars) or omit name for Excel's default."
+          openApiMapping = new resources.OpenApiMapping { operationId = "addWorksheet" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read")
-        description = "List worksheets through the Excel connector."
+        permissions = List("Read", "Create")
+        description = "List and add worksheets through the Excel connector."
       })
     })
   },
@@ -50,6 +58,14 @@ types: List<resources.ResourceTypeDefinition> = List(
           openApiMapping = new resources.OpenApiMapping { operationId = "getUsedRange" }
         },
         new resources.Action {
+          name = "GetUsedValuesOnly"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read the worksheet's used range counting only cells with values (usedRange(valuesOnly=true)) — formatted-but-empty cells do not widen it."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getUsedRangeValuesOnly" }
+        },
+        new resources.Action {
           name = "Update"
           privilege = "Update"
           effect = "Reversible"
@@ -57,6 +73,15 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Overwrite a range's cell values with a row-major values array whose dimensions match the address; strings starting with = are treated as formulas."
           openApiMapping = new resources.OpenApiMapping { operationId = "updateRange" }
+        },
+        new resources.Action {
+          name = "Clear"
+          privilege = "Update"
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Clear a range by A1 address; applyTo All (default: values, formulas, formatting), Contents, or Formats."
+          openApiMapping = new resources.OpenApiMapping { operationId = "clearRange" }
         }
       )
       presetRoles = List(new resources.Role {
@@ -81,6 +106,14 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "List a workbook's tables with their ids, names, and styles."
           openApiMapping = new resources.OpenApiMapping { operationId = "listTables" }
+        },
+        new resources.Action {
+          name = "ListRows"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a table's data rows (header excluded) as {index, values}; page with $top + $skip."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listTableRows" }
         },
         new resources.Action {
           name = "AddRows"

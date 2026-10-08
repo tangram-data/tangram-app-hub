@@ -48,6 +48,198 @@ paths:
                       $ref: "#/components/schemas/Worksheet"
         "404":
           description: Drive item not found or not an Excel workbook.
+    post:
+      operationId: addWorksheet
+      summary: Add a new worksheet (tab) to a workbook
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  description: >
+                    Tab name (max 31 chars, no : / ? * [ ] or backslash); omit for Excel's
+                    default (Sheet2, ...). Must be unique in the workbook.
+      responses:
+        "201":
+          description: The new worksheet (added as the last tab).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worksheet"
+        "400":
+          description: Duplicate or invalid name.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/{worksheetIdOrName}/range(address='{address}')/clear:
+    post:
+      operationId: clearRange
+      summary: Clear a range's contents and/or formatting
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: worksheetIdOrName
+          in: path
+          required: true
+          description: Worksheet id or name, e.g. Sheet1.
+          schema:
+            type: string
+        - name: address
+          in: path
+          required: true
+          description: A1-notation range like A1:D20 (no "Sheet1!" prefix).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                applyTo:
+                  type: string
+                  enum: [All, Formats, Contents]
+                  description: What to clear (default All = values, formulas, and formatting).
+      responses:
+        "204":
+          description: Cleared (empty body).
+        "400":
+          description: Invalid range address.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/{worksheetIdOrName}/usedRange(valuesOnly=true):
+    get:
+      operationId: getUsedRangeValuesOnly
+      summary: Read the worksheet's used range, ignoring formatted-but-empty cells
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: worksheetIdOrName
+          in: path
+          required: true
+          description: Worksheet id or name, e.g. Sheet1.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            The smallest rectangle containing all cells WITH VALUES — unlike
+            getUsedRange, cells that are only formatted do not widen it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Range"
+        "404":
+          description: Workbook or worksheet not found.
+
+  /v1.0/drives/{driveId}/items/{itemId}/workbook/tables/{tableIdOrName}/rows:
+    get:
+      operationId: listTableRows
+      summary: List a table's data rows
+      parameters:
+        - name: driveId
+          in: path
+          required: true
+          description: >
+            The drive holding the workbook — parentReference.driveId on any
+            onedrive connector item (the user's own OneDrive included), or a
+            SharePoint document library id from sharepoint_list_drive.
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The workbook file's drive item id (from the onedrive connector).
+          schema:
+            type: string
+        - name: tableIdOrName
+          in: path
+          required: true
+          description: Table id or name from listTables, e.g. Table1.
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Max rows to return; page with $skip.
+          schema:
+            type: integer
+        - name: $skip
+          in: query
+          required: false
+          description: Rows to skip (offset paging).
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Data rows (header row excluded), each with its index and a one-row values array.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                          description: Zero-based row index within the table body.
+                        values:
+                          type: array
+                          description: One inner array holding the row's cell values.
+                          items:
+                            type: array
+                            items: {}
+        "404":
+          description: Table not found.
 
   /v1.0/drives/{driveId}/items/{itemId}/workbook/worksheets/{worksheetIdOrName}/range(address='{address}'):
     get:
@@ -187,8 +379,7 @@ paths:
           description: >
             The smallest rectangle containing all non-empty cells — read a
             whole sheet without knowing its size. (Considers formatted-but-empty
-            cells too; Graph's valuesOnly variant is an OData function form
-            this connector does not expose.)
+            cells too; use getUsedRangeValuesOnly to ignore them.)
           content:
             application/json:
               schema:

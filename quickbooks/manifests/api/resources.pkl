@@ -40,12 +40,84 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "Run a QuickBooks SQL-like SELECT — the universal read. Receipt matching: find candidate bank/card expenses with e.g. \"select * from Purchase where TotalAmt = '42.17' and TxnDate >= '2026-07-01' and TxnDate <= '2026-07-15'\" (widen the date window or drop cents-exactness if nothing matches), list spend accounts with \"select * from Account where AccountType in ('Bank','Credit Card')\", find payees with \"select * from Vendor where DisplayName like 'Uber%'\", and check existing attachments with \"select * from Attachable\". Escape a single quote in a string literal as \\' (e.g. 'Joe\\'s Diner'). Page with 'startposition N maxresults M'."
           openApiMapping = new resources.OpenApiMapping { operationId = "queryEntities" }
+        },
+        new resources.Action {
+          name = "ListChanged"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Change data capture: every object of the listed entities (comma-separated, e.g. \"Purchase,Vendor,Attachable\") created, updated, or deleted since changedSince (ISO 8601, at most 30 days ago); deleted objects carry status Deleted. Up to 1000 objects per entity — narrow the window if capped. To fetch one object by Id, use Query (\"select * from Purchase where Id = '145'\")."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listChangedEntities" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
         permissions = List("Read")
         description = "Query company data through the QuickBooks connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Report"
+    activeVersion = "v1"
+    doc = "A QuickBooks financial report (Header, Columns, nested Rows of ColData) computed for the connected company."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "ProfitAndLoss"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Profit and loss (income statement): income, COGS, expenses, net income. Period: start_date/end_date (yyyy-MM-dd) or date_macro (e.g. Last Month, This Fiscal Year-to-date); accounting_method Accrual|Cash; summarize_column_by Month/Quarter/Customers/... for breakdowns."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getProfitAndLossReport" }
+        },
+        new resources.Action {
+          name = "BalanceSheet"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Balance sheet: assets, liabilities, equity as of end_date. Period: start_date/end_date (yyyy-MM-dd) or date_macro (e.g. Last Month, This Fiscal Year-to-date); accounting_method Accrual|Cash; summarize_column_by for comparisons."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getBalanceSheetReport" }
+        },
+        new resources.Action {
+          name = "CashFlow"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Statement of cash flows (operating, investing, financing). Period: start_date/end_date (yyyy-MM-dd) or date_macro (e.g. Last Month, This Fiscal Year-to-date); summarize_column_by for breakdowns."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getCashFlowReport" }
+        },
+        new resources.Action {
+          name = "TransactionList"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Every transaction in the period with date, type, number, name, account, and amount. Period: start_date/end_date (yyyy-MM-dd) or date_macro (e.g. Last Month, This Fiscal Year-to-date); accounting_method Accrual|Cash."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getTransactionListReport" }
+        },
+        new resources.Action {
+          name = "AgedPayables"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "A/P aging summary: unpaid bills per vendor in days-past-due buckets as of report_date (yyyy-MM-dd, default today); aging_period days per bucket, num_periods bucket count."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAgedPayablesReport" }
+        },
+        new resources.Action {
+          name = "AgedReceivables"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "A/R aging summary: unpaid invoices per customer in days-past-due buckets as of report_date (yyyy-MM-dd, default today); aging_period days per bucket, num_periods bucket count."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAgedReceivablesReport" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Run financial reports through the QuickBooks connector."
       })
     })
   },
@@ -74,12 +146,22 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Sparse-update an existing Purchase by Id + current SyncToken (sparse=true): set PrivateNote after matching a receipt, fix the vendor or date. Only supplied fields change; a supplied Line array replaces all lines. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "updatePurchase" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          // QuickBooks deletes transactions permanently (only the audit log keeps a trace).
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Delete an expense transaction by Id + current SyncToken (operation=delete). Permanent and changes the books — prefer Update for corrections; fails on reconciled or closed-period transactions."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deletePurchase" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Create", "Update")
-        description = "Record and update expense transactions through the QuickBooks connector."
+        permissions = List("Create", "Update", "Delete")
+        description = "Record, update, and delete expense transactions through the QuickBooks connector."
       })
     })
   },

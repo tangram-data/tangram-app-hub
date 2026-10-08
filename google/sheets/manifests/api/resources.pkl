@@ -35,6 +35,14 @@ types: List<resources.ResourceTypeDefinition> = List(
           openApiMapping = new resources.OpenApiMapping { operationId = "getValues" }
         },
         new resources.Action {
+          name = "BatchReadValues"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read several A1 ranges in one call (ranges, e.g. [\"Sheet1!A1:D10\", \"Summary!B2:B5\"]); returns valueRanges in request order."
+          openApiMapping = new resources.OpenApiMapping { operationId = "batchGetValues" }
+        },
+        new resources.Action {
           name = "UpdateValues"
           privilege = "Write"
           effect = "Reversible"
@@ -51,6 +59,24 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = false
           doc = "Append rows after the last row of the table that contains the given range."
           openApiMapping = new resources.OpenApiMapping { operationId = "appendValues" }
+        },
+        new resources.Action {
+          name = "ClearValues"
+          privilege = "Write"
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Clear all values in an A1 range (formatting is kept). The old values are not recoverable through this connector."
+          openApiMapping = new resources.OpenApiMapping { operationId = "clearValues" }
+        },
+        new resources.Action {
+          name = "BatchUpdate"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Apply Sheets API structural/formatting requests atomically, e.g. requests [{\"addSheet\": {\"properties\": {\"title\": \"Q3\"}}}] or [{\"updateSheetProperties\": {\"properties\": {\"sheetId\": 0, \"title\": \"Summary\"}, \"fields\": \"title\"}}]. sheetId comes from sheets_get_spreadsheet. Confirmation-gated: requests like deleteSheet remove data."
+          openApiMapping = new resources.OpenApiMapping { operationId = "batchUpdateSpreadsheet" }
         }
       )
       presetRoles = List(new resources.Role {

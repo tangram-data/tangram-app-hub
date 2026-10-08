@@ -42,12 +42,86 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Send an email as the connected account from readable recipient, subject, text/HTML, and attachment fields."
           openApiMapping = new resources.OpenApiMapping { operationId = "sendMessage" }
+        },
+        new resources.Action {
+          name = "Modify"
+          privilege = "Write"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = false
+          doc = "Add or remove labels on a message: mark read = removeLabelIds [\"UNREAD\"], archive = removeLabelIds [\"INBOX\"], star = addLabelIds [\"STARRED\"]. User label ids come from gmail_list_label."
+          openApiMapping = new resources.OpenApiMapping { operationId = "modifyMessage" }
+        },
+        new resources.Action {
+          name = "Trash"
+          privilege = "Delete"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Move a message to the trash. Restorable from Trash for 30 days, then Gmail deletes it permanently."
+          openApiMapping = new resources.OpenApiMapping { operationId = "trashMessage" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read", "Create")
-        description = "Search, read, and send email through the Gmail connector."
+        permissions = List("Read", "Create", "Write", "Delete")
+        description = "Search, read, send, label, and trash email through the Gmail connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Thread"
+    activeVersion = "v1"
+    doc = "A conversation thread (a reply chain of messages) in the connected Gmail mailbox."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search conversation threads with a Gmail query string and/or label ids; returns thread ids and snippets."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listThreads" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch every message in a thread. Bodies are NOT decoded: they are base64url under messages[].payload. Use format=metadata to skim, then gmail_get_message for a decoded body."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getThread" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search and read threads through the Gmail connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Profile"
+    activeVersion = "v1"
+    doc = "The connected account's mailbox profile."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch the connected account's email address and message/thread totals — use to learn which address \"me\" is."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getProfile" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read the mailbox profile through the Gmail connector."
       })
     })
   },
@@ -91,12 +165,29 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = false
           doc = "Create a draft without sending it from readable recipient, subject, text/HTML, and attachment fields."
           openApiMapping = new resources.OpenApiMapping { operationId = "createDraft" }
+        },
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List drafts (draft id plus its message id/threadId); optional q filter. Read a draft's content with gmail_get_message on message.id."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listDrafts" }
+        },
+        new resources.Action {
+          name = "Send"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Send an existing draft by its draft id (from gmail_create_draft or gmail_list_draft). The draft is removed and becomes a sent message."
+          openApiMapping = new resources.OpenApiMapping { operationId = "sendDraft" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Create")
-        description = "Create drafts through the Gmail connector."
+        permissions = List("Read", "Create")
+        description = "List, create, and send drafts through the Gmail connector."
       })
     })
   },

@@ -11,13 +11,25 @@ for Intuit sandbox companies.
 |------|--------|-------|
 | `quickbooks_get_company` | `Company.Get` | Company profile; cheapest connection check. |
 | `quickbooks_query_entity` | `Entity.Query` | The universal read — QuickBooks SQL-like SELECT over Purchase, Deposit, Transfer, Invoice, Bill, Payment, Account, Vendor, Customer, Attachable, ... |
+| `quickbooks_listchanged_entity` | `Entity.ListChanged` | Change data capture (`/cdc`): `entities` comma list + `changedSince` (≤30 days ago); includes deletes (`status: Deleted`). |
+| `quickbooks_profitandloss_report` | `Report.ProfitAndLoss` | P&L. `start_date`/`end_date` or `date_macro`, `accounting_method` (`Accrual`/`Cash`), `summarize_column_by` (`Month`, `Quarter`, `Customers`, ...). |
+| `quickbooks_balancesheet_report` | `Report.BalanceSheet` | Balance sheet as of `end_date`; same params as P&L. |
+| `quickbooks_cashflow_report` | `Report.CashFlow` | Statement of cash flows; dates/`date_macro` + `summarize_column_by`. |
+| `quickbooks_transactionlist_report` | `Report.TransactionList` | Every transaction in the period; dates/`date_macro` + `accounting_method`. |
+| `quickbooks_agedpayables_report` | `Report.AgedPayables` | A/P aging summary as of `report_date`; `aging_period`, `num_periods`. |
+| `quickbooks_agedreceivables_report` | `Report.AgedReceivables` | A/R aging summary as of `report_date`; `aging_period`, `num_periods`. |
 | `quickbooks_create_purchase` | `Purchase.Create` | **Confirmation-gated.** Record an expense (Cash/Check/CreditCard) against a bank or credit-card account. Pass `requestid` (idempotency key, reused on retry) to avoid duplicates. |
 | `quickbooks_update_purchase` | `Purchase.Update` | **Confirmation-gated.** Sparse update by `Id` + `SyncToken` (`sparse: true`) — e.g. set `PrivateNote` after a receipt match. |
+| `quickbooks_delete_purchase` | `Purchase.Delete` | **Confirmation-gated** (irreversible). By `Id` + `SyncToken`; prefer `Purchase.Update` for corrections. |
 | `quickbooks_upload_attachable` | `Attachable.Upload` | Upload the receipt file itself (multipart, streamed from the workspace files by volume reference) and attach it to transactions. |
 | `quickbooks_create_attachable` | `Attachable.Create` | Attach a note-only attachable to transactions via `AttachableRef`. |
 | `quickbooks_update_attachable` | `Attachable.Update` | **Confirmation-gated.** Full update by `Id` + `SyncToken` — fix a note or re-point it after a mis-match. |
 | `quickbooks_delete_attachable` | `Attachable.Delete` | **Confirmation-gated.** Permanent — QuickBooks has no undo for deleted attachables. |
 | `quickbooks_create_vendor` | `Vendor.Create` | Create a merchant/payee; query first to avoid `DisplayName` duplicates. |
+
+Single-object reads by Id go through `Entity.Query` (`select * from Purchase where Id = '145'`); an Attachable row already carries `TempDownloadUri`
+(a short-lived download URL) for uploaded files. Reports are one tool per report because `x-tangram-upstream.path` only templates `{{oauth.*}}`,
+not client path parameters.
 
 ## Receipt → transaction matching (agent workflow)
 

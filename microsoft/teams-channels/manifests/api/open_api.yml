@@ -163,6 +163,58 @@ paths:
         "404":
           description: Team or channel not found.
 
+  /v1.0/teams/{teamId}/channels/{channelId}/messages/{messageId}/replies:
+    get:
+      operationId: listChannelMessageReplies
+      summary: List the replies in a channel message's thread
+      parameters:
+        - name: $skiptoken
+          in: query
+          required: false
+          description: >
+            Continuation token for the next page — URL-decode the value from
+            @odata.nextLink before passing it (the platform URL-encodes it again).
+          schema:
+            type: string
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          description: Id of the thread's root message (from listChannelMessages).
+          schema:
+            type: string
+        - name: $top
+          in: query
+          required: false
+          description: Page size (default 20, max 50).
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Thread replies; follow @odata.nextLink for more.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChatMessage"
+                  "@odata.nextLink":
+                    type: string
+        "404":
+          description: Team, channel, or message not found.
+
 components:
   schemas:
     Team:

@@ -21,10 +21,12 @@ oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth"
   tokenUrl = "https://oauth2.googleapis.com/token"
   revocationUrl = "https://oauth2.googleapis.com/revoke"
-  // gmail.readonly covers list/get; gmail.compose covers drafts and send.
+  // gmail.readonly covers list/get; gmail.compose covers drafts and send;
+  // gmail.modify covers label changes and trash.
   scopes = List(
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.compose"
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify"
   )
   clientIdSecret = "googleClientId"
   clientSecretSecret = "googleClientSecret"

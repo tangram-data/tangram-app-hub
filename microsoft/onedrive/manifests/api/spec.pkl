@@ -20,11 +20,13 @@ auth = new connector.ConnectorAuth {
 oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
   tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-  // Files.Read.All covers the whole drive plus items shared with the user
-  // (read-only v1, the Graph analog of Google's drive.readonly).
+  // Files.Read.All covers the whole drive plus items shared with the user;
+  // Files.ReadWrite (own drive only, user-consentable) adds folder creation
+  // and sharing links.
   // offline_access is what makes Azure AD issue a refresh token.
   scopes = List(
     "https://graph.microsoft.com/Files.Read.All",
+    "https://graph.microsoft.com/Files.ReadWrite",
     "offline_access"
   )
   clientIdSecret = "microsoftClientId"

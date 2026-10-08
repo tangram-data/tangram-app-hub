@@ -113,6 +113,184 @@ paths:
         "404":
           description: Message not found.
 
+  /gmail/v1/users/me/messages/{id}/modify:
+    post:
+      operationId: modifyMessage
+      summary: Add or remove labels on a message
+      description: >
+        Mark read = removeLabelIds ["UNREAD"]; mark unread = addLabelIds ["UNREAD"];
+        archive = removeLabelIds ["INBOX"]; star = addLabelIds ["STARRED"].
+        User label ids come from listLabels.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The message id returned by listMessages.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                addLabelIds:
+                  type: array
+                  description: Label ids to add (max 100).
+                  items:
+                    type: string
+                removeLabelIds:
+                  type: array
+                  description: Label ids to remove (max 100).
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: The message with its updated labelIds.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message not found.
+
+  /gmail/v1/users/me/messages/{id}/trash:
+    post:
+      operationId: trashMessage
+      summary: Move a message to the trash
+      description: >
+        Trashed messages are deleted permanently by Gmail after 30 days; until then
+        the user can restore them from Trash.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The message id returned by listMessages.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The trashed message (labelIds now include TRASH).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Message not found.
+
+  /gmail/v1/users/me/threads:
+    get:
+      operationId: listThreads
+      summary: Search conversation threads in the connected mailbox
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: >
+            Gmail search query, same syntax as the Gmail search box
+            (e.g. "from:alice@example.com is:unread newer_than:7d").
+          schema:
+            type: string
+        - name: labelIds
+          in: query
+          required: false
+          description: Only return threads with messages carrying ALL of these label ids (e.g. INBOX, UNREAD).
+          schema:
+            type: array
+            items:
+              type: string
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum threads to return (default 100, max 500).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listThreads response.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching thread ids and snippets with a nextPageToken when more results exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  threads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        snippet:
+                          type: string
+                        historyId:
+                          type: string
+                  nextPageToken:
+                    type: string
+                  resultSizeEstimate:
+                    type: integer
+        "401":
+          description: Unauthorized (token expired or revoked).
+
+  /gmail/v1/users/me/threads/{id}:
+    get:
+      operationId: getThread
+      summary: Fetch a whole conversation thread by id
+      description: >
+        Returns every message in the thread. Bodies are NOT decoded here: they are
+        base64url under messages[].payload. Use format=metadata to skim a thread, then
+        getMessage on one message id to read its decoded body.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The thread id (threadId from listMessages or listThreads).
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: full (default), metadata, or minimal.
+          schema:
+            type: string
+            enum: [full, metadata, minimal]
+        - name: metadataHeaders
+          in: query
+          required: false
+          description: >
+            With format=metadata, only return these headers (e.g. ["From", "To", "Subject", "Date"]).
+            Ignored for other formats.
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: The thread with its messages in chronological order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  snippet:
+                    type: string
+                  historyId:
+                    type: string
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+        "404":
+          description: Thread not found.
+
   /gmail/v1/users/me/messages/send:
     post:
       operationId: sendMessage
@@ -176,6 +354,54 @@ paths:
           description: Attachment not found.
 
   /gmail/v1/users/me/drafts:
+    get:
+      operationId: listDrafts
+      summary: List drafts in the mailbox
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Only return drafts matching this Gmail search query (e.g. "to:bob@example.com").
+          schema:
+            type: string
+        - name: maxResults
+          in: query
+          required: false
+          description: Maximum drafts to return (default 100, max 500).
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          required: false
+          description: Page token from a previous listDrafts response.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Draft ids with their message id/threadId, and a nextPageToken when more exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  drafts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        message:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            threadId:
+                              type: string
+                  nextPageToken:
+                    type: string
+                  resultSizeEstimate:
+                    type: integer
     post:
       operationId: createDraft
       summary: Create a draft without sending it
@@ -202,6 +428,52 @@ paths:
                     type: string
                   message:
                     $ref: "#/components/schemas/Message"
+
+  /gmail/v1/users/me/drafts/send:
+    post:
+      operationId: sendDraft
+      summary: Send an existing draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  description: The draft id from createDraft or listDrafts.
+      responses:
+        "200":
+          description: The sent message (id, threadId, labelIds).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Draft not found.
+
+  /gmail/v1/users/me/profile:
+    get:
+      operationId: getProfile
+      summary: Fetch the connected account's mailbox profile
+      responses:
+        "200":
+          description: The account's email address and mailbox counters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  emailAddress:
+                    type: string
+                  messagesTotal:
+                    type: integer
+                  threadsTotal:
+                    type: integer
+                  historyId:
+                    type: string
 
   /gmail/v1/users/me/labels:
     get:

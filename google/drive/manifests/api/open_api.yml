@@ -3,8 +3,8 @@ info:
   title: Google Drive
   version: "1.0"
   description: >
-    Read-only subset of the Google Drive API v3 exposed through the Tangram
-    connector: file discovery, metadata, and Workspace-document export.
+    Subset of the Google Drive API v3 exposed through the Tangram connector:
+    file discovery, metadata, download/export, copy, and sharing.
 servers:
   - url: https://www.googleapis.com
 
@@ -147,6 +147,215 @@ paths:
                 type: string
         "400":
           description: Unsupported export mimeType for this file.
+
+  /download/drive/v3/files/{fileId}:
+    get:
+      operationId: downloadFile
+      summary: Download a binary file's content
+      description: >
+        Media download for uploaded (non-Workspace) files such as PDFs, images, and
+        Office files; the content is saved to a workspace file and returned as a file
+        reference. Google Docs/Sheets/Slides cannot be downloaded — use exportFile.
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: Id of an uploaded file (mimeType not application/vnd.google-apps.*).
+          schema:
+            type: string
+        - name: alt
+          in: query
+          required: false
+          description: Always media (returns the file bytes instead of metadata).
+          schema:
+            type: string
+            enum: [media]
+            default: media
+        - name: acknowledgeAbuse
+          in: query
+          required: false
+          description: Set true to download a file Drive flagged as malware/abusive (owner-acknowledged risk).
+          schema:
+            type: boolean
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The file content.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Workspace document (use exportFile) or download not permitted.
+        "404":
+          description: File not found.
+
+  /drive/v3/files/{fileId}/copy:
+    post:
+      operationId: copyFile
+      summary: Copy a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The file to copy (folders cannot be copied).
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: false
+          description: Response field mask for the new file.
+          schema:
+            type: string
+            default: "id,name,mimeType,parents,webViewLink"
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the copy (default "Copy of <original name>").
+                parents:
+                  type: array
+                  description: Single destination folder id (default the original's folder).
+                  maxItems: 1
+                  items:
+                    type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: The new file's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+        "404":
+          description: File not found.
+
+  /drive/v3/files/{fileId}/permissions:
+    post:
+      operationId: createPermission
+      summary: Share a file or folder
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The file or folder to share.
+          schema:
+            type: string
+        - name: sendNotificationEmail
+          in: query
+          required: false
+          description: >
+            Email the grantee about the share (Drive default true for user/group
+            grants). Set false to share silently.
+          schema:
+            type: boolean
+        - name: emailMessage
+          in: query
+          required: false
+          description: Plain-text note included in the notification email.
+          schema:
+            type: string
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, type]
+              properties:
+                role:
+                  type: string
+                  description: Access level. Ownership transfer is not supported here.
+                  enum: [reader, commenter, writer, fileOrganizer, organizer]
+                type:
+                  type: string
+                  description: >
+                    user or group (needs emailAddress), domain (needs domain), or
+                    anyone (anyone with the link).
+                  enum: [user, group, domain, anyone]
+                emailAddress:
+                  type: string
+                  description: Grantee email for type user or group.
+                domain:
+                  type: string
+                  description: Grantee domain for type domain, e.g. example.com.
+                allowFileDiscovery:
+                  type: boolean
+                  description: For domain/anyone, whether the file shows up in search (default false = link only).
+      responses:
+        "200":
+          description: The created permission.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  role:
+                    type: string
+                  emailAddress:
+                    type: string
+                  domain:
+                    type: string
+        "400":
+          description: Invalid grantee/role combination.
+        "404":
+          description: File not found.
+
+  /drive/v3/about:
+    get:
+      operationId: getAbout
+      summary: Fetch the connected account and its storage quota
+      parameters:
+        - name: fields
+          in: query
+          required: false
+          description: Field mask (required by Drive). Defaults to user,storageQuota.
+          schema:
+            type: string
+            default: "user,storageQuota"
+      responses:
+        "200":
+          description: The account's user info and storage quota.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      displayName:
+                        type: string
+                      emailAddress:
+                        type: string
+                  storageQuota:
+                    type: object
+                    description: limit, usage, usageInDrive, usageInDriveTrash (byte counts as strings).
 
 components:
   schemas:

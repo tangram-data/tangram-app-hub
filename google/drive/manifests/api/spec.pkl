@@ -25,7 +25,12 @@ oauth = new oauthTypes.OAuth2AuthCode {
   revocationUrl = "https://oauth2.googleapis.com/revoke"
   // drive.readonly is a restricted scope (like Gmail); the non-restricted
   // drive.file scope cannot discover existing files, so it is useless here.
-  scopes = List("https://www.googleapis.com/auth/drive.readonly")
+  // drive (also restricted) is the narrowest scope that can copy or share
+  // existing files the app did not create.
+  scopes = List(
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive"
+  )
   clientIdSecret = "googleClientId"
   clientSecretSecret = "googleClientSecret"
   callbackPath = "/api/core/v1/connector-oauth/callback/com.google/drive"

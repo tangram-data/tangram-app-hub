@@ -56,12 +56,29 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "Download a file from another drive (shared items) by driveId + itemId; format=pdf converts Office files."
           openApiMapping = new resources.OpenApiMapping { operationId = "downloadSharedItem" }
+        },
+        new resources.Action {
+          name = "CreateFolder"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Create a folder under a parent folder (itemId 'root' for the drive root); body {name, folder:{}, @microsoft.graph.conflictBehavior rename|fail|replace}."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createFolder" }
+        },
+        new resources.Action {
+          name = "CreateLink"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Create (or return the existing) sharing link for an item: type view|edit|embed, scope anonymous|organization|users; link.webUrl in the response is the URL to share. Exposes the file to others."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createLink" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read")
-        description = "Browse, search, and read OneDrive files through the OneDrive connector."
+        permissions = List("Read", "Create")
+        description = "Browse, search, read, organize, and share OneDrive files through the OneDrive connector."
       })
     })
   }

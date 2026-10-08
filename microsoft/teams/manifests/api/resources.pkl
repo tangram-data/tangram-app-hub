@@ -65,6 +65,15 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Post a new message to a channel; body contentType is text or html."
           openApiMapping = new resources.OpenApiMapping { operationId = "sendChannelMessage" }
+        },
+        new resources.Action {
+          name = "Reply"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Reply in the thread of a channel message (messageId = the thread's root message id); same body as Send."
+          openApiMapping = new resources.OpenApiMapping { operationId = "replyChannelMessage" }
         }
       )
       presetRoles = List(new resources.Role {
@@ -89,12 +98,21 @@ types: List<resources.ResourceTypeDefinition> = List(
           idempotent = true
           doc = "List the connected user's chats; $expand=members reveals who each 1:1/group chat is with, $top for page size."
           openApiMapping = new resources.OpenApiMapping { operationId = "listChats" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Create a oneOnOne or group chat; members must include the connected user (each {@odata.type aadUserConversationMember, roles [owner], user@odata.bind users('<id or UPN>')}). A oneOnOne that already exists is returned as-is. Use the returned id with ChatMessage.Send."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createChat" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read")
-        description = "List chats through the Teams connector."
+        permissions = List("Read", "Create")
+        description = "List and create chats through the Teams connector."
       })
     })
   },

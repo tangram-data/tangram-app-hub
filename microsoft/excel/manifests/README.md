@@ -16,9 +16,13 @@ connector for discovery. Find the workbook first with the onedrive connector (`o
 |------|--------|-------|
 | `excel_list_worksheet` | `Worksheet.List` | Worksheets (tabs) with ids, names, positions, visibility. |
 | `excel_get_range` | `Range.Get` | Read a range by A1 address (e.g. `A1:D20` — no `Sheet1!` prefix; the worksheet is named in the path). |
+| `excel_add_worksheet` | `Worksheet.Add` | New tab at the end; body `{name}` (unique, max 31 chars). |
 | `excel_getused_range` | `Range.GetUsed` | The non-empty rectangle — read a whole sheet without knowing its size. |
+| `excel_getusedvaluesonly_range` | `Range.GetUsedValuesOnly` | Same, but only cells with values count (`usedRange(valuesOnly=true)`) — formatted empty cells don't widen it. |
 | `excel_update_range` | `Range.Update` | **Confirmation-gated.** Overwrites the range; `values` dimensions must match the address; strings starting with `=` become formulas. |
+| `excel_clear_range` | `Range.Clear` | **Confirmation-gated** (irreversible). `applyTo` `All` (default) / `Contents` / `Formats`. |
 | `excel_list_table` | `Table.List` | Tables across all worksheets, with ids and names. |
+| `excel_listrows_table` | `Table.ListRows` | Data rows as `{index, values}` (header excluded); `$top` + `$skip` paging. |
 | `excel_addrows_table` | `Table.AddRows` | Append-only — rows land at the end of the table, never overwriting existing data (like `sheets_appendvalues`). |
 
 ## OAuth setup

@@ -41,12 +41,64 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Send an email immediately via sendMail; a copy lands in Sent Items unless saveToSentItems=false."
           openApiMapping = new resources.OpenApiMapping { operationId = "sendMessage" }
+        },
+        new resources.Action {
+          name = "Reply"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Reply to a message's sender, threaded on the conversation; comment is the reply text above the quoted original, message.toRecipients/ccRecipients add recipients."
+          openApiMapping = new resources.OpenApiMapping { operationId = "replyMessage" }
+        },
+        new resources.Action {
+          name = "ReplyAll"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Reply to the sender and all recipients of a message, threaded on the conversation; same body as Reply."
+          openApiMapping = new resources.OpenApiMapping { operationId = "replyAllMessage" }
+        },
+        new resources.Action {
+          name = "Forward"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Forward a message (with its attachments) to toRecipients (required); comment is placed above the forwarded content."
+          openApiMapping = new resources.OpenApiMapping { operationId = "forwardMessage" }
+        },
+        new resources.Action {
+          name = "SendDraft"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Send an existing draft by id (e.g. one made by Draft.Create); it moves to Sent Items."
+          openApiMapping = new resources.OpenApiMapping { operationId = "sendDraft" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          doc = "Mark a message read/unread (isRead), replace its categories, or set its follow-up flag (flag.flagStatus flagged/complete/notFlagged); only fields present change."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateMessage" }
+        },
+        new resources.Action {
+          name = "Move"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          doc = "Move a message to another folder (destinationId = MailFolder.List id or well-known name like archive, deleteditems, inbox); the moved message gets a new id, returned in the response."
+          openApiMapping = new resources.OpenApiMapping { operationId = "moveMessage" }
         }
       )
       presetRoles = List(new resources.Role {
         name = "user"
-        permissions = List("Read", "Create")
-        description = "Read, search, and send mail through the Outlook connector."
+        permissions = List("Read", "Create", "Update")
+        description = "Read, search, send, reply to, and organize mail through the Outlook connector."
       })
     })
   },
@@ -204,6 +256,41 @@ types: List<resources.ResourceTypeDefinition> = List(
           requiresConfirmation = true
           doc = "Delete an event by id; attendees receive a cancellation."
           openApiMapping = new resources.OpenApiMapping { operationId = "deleteEvent" }
+        },
+        new resources.Action {
+          name = "Accept"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Accept a meeting invitation by event id; optional comment to the organizer, sendResponse=false to accept silently."
+          openApiMapping = new resources.OpenApiMapping { operationId = "acceptEvent" }
+        },
+        new resources.Action {
+          name = "Decline"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Decline a meeting invitation by event id; optional comment to the organizer, sendResponse=false to decline silently."
+          openApiMapping = new resources.OpenApiMapping { operationId = "declineEvent" }
+        },
+        new resources.Action {
+          name = "TentativelyAccept"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Tentatively accept a meeting invitation by event id; optional comment, sendResponse=false to respond silently."
+          openApiMapping = new resources.OpenApiMapping { operationId = "tentativelyAcceptEvent" }
+        },
+        new resources.Action {
+          name = "FindMeetingTimes"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Suggest meeting slots that fit the attendees' availability within timeConstraint.timeSlots for a meetingDuration (ISO 8601, e.g. PT30M); work/school accounts only."
+          openApiMapping = new resources.OpenApiMapping { operationId = "findMeetingTimes" }
         }
       )
       presetRoles = List(new resources.Role {
@@ -234,6 +321,30 @@ types: List<resources.ResourceTypeDefinition> = List(
         name = "user"
         permissions = List("Read")
         description = "Check availability through the Outlook connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Person"
+    activeVersion = "v1"
+    doc = "A person relevant to the connected user (contact, colleague, or frequent correspondent)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Find people by name or email ($search) ranked by relevance to the user — use to resolve a name to an email address before sending or inviting."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listPeople" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Look up people through the Outlook connector."
       })
     })
   }
