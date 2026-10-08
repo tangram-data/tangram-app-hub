@@ -222,13 +222,18 @@ export default function EventComposer() {
       .then((ev: { id?: string; htmlLink?: string; conferenceData?: ConferenceData }) => {
         const link = meetLinkOf(ev ?? {});
         const requestStatus = ev?.conferenceData?.createRequest?.status?.statusCode ?? "";
+        // Inputs replaced the form mid-save: report the saved event, leave the new form alone.
+        if (gen !== inputGenRef.current) {
+          tangram.emit("saved", { id: ev?.id ?? "", htmlLink: ev?.htmlLink ?? "", calendarId, meetLink: link });
+          return;
+        }
         if (link) setMeetLink(link);
         // The outcome is known now, so a stale id has no retry left to guard;
         // a fresh one lets the next save (retry-after-failure or
         // create-another) issue a request Google won't ignore as a duplicate.
         meetRequestIdRef.current = requestId();
         // Later saves update the created event instead of duplicating it.
-        if (!editing && ev?.id && gen === inputGenRef.current) setEventId(ev.id);
+        if (!editing && ev?.id) setEventId(ev.id);
         setStatus({
           kind: "saved",
           event: {
@@ -253,9 +258,10 @@ export default function EventComposer() {
           meetLink: link,
         });
       })
-      .catch((e: unknown) =>
-        setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) }),
-      );
+      .catch((e: unknown) => {
+        if (gen !== inputGenRef.current) return;
+        setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) });
+      });
   }
 
   const label = (text: string) => (
