@@ -1,0 +1,1134 @@
+openapi: 3.0.3
+info:
+  title: GitHub
+  version: "2022-11-28"
+  description: >
+    Subset of the GitHub REST API (version 2022-11-28) exposed through the
+    Tangram connector. Every call runs as the connected GitHub user and sees
+    exactly what that user can see under the granted OAuth scopes (repo,
+    read:org). List endpoints page with per_page (max 100) and page
+    (1-based); the response Link header carries rel="next" while more pages
+    exist — a page shorter than per_page is the last one.
+servers:
+  - url: https://api.github.com
+
+paths:
+  /user:
+    get:
+      operationId: getAuthenticatedUser
+      summary: Get the connected user's profile
+      responses:
+        "200":
+          description: The connected GitHub user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Token invalid or revoked.
+
+  /user/repos:
+    get:
+      operationId: listReposForAuthenticatedUser
+      summary: List repositories the connected user can access
+      parameters:
+        - name: visibility
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, public, private]
+        - name: affiliation
+          in: query
+          required: false
+          description: Comma-separated subset of owner, collaborator, organization_member (default all three).
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Default full_name (ascending); other sorts default descending.
+          schema:
+            type: string
+            enum: [created, updated, pushed, full_name]
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Repositories, one page.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Repository"
+
+  /repos/{owner}/{repo}:
+    get:
+      operationId: getRepo
+      summary: Get a repository
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+      responses:
+        "200":
+          description: The repository.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Repository"
+        "404":
+          description: Not found, or private and not visible to the connected user.
+
+  /repos/{owner}/{repo}/issues:
+    get:
+      operationId: listIssues
+      summary: List a repository's issues (pull requests included)
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: state
+          in: query
+          required: false
+          description: Default open.
+          schema:
+            type: string
+            enum: [open, closed, all]
+        - name: labels
+          in: query
+          required: false
+          description: Comma-separated label names, all of which must match, e.g. bug,ui.
+          schema:
+            type: string
+        - name: assignee
+          in: query
+          required: false
+          description: A login, "none" for unassigned, or "*" for any assignee.
+          schema:
+            type: string
+        - name: since
+          in: query
+          required: false
+          description: Only issues updated at or after this ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SSZ).
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [created, updated, comments]
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: >
+            Issues AND pull requests, one page. An entry with a pull_request
+            field is a PR — filter those out when only issues are wanted.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
+        "404":
+          description: Repository not found.
+    post:
+      operationId: createIssue
+      summary: Create an issue
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title]
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                  description: Markdown.
+                labels:
+                  type: array
+                  description: Label names; labels that don't exist are created (requires push access, otherwise silently dropped).
+                  items:
+                    type: string
+                assignees:
+                  type: array
+                  description: Logins with push access to the repo (otherwise silently dropped).
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: The created issue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "410":
+          description: Issues are disabled for this repository.
+        "422":
+          description: Validation failed.
+
+  /repos/{owner}/{repo}/issues/{issue_number}:
+    get:
+      operationId: getIssue
+      summary: Get an issue (or a pull request's issue view)
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/IssueNumber"
+      responses:
+        "200":
+          description: The issue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "404":
+          description: Issue not found.
+        "410":
+          description: Issue was deleted.
+    patch:
+      operationId: updateIssue
+      summary: Update an issue
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/IssueNumber"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                  description: Markdown; replaces the whole body.
+                state:
+                  type: string
+                  enum: [open, closed]
+                state_reason:
+                  type: string
+                  description: Why the state changed; completed/not_planned with state=closed, reopened with state=open.
+                  enum: [completed, not_planned, reopened]
+                labels:
+                  type: array
+                  description: Replaces all labels; [] clears them.
+                  items:
+                    type: string
+                assignees:
+                  type: array
+                  description: Replaces all assignees; [] clears them.
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: The updated issue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "422":
+          description: Validation failed.
+
+  /repos/{owner}/{repo}/issues/{issue_number}/comments:
+    get:
+      operationId: listIssueComments
+      summary: List comments on an issue or pull request
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/IssueNumber"
+        - name: since
+          in: query
+          required: false
+          description: Only comments updated at or after this ISO 8601 timestamp.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Comments, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssueComment"
+    post:
+      operationId: createIssueComment
+      summary: Comment on an issue or pull request
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/IssueNumber"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  description: Markdown comment text.
+      responses:
+        "201":
+          description: The created comment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueComment"
+        "403":
+          description: Forbidden (e.g. conversation locked).
+
+  /repos/{owner}/{repo}/pulls:
+    get:
+      operationId: listPulls
+      summary: List a repository's pull requests
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: state
+          in: query
+          required: false
+          description: Default open.
+          schema:
+            type: string
+            enum: [open, closed, all]
+        - name: head
+          in: query
+          required: false
+          description: Filter by head as user:ref-name or organization:ref-name, e.g. octocat:feature-x.
+          schema:
+            type: string
+        - name: base
+          in: query
+          required: false
+          description: Filter by base branch name, e.g. main.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [created, updated, popularity, long-running]
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Pull requests, one page.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PullRequest"
+    post:
+      operationId: createPull
+      summary: Open a pull request
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title, head, base]
+              properties:
+                title:
+                  type: string
+                head:
+                  type: string
+                  description: Branch with the changes; for a fork use username:branch.
+                base:
+                  type: string
+                  description: Branch to merge into, e.g. main.
+                body:
+                  type: string
+                  description: Markdown description.
+                draft:
+                  type: boolean
+                  description: Open as a draft PR.
+                maintainer_can_modify:
+                  type: boolean
+      responses:
+        "201":
+          description: The created pull request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PullRequest"
+        "422":
+          description: Validation failed (no commits between base and head, PR already exists, branch missing).
+
+  /repos/{owner}/{repo}/pulls/{pull_number}:
+    get:
+      operationId: getPull
+      summary: Get a pull request
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/PullNumber"
+      responses:
+        "200":
+          description: The pull request, with diff stats and mergeability.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PullRequest"
+        "404":
+          description: Pull request not found.
+
+  /repos/{owner}/{repo}/pulls/{pull_number}/files:
+    get:
+      operationId: listPullFiles
+      summary: List files changed by a pull request
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/PullNumber"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Changed files, one page (max 3000 files in total).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PullRequestFile"
+
+  /repos/{owner}/{repo}/pulls/{pull_number}/reviews:
+    post:
+      operationId: createPullReview
+      summary: Submit a pull request review
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - $ref: "#/components/parameters/PullNumber"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event]
+              properties:
+                event:
+                  type: string
+                  description: Submits the review immediately. REQUEST_CHANGES and COMMENT require a body. Authors cannot approve or request changes on their own PR.
+                  enum: [APPROVE, REQUEST_CHANGES, COMMENT]
+                body:
+                  type: string
+                  description: Markdown review summary.
+                commit_id:
+                  type: string
+                  description: SHA of the commit being reviewed; defaults to the PR's latest commit.
+      responses:
+        "200":
+          description: The submitted review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PullRequestReview"
+        "422":
+          description: Validation failed (e.g. missing body, reviewing own PR).
+
+  /search/issues:
+    get:
+      operationId: searchIssues
+      summary: Search issues and pull requests
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: >
+            GitHub search query; include is:issue or is:pr, e.g.
+            "repo:octo/app is:pr is:open author:octocat" or
+            "org:acme is:issue label:bug in:title crash".
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Default best match.
+          schema:
+            type: string
+            enum: [comments, reactions, created, updated, interactions]
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Matching issues/PRs; only the first 1000 results are reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  incomplete_results:
+                    type: boolean
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Issue"
+        "422":
+          description: Invalid query.
+
+  /search/code:
+    get:
+      operationId: searchCode
+      summary: Search code
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: >
+            Search terms plus qualifiers, e.g. "useState repo:octo/app
+            language:typescript" or "filename:Dockerfile org:acme". Searches
+            default branches only.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Matching files; only the first 1000 results are reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  incomplete_results:
+                    type: boolean
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        path:
+                          type: string
+                          description: File path within the repository.
+                        sha:
+                          type: string
+                          description: Blob sha — pass to getBlob to read the file.
+                        html_url:
+                          type: string
+                        repository:
+                          type: object
+                          properties:
+                            full_name:
+                              type: string
+                            private:
+                              type: boolean
+        "422":
+          description: Invalid query.
+
+  /repos/{owner}/{repo}/contents/{path}:
+    get:
+      operationId: getContent
+      summary: Get a top-level file or directory
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: path
+          in: path
+          required: true
+          description: >
+            A single top-level name only, e.g. README.md or src. A nested
+            path (src/app.py) is sent with its slash escaped and GitHub
+            answers 404 — use getTree + getBlob for nested files.
+          schema:
+            type: string
+        - name: ref
+          in: query
+          required: false
+          description: Branch, tag, or commit sha; default branch when omitted.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: >
+            For a file: one object with type "file", base64 content, and its
+            blob sha. For a directory: an array of entries (type file|dir,
+            name, path, sha) — a dir entry's sha is a tree sha usable with
+            getTree.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ContentEntry"
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/ContentEntry"
+        "404":
+          description: Not found (also returned for nested paths).
+
+  /repos/{owner}/{repo}/git/trees/{tree_sha}:
+    get:
+      operationId: getTree
+      summary: Get a git tree
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: tree_sha
+          in: path
+          required: true
+          description: A tree or commit sha, or a branch/tag name without slashes (e.g. main, HEAD).
+          schema:
+            type: string
+        - name: recursive
+          in: query
+          required: false
+          description: Any value (e.g. "1") returns every nested entry; omit for one level.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The tree's entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sha:
+                    type: string
+                  truncated:
+                    type: boolean
+                    description: True when the recursive listing exceeded GitHub's limit; walk sub-trees individually instead.
+                  tree:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                          description: Path relative to this tree.
+                        type:
+                          type: string
+                          description: blob (file), tree (directory), or commit (submodule).
+                        sha:
+                          type: string
+                        size:
+                          type: integer
+                          description: Bytes; blobs only.
+        "404":
+          description: Tree, ref, or repository not found.
+
+  /repos/{owner}/{repo}/git/blobs/{file_sha}:
+    get:
+      operationId: getBlob
+      summary: Get a file blob by sha
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: file_sha
+          in: path
+          required: true
+          description: Blob sha from getTree, getContent, or searchCode.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The blob; content is base64 (encoding "base64") with embedded newlines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sha:
+                    type: string
+                  size:
+                    type: integer
+                  encoding:
+                    type: string
+                  content:
+                    type: string
+        "404":
+          description: Blob not found.
+
+  /repos/{owner}/{repo}/actions/runs:
+    get:
+      operationId: listWorkflowRuns
+      summary: List GitHub Actions workflow runs
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: branch
+          in: query
+          required: false
+          description: Only runs for this head branch.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: A status or conclusion, e.g. completed, in_progress, queued, success, failure, cancelled.
+          schema:
+            type: string
+        - name: event
+          in: query
+          required: false
+          description: Triggering event, e.g. push, pull_request, schedule, workflow_dispatch.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Page"
+      responses:
+        "200":
+          description: Runs, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  workflow_runs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WorkflowRun"
+
+  /repos/{owner}/{repo}/actions/runs/{run_id}/rerun:
+    post:
+      operationId: rerunWorkflowRun
+      summary: Re-run a workflow run
+      parameters:
+        - $ref: "#/components/parameters/Owner"
+        - $ref: "#/components/parameters/Repo"
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enable_debug_logging:
+                  type: boolean
+                  description: Re-run with runner/step debug logging.
+      responses:
+        "201":
+          description: Re-run queued (empty body).
+        "403":
+          description: Run cannot be re-run (still in progress, too old, or no write access).
+
+components:
+  parameters:
+    Owner:
+      name: owner
+      in: path
+      required: true
+      description: Account or organization that owns the repository (case-insensitive).
+      schema:
+        type: string
+    Repo:
+      name: repo
+      in: path
+      required: true
+      description: Repository name without the .git suffix (case-insensitive).
+      schema:
+        type: string
+    IssueNumber:
+      name: issue_number
+      in: path
+      required: true
+      description: Issue number (a pull request number also works here).
+      schema:
+        type: integer
+    PullNumber:
+      name: pull_number
+      in: path
+      required: true
+      schema:
+        type: integer
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      description: Results per page (default 30, max 100).
+      schema:
+        type: integer
+    Page:
+      name: page
+      in: query
+      required: false
+      description: 1-based page number.
+      schema:
+        type: integer
+
+  schemas:
+    UserRef:
+      type: object
+      nullable: true
+      properties:
+        login:
+          type: string
+        id:
+          type: integer
+        html_url:
+          type: string
+    User:
+      type: object
+      properties:
+        login:
+          type: string
+        id:
+          type: integer
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+          description: Public email only; null when hidden.
+        html_url:
+          type: string
+        company:
+          type: string
+          nullable: true
+        public_repos:
+          type: integer
+    Label:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        full_name:
+          type: string
+          description: owner/name.
+        owner:
+          $ref: "#/components/schemas/UserRef"
+        private:
+          type: boolean
+        visibility:
+          type: string
+        description:
+          type: string
+          nullable: true
+        html_url:
+          type: string
+        default_branch:
+          type: string
+        fork:
+          type: boolean
+        archived:
+          type: boolean
+        language:
+          type: string
+          nullable: true
+        open_issues_count:
+          type: integer
+          description: Open issues plus open pull requests.
+        stargazers_count:
+          type: integer
+        pushed_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+    Issue:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        state:
+          type: string
+        state_reason:
+          type: string
+          nullable: true
+        html_url:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserRef"
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/Label"
+        assignees:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/UserRef"
+        milestone:
+          type: object
+          nullable: true
+          properties:
+            title:
+              type: string
+            number:
+              type: integer
+        comments:
+          type: integer
+        pull_request:
+          type: object
+          description: Present only when this "issue" is a pull request.
+          properties:
+            html_url:
+              type: string
+            merged_at:
+              type: string
+              nullable: true
+        repository_url:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        closed_at:
+          type: string
+          nullable: true
+    IssueComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        body:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserRef"
+        html_url:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    BranchRef:
+      type: object
+      properties:
+        label:
+          type: string
+          description: owner:branch.
+        ref:
+          type: string
+        sha:
+          type: string
+    PullRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        state:
+          type: string
+          description: open or closed (a merged PR is closed with merged_at set).
+        draft:
+          type: boolean
+        html_url:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserRef"
+        head:
+          $ref: "#/components/schemas/BranchRef"
+        base:
+          $ref: "#/components/schemas/BranchRef"
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/Label"
+        requested_reviewers:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/UserRef"
+        merged:
+          type: boolean
+          description: Single-PR responses only.
+        mergeable:
+          type: boolean
+          nullable: true
+          description: Single-PR responses only; null while GitHub is still computing it.
+        mergeable_state:
+          type: string
+        additions:
+          type: integer
+        deletions:
+          type: integer
+        changed_files:
+          type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        closed_at:
+          type: string
+          nullable: true
+        merged_at:
+          type: string
+          nullable: true
+    PullRequestFile:
+      type: object
+      properties:
+        filename:
+          type: string
+        status:
+          type: string
+          description: added, removed, modified, renamed, copied, changed, or unchanged.
+        additions:
+          type: integer
+        deletions:
+          type: integer
+        changes:
+          type: integer
+        patch:
+          type: string
+          description: Unified diff hunk; absent for binary or very large diffs.
+        previous_filename:
+          type: string
+          description: Set for renames.
+        sha:
+          type: string
+          nullable: true
+    PullRequestReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        state:
+          type: string
+          description: APPROVED, CHANGES_REQUESTED, COMMENTED, ...
+        body:
+          type: string
+        html_url:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserRef"
+        commit_id:
+          type: string
+          nullable: true
+        submitted_at:
+          type: string
+          nullable: true
+    ContentEntry:
+      type: object
+      properties:
+        type:
+          type: string
+          description: file, dir, symlink, or submodule.
+        name:
+          type: string
+        path:
+          type: string
+        sha:
+          type: string
+        size:
+          type: integer
+        encoding:
+          type: string
+          description: base64 for files; absent on directory entries.
+        content:
+          type: string
+          description: Base64 file content (files up to 1 MB); absent on directory entries.
+        html_url:
+          type: string
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
+    WorkflowRun:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: run_id for rerunWorkflowRun.
+        name:
+          type: string
+          nullable: true
+        display_title:
+          type: string
+        event:
+          type: string
+        status:
+          type: string
+          nullable: true
+          description: queued, in_progress, completed, ...
+        conclusion:
+          type: string
+          nullable: true
+          description: success, failure, cancelled, skipped, timed_out, ...; null until completed.
+        head_branch:
+          type: string
+          nullable: true
+        head_sha:
+          type: string
+        run_number:
+          type: integer
+        run_attempt:
+          type: integer
+        html_url:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string

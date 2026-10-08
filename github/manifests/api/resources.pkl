@@ -1,0 +1,348 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "User"
+    activeVersion = "v1"
+    doc = "The GitHub account behind the OAuth connection."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch the connected user's profile (login, name, profile url) — use login as the owner for personal repos."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getAuthenticatedUser" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read the connected account through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Repository"
+    activeVersion = "v1"
+    doc = "A GitHub repository the connected user can access."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List repositories the connected user owns, collaborates on, or reaches through org membership; filter by visibility/affiliation, page with per_page/page."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listReposForAuthenticatedUser" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one repository by owner/repo: description, default branch, visibility, open issue count."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getRepo" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse repositories through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Issue"
+    activeVersion = "v1"
+    doc = "An issue in a repository. GitHub models pull requests as issues too, so issue listings and search include PRs."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a repository's issues by state/labels/assignee/since. Results INCLUDE pull requests — entries with a pull_request field are PRs; skip them for issues only."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listIssues" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one issue (title, body, state, labels, assignees) by number; comments come from the IssueComment List action."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getIssue" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Notifies watchers/assignees immediately; the REST API cannot
+          // delete an issue (only close it).
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Open a new issue with title, optional body (markdown), labels, and assignees; watchers are notified and the API can only close it, not delete it."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createIssue" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Edit an issue's title/body, close or reopen it (state, state_reason), or replace its labels/assignees (lists replace wholesale)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateIssue" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update")
+        description = "Read, file, and edit issues through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "IssueComment"
+    activeVersion = "v1"
+    doc = "A comment in the conversation of an issue or pull request."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the conversation comments on an issue or pull request (pass the PR number as issue_number), oldest first."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listIssueComments" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Posting notifies every participant; deleting later does not
+          // retract the notification.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Post a markdown comment on an issue or pull request conversation as the connected user; participants are notified."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createIssueComment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and post issue/PR comments through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "PullRequest"
+    activeVersion = "v1"
+    doc = "A pull request proposing changes from a head branch into a base branch."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a repository's pull requests by state, head (user:branch), or base branch; page with per_page/page."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listPulls" }
+        },
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Fetch one pull request: head/base, mergeable state, merged flag, diff stats."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getPull" }
+        },
+        new resources.Action {
+          name = "ListFiles"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List the files a pull request changes with per-file status, additions/deletions, and the unified-diff patch (patch is omitted for binary or very large diffs; max 3000 files)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listPullFiles" }
+        },
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Notifies reviewers/watchers and may trigger CI; PRs can be
+          // closed but never deleted.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Open a pull request from head (branch, or user:branch for forks) into base; draft=true opens it as a draft. The head branch must already exist with commits."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPull" }
+        },
+        new resources.Action {
+          name = "Review"
+          privilege = "Create"
+          // A submitted review (approval, change request) cannot be deleted
+          // and can satisfy branch-protection merge rules.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Submit a review as the connected user: event APPROVE, REQUEST_CHANGES (body required), or COMMENT (body required). Approvals can unblock protected-branch merges."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPullReview" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read, open, and review pull requests through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Search"
+    activeVersion = "v1"
+    doc = "GitHub's search index across every repository the connected user can see."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Issues"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search issues and pull requests with GitHub query syntax, e.g. `repo:owner/name is:issue is:open label:bug`; always include is:issue or is:pr. Search has its own 30 requests/minute limit."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchIssues" }
+        },
+        new resources.Action {
+          name = "Code"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Search code on default branches, e.g. `addClass repo:owner/name language:js` or `filename:pom.xml org:acme`; returns file paths and blob shas (read content with Blob Get). 10 requests/minute; only files under 384 KB are indexed."
+          openApiMapping = new resources.OpenApiMapping { operationId = "searchCode" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search GitHub through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Content"
+    activeVersion = "v1"
+    doc = "A top-level file or directory in a repository."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read a TOP-LEVEL file (base64 content) or directory listing by single name, e.g. README.md or src — nested paths like src/main.py are not reachable here (the slash is escaped and GitHub 404s); for those use Tree Get to find the blob sha, then Blob Get."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getContent" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read repository contents through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Tree"
+    activeVersion = "v1"
+    doc = "A git tree — a repository's directory structure at a commit."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a tree's entries (path, type blob|tree, sha, size); recursive=1 walks the whole repo in one call (truncated=true past 100,000 entries). tree_sha accepts a commit/tree sha or a branch name without slashes, e.g. main or HEAD."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getTree" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read repository trees through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Blob"
+    activeVersion = "v1"
+    doc = "A git blob — one file's content, addressed by sha."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Read a file's content by blob sha (from Tree Get or Search Code) as base64 (encoding field); decode before use. Up to 100 MB."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getBlob" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read file blobs through the GitHub connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "WorkflowRun"
+    activeVersion = "v1"
+    doc = "A GitHub Actions workflow run."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        new resources.Action {
+          name = "List"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "List a repository's Actions runs, newest first, filtered by branch or status (e.g. failure, in_progress, success)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "listWorkflowRuns" }
+        },
+        new resources.Action {
+          name = "Rerun"
+          privilege = "Execute"
+          // Re-executes the workflow: consumes Actions minutes and can
+          // repeat deploys or other side effects.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Re-run every job of a completed workflow run by run_id; repeats whatever the workflow does (tests, deploys, releases)."
+          openApiMapping = new resources.OpenApiMapping { operationId = "rerunWorkflowRun" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Execute")
+        description = "Read and re-run Actions workflow runs through the GitHub connector."
+      })
+    })
+  }
+)

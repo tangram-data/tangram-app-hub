@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.github"
+name = "github"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://docs.github.com/rest"
+category = "developer"
+tags = List("github", "git", "issues", "pull-requests", "code", "ci", "oauth")
+description = "GitHub connector: browse repositories, read and file issues and pull requests, review PRs, search code, read files, and re-run Actions workflows via the GitHub REST API."
+readme      = read("README.md").text

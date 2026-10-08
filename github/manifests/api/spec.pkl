@@ -1,0 +1,53 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// GitHub REST API (v3) — one host, versioned via the X-GitHub-Api-Version
+// header. Pinned to 2022-11-28, the current stable REST version.
+// github.com only: GitHub Enterprise Server hosts are not reachable
+// (endpoint is not overridable).
+endpoint = "https://api.github.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.github.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/vnd.github+json" },
+    "X-GitHub-Api-Version",
+    new connector.HeaderTemplate { template = "2022-11-28" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  // GitHub OAuth App (not a GitHub App) authorization-code flow.
+  authorizationUrl = "https://github.com/login/oauth/authorize"
+  tokenUrl = "https://github.com/login/oauth/access_token"
+  // Classic OAuth App scopes. `repo` is required to see private
+  // repositories at all (public_repo would hide them) and is also the only
+  // scope that allows writing issues/PRs/reviews and re-running workflows —
+  // OAuth Apps have no narrower write scope. `read:org` lets org-owned repos
+  // and org membership show up in listings.
+  scopes = List("repo", "read:org")
+  clientIdSecret = "githubClientId"
+  clientSecretSecret = "githubClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.github/github"
+  // GitHub takes client_id/client_secret in the token request body.
+  tokenAuthMethod = "ClientSecretPost"
+  // No revocationUrl: GitHub revokes via DELETE /applications/{client_id}/grant
+  // with Basic client auth, not RFC 7009 — users revoke at
+  // github.com/settings/applications instead.
+  pkce = true
+  // OAuth App tokens don't expire and come with no refresh_token (no
+  // expires_in in the exchange), so the platform stores them without expiry
+  // and refresh never triggers; the window is inert.
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}
