@@ -26,6 +26,9 @@ export type OpsCtx = {
   nbRef: MutableRefObject<NewBlock | null>;
 };
 
+// Tags each split's queued head so a failed split rolls back only its own value.
+let splitToken = 0;
+
 export function blockOps(ctx: OpsCtx) {
   const { act, tracked, guard, patchBlocks, patchBlock, setBlockError, load, writes, draftText, todoInflight, nbKey, nbRef } = ctx;
   const setNewBlock = (v: NewBlock | null | ((cur: NewBlock | null) => NewBlock | null)) =>
@@ -41,7 +44,8 @@ export function blockOps(ctx: OpsCtx) {
           requestBody: { [block.type]: { rich_text: spansOf(v) } },
         }),
       );
-      if (g.stale() || q.pending(writeKey(g.target, block.id)) !== undefined) return;
+      const queued = q.pending(writeKey(g.target, block.id));
+      if (g.stale() || (queued !== undefined && queued !== v)) return;
       // Patch only rich_text so a concurrent to-do toggle can't be undone.
       const rich = updated?.type === block.type ? payload(updated).rich_text : undefined;
       patchBlock(block.id, (b) => ({ ...b, [b.type]: { ...payload(b), rich_text: rich ?? echoRich(v) } }));
@@ -158,9 +162,10 @@ export function blockOps(ctx: OpsCtx) {
       if (!g.stale()) setBlockError(`Split saved the new block, but shortening the original failed: ${errText(e)} — click in and out of it to retry.`);
     };
     const key = writeKey(g.target, block.id);
+    const token = ++splitToken;
     // Queue the shortened head now (held until the tail lands); later edits
-    // to the head are simply newer desired values on the same key.
-    q.hold(key, plainText(block), before);
+    // to the head are simply newer queued values on the same key.
+    q.hold(key, plainText(block), before, send, onErr, token);
     const type = continueType(block.type);
     const nb: NewBlock = { key: ++nbKey.current, after: block.id, type, initial: after, busy: true };
     draftText.current = after;
@@ -175,22 +180,30 @@ export function blockOps(ctx: OpsCtx) {
           }),
         );
       } catch (e) {
-        // Tail not written: put it back on the head line and queue that
-        // (identical to the server text when nothing else changed → no write).
-        const head = g.stale() ? null : editableIn(`#blk-${CSS.escape(block.id)}`);
-        const restored = head ? (head.textContent ?? "") + after : undefined;
-        if (head) head.textContent = restored ?? "";
-        q.drop(key);
-        q.release(key, send, textError(g));
-        if (restored !== undefined) q.submit(key, restored, plainText(block), send, textError(g));
-        if (g.stale()) return;
+        if (g.stale()) {
+          // Visit gone: undo only our own shrink; a newer visit's edit stays.
+          q.dropIf(key, token);
+          q.release(key);
+          return;
+        }
+        // Same visit: the tail goes back onto the head line, and that text
+        // replaces whatever is queued (equal to the server text → no write).
+        const head = editableIn(`#blk-${CSS.escape(block.id)}`);
+        if (head) {
+          const restored = (head.textContent ?? "") + after;
+          head.textContent = restored;
+          q.submit(key, restored, plainText(block), send, textError(g));
+        } else {
+          q.dropIf(key, token);
+        }
+        q.release(key);
         draftText.current = "";
         setNewBlock((cur) => (cur?.key === nb.key ? null : cur));
         setBlockError(`Couldn't split the block: ${errText(e)}`);
         return;
       }
       // Tail landed: send the head's latest queued value.
-      q.release(key, send, onErr);
+      q.release(key);
       if (g.stale()) return;
       const created = singleCreated(res, type);
       if (created) insertLocal(block.id, created);

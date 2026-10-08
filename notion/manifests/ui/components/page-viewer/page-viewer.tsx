@@ -292,7 +292,8 @@ export default function PageViewer() {
             requestBody: { properties: { [tp.key]: { title: spansOf(v) } } },
           }),
         );
-        if (g.stale() || q.pending(key) !== undefined) return;
+        const queued = q.pending(key);
+        if (g.stale() || (queued !== undefined && queued !== v)) return;
         setState((s) => {
           if (s.kind !== "ready") return s;
           const props = s.page.properties ?? {};
