@@ -89,3 +89,9 @@ textarea.n-title::placeholder { color: rgba(55,53,47,.2); }
 .n-body { font-size: 16px; line-height: 1.65; min-height: 45vh; }
 .n-dock { position: fixed; right: 16px; bottom: 14px; z-index: 15; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--n-faint); }
 @media (max-width: 620px) { .n-page { padding: 20px 20px 56px 52px; } .n-title { font-size: 30px; } }
+/* Keyboard-reachable menu items and add line are native buttons. */
+.n-menu button.it, button.n-addline { width: 100%; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; }
+.n-menu button.it.danger { color: rgb(212,76,71); }
+button.n-addline { display: block; font-size: 14px; color: var(--n-faint); border-radius: 3px; }
+.n-menu button.it:focus-visible, button.n-addline:focus-visible { outline: none; background: var(--n-hover); }
+.n-handle:focus-visible { outline: 2px solid var(--n-sel); }

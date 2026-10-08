@@ -14,9 +14,11 @@ import React, { useEffect, useRef, useState } from "react";
 import "../../shared/notion.css";
 import "../../shared/tangram-buttons.css";
 import { PageProps, renderRich, SideNav, tocEntries } from "./block-render";
-import { BlockRow, continueType, RowApi } from "./block-row";
-import { DraftBlock, Editable, focusEnd, NewBlock } from "./editable";
+import { BlockRow, RowApi } from "./block-row";
+import { DraftBlock, Editable, editableIn, focusEnd, NewBlock } from "./editable";
+import { blockOps } from "./block-ops";
 import { PendingDraft } from "./pending-draft";
+import { WriteQueue } from "./write-queue";
 import {
   AppendFailure,
   appendBlocks,
@@ -26,12 +28,10 @@ import {
   fetchBlockChildren,
   isPlainRich,
   MAX_BLOCK_PAGES,
-  newBlockOf,
   openExternal,
   Page,
   pageTitle,
   parseContent,
-  payload,
   remainingContent,
   safeHref,
   spansOf,
@@ -72,8 +72,10 @@ export default function PageViewer() {
   // Bumped on every page switch or agent draft replacement; a save that started
   // under an older generation must not clear or replace the editor (covers A→B→A).
   const editorGenRef = useRef(0);
-  // Latest Block.Update per block id: only the newest response patches state.
-  const updateSeq = useRef(new Map<string, number>());
+  // Serialized text writes per block id and for the title.
+  const writes = useRef(new WriteQueue());
+  // Live text of the unsaved new block (decides whether it may be replaced).
+  const draftText = useRef("");
   const todoInflight = useRef(new Set<string>());
   const nbKey = useRef(0);
   const nbRef = useRef<NewBlock | null>(null);
@@ -118,6 +120,9 @@ export default function PageViewer() {
         setDraft("");
         setPendingOpen(false);
         setNewBlock(null);
+        draftText.current = "";
+        // Old queues keep flushing their writes; their patches are page-guarded.
+        writes.current = new WriteQueue();
         setDeletingId("");
         setSaveError("");
         setBlockError("");
@@ -234,91 +239,22 @@ export default function PageViewer() {
     }
   }
 
-  async function saveText(block: Block, text: string) {
-    const g = guard();
-    const seq = (updateSeq.current.get(block.id) ?? 0) + 1;
-    updateSeq.current.set(block.id, seq);
-    const latest = () => updateSeq.current.get(block.id) === seq;
-    try {
-      const updated: Block = await tracked(() =>
-        act("Block", "Update", {
-          parameters: { block_id: block.id },
-          requestBody: { [block.type]: { rich_text: spansOf(text) } },
-        }),
-      );
-      if (g.stale() || !latest()) return;
-      // Patch only rich_text so a concurrent to-do toggle can't be undone.
-      const rich = updated?.type === block.type ? payload(updated).rich_text : undefined;
-      patchBlock(block.id, (b) => ({ ...b, [b.type]: { ...payload(b), rich_text: rich ?? echoRich(text) } }));
-    } catch (e) {
-      if (g.stale() || !latest()) return;
-      // The typed text stays in the line; the next blur retries.
-      setBlockError(`Couldn't save a block: ${errText(e)} — your text is kept; click in and out of it to retry.`);
-    }
-  }
-
-  async function toggleTodo(block: Block) {
-    if (todoInflight.current.has(block.id)) return;
-    todoInflight.current.add(block.id);
-    const g = guard();
-    const next = !payload(block).checked;
-    const setChecked = (v: boolean) => patchBlock(block.id, (b) => ({ ...b, to_do: { ...payload(b), checked: v } }));
-    setChecked(next);
-    try {
-      await tracked(() =>
-        act("Block", "Update", { parameters: { block_id: block.id }, requestBody: { to_do: { checked: next } } }),
-      );
-    } catch (e) {
-      if (g.stale()) return;
-      setChecked(!next);
-      setBlockError(`Couldn't update the to-do: ${errText(e)}`);
-    } finally {
-      todoInflight.current.delete(block.id);
-    }
-  }
-
-  function openDraft(after: string, type: string, initial: string): boolean {
-    if (nbRef.current?.busy) return false;
-    setNewBlock({ key: ++nbKey.current, after, type, initial, busy: false });
-    return true;
-  }
-
-  async function createBlock(nb: NewBlock, text: string, opts: { next: boolean; type?: string }) {
-    const type = opts.type ?? nb.type;
-    setNewBlock((cur) => (cur?.key === nb.key ? { ...cur, type, initial: type === "divider" ? "" : text, busy: true } : cur));
-    const g = guard();
-    try {
-      const res: { results?: Block[] } = await tracked(() =>
-        act("Block", "Append", {
-          parameters: { block_id: g.target },
-          requestBody: { children: [newBlockOf(type, text)], ...(nb.after ? { after: nb.after } : {}) },
-        }),
-      );
-      if (g.stale()) return;
-      const r = res?.results;
-      const created = r?.length === 1 && r[0]?.id && r[0].type === type ? r[0] : undefined;
-      if (created) {
-        patchBlocks((bs, truncated) => {
-          if (!nb.after) return truncated ? bs : [...bs, created];
-          const i = bs.findIndex((b) => b.id === nb.after);
-          return i < 0 ? bs : [...bs.slice(0, i + 1), created, ...bs.slice(i + 1)];
-        });
-      } else {
-        load(g.target, true);
-      }
-      setNewBlock((cur) =>
-        cur?.key !== nb.key
-          ? cur
-          : opts.next && created
-            ? { key: ++nbKey.current, after: created.id, type: continueType(type), initial: "", busy: false }
-            : null,
-      );
-    } catch (e) {
-      if (g.stale()) return;
-      setNewBlock((cur) => (cur?.key === nb.key ? { ...cur, busy: false } : cur));
-      setBlockError(`Couldn't add the block: ${errText(e)}`);
-    }
-  }
+  const ops = blockOps({
+    act,
+    tracked,
+    guard,
+    patchBlocks,
+    patchBlock,
+    setBlockError,
+    setNewBlock,
+    load,
+    writes,
+    draftText,
+    todoInflight,
+    nbKey,
+    nbRef,
+  });
+  const { saveText, toggleTodo, openDraft, createBlock, splitBlock } = ops;
 
   async function removeBlock(block: Block) {
     if (deletingId) return;
@@ -339,30 +275,38 @@ export default function PageViewer() {
     }
   }
 
-  async function saveTitle(text: string) {
+  // Serialized like block text: one Page.Update in flight, latest sent next.
+  function saveTitle(text: string) {
     const page = ready?.page;
     const tp = page ? titleProp(page) : null;
-    if (!page || !tp || !isPlainRich(tp.rich) || text === pageTitle(page)) return;
+    if (!page || !tp || !isPlainRich(tp.rich)) return;
     const g = guard();
-    try {
-      await tracked(() =>
-        act("Page", "Update", {
-          parameters: { page_id: g.target },
-          requestBody: { properties: { [tp.key]: { title: spansOf(text) } } },
-        }),
-      );
-      if (g.stale()) return;
-      setState((s) => {
-        if (s.kind !== "ready") return s;
-        const props = s.page.properties ?? {};
-        return { ...s, page: { ...s.page, properties: { ...props, [tp.key]: { ...props[tp.key], title: echoRich(text) } } } };
-      });
-    } catch (e) {
-      if (!g.stale()) setBlockError(`Couldn't rename the page: ${errText(e)}`);
-    }
+    const q = writes.current;
+    q.submit(
+      "title",
+      text,
+      pageTitle(page),
+      async (v) => {
+        await tracked(() =>
+          act("Page", "Update", {
+            parameters: { page_id: g.target },
+            requestBody: { properties: { [tp.key]: { title: spansOf(v) } } },
+          }),
+        );
+        if (g.stale() || q.pending("title") !== undefined) return;
+        setState((s) => {
+          if (s.kind !== "ready") return s;
+          const props = s.page.properties ?? {};
+          return { ...s, page: { ...s.page, properties: { ...props, [tp.key]: { ...props[tp.key], title: echoRich(v) } } } };
+        });
+      },
+      (e) => {
+        if (!g.stale()) setBlockError(`Couldn't rename the page: ${errText(e)}`);
+      },
+    );
   }
 
-  const api: RowApi = { editable, deletingId, saveText, toggleTodo, openDraft, remove: removeBlock };
+  const api: RowApi = { editable, deletingId, saveText, toggleTodo, openDraft, splitBlock, remove: removeBlock };
 
   function draftNode(nb: NewBlock, prevType: string, prevOrdinal: number) {
     const ordinal = nb.type !== "numbered_list_item" ? 0 : prevType === "numbered_list_item" ? prevOrdinal + 1 : 1;
@@ -371,16 +315,18 @@ export default function PageViewer() {
         key={`nb-${nb.key}`}
         nb={nb}
         ordinal={ordinal}
-        onType={(type, text) =>
-          setNewBlock((cur) => (cur?.key === nb.key ? { ...cur, type, initial: text } : cur))
-        }
+        onType={(type, text) => {
+          draftText.current = text;
+          setNewBlock((cur) => (cur?.key === nb.key ? { ...cur, type, initial: text } : cur));
+        }}
+        onText={(t) => (draftText.current = t)}
         onCreate={(text, opts) => createBlock(nb, text, opts)}
         onDrop={(focusPrev) => {
+          draftText.current = "";
           setNewBlock((cur) => (cur?.key === nb.key ? null : cur));
           if (!focusPrev) return;
           const prevId = nb.after || ready?.blocks[ready.blocks.length - 1]?.id;
-          const el = prevId ? document.querySelector<HTMLElement>(`#blk-${CSS.escape(prevId)} [contenteditable="true"], #blk-${CSS.escape(prevId)} [contenteditable="plaintext-only"]`) : null;
-          focusEnd(el);
+          focusEnd(prevId ? editableIn(`#blk-${CSS.escape(prevId)}`) : null);
         }}
       />
     );
@@ -461,9 +407,9 @@ export default function PageViewer() {
               <div className="n-note">Content truncated — open the page in Notion to see the rest.</div>
             ) : null}
             {editable && !(newBlock && !newBlock.after) ? (
-              <div className="n-addline" onClick={() => openDraft("", "paragraph", "")}>
+              <button type="button" className="n-addline" onClick={() => openDraft("", "paragraph", "")}>
                 + Click to add a block
-              </div>
+              </button>
             ) : null}
             {pendingOpen && editable ? (
               <PendingDraft

@@ -13,6 +13,8 @@ export type RowApi = {
   toggleTodo: (block: Block) => void;
   // False when another new block is still being created.
   openDraft: (after: string, type: string, initial: string) => boolean;
+  // Enter mid-line on an existing block (tail appended first, then head saved).
+  splitBlock: (block: Block, before: string, after: string) => boolean;
   remove: (block: Block) => void;
 };
 
@@ -30,6 +32,7 @@ export function continueType(type: string): string {
 export function BlockRow({ block, ordinal, api }: { block: Block; ordinal: number; api: RowApi }) {
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const handleRef = useRef<HTMLButtonElement | null>(null);
   const el = useRef<HTMLDivElement | null>(null);
   const p = payload(block);
   const inline = api.editable && canEditInline(block);
@@ -37,11 +40,32 @@ export function BlockRow({ block, ordinal, api }: { block: Block; ordinal: numbe
   useEffect(() => {
     if (!menu) return;
     const close = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenu(false);
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !handleRef.current?.contains(t)) setMenu(false);
     };
     document.addEventListener("mousedown", close);
+    menuRef.current?.querySelector<HTMLButtonElement>("button.it")?.focus();
     return () => document.removeEventListener("mousedown", close);
   }, [menu]);
+
+  // Roving focus over the menu items; Escape returns focus to the handle.
+  function menuKey(e: React.KeyboardEvent) {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button.it") ?? []);
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const d = e.key === "ArrowDown" ? 1 : -1;
+      items[(i + d + items.length) % items.length]?.focus();
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      if (e.key === "Escape") e.preventDefault();
+      setMenu(false);
+      handleRef.current?.focus();
+    }
+  }
+  const choose = (fn: () => void) => () => {
+    setMenu(false);
+    fn();
+  };
 
   // Checking a to-do never touches its text, so formatted to-dos toggle too.
   const todoLine = block.type === "to_do" || inline;
@@ -60,20 +84,21 @@ export function BlockRow({ block, ordinal, api }: { block: Block; ordinal: numbe
           text={plainText(block)}
           multiline={block.type === "code"}
           placeholder={block.type === "paragraph" ? "Write something…" : TYPE_LABEL[block.type]}
-          onCommit={(t) => {
-            if (t !== plainText(block)) api.saveText(block, t);
-          }}
+          // The write queue compares against the last sent/confirmed value.
+          onCommit={(t) => api.saveText(block, t)}
           onEnter={(before, after) => {
             // Caret at the start: open a fresh block below, text stays put.
             if (!before) {
               api.openDraft(block.id, "paragraph", "");
               return;
             }
-            // Otherwise split: the tail moves into the new block (this line
-            // saves on the blur that follows).
-            if (api.openDraft(block.id, continueType(block.type), after) && after && el.current) {
-              el.current.textContent = before;
+            // Caret at the end: a fresh (continued) block below.
+            if (!after) {
+              api.openDraft(block.id, continueType(block.type), "");
+              return;
             }
+            // Mid-text: a coordinated split; the head shows `before` meanwhile.
+            if (api.splitBlock(block, before, after) && el.current) el.current.textContent = before;
           }}
         />
       ) : (
@@ -97,38 +122,39 @@ export function BlockRow({ block, ordinal, api }: { block: Block; ordinal: numbe
           >
             +
           </button>
-          <button type="button" className="n-handle" title="Block menu" onClick={() => setMenu((v) => !v)}>
+          <button
+            type="button"
+            ref={handleRef}
+            className="n-handle"
+            title="Block menu"
+            aria-haspopup="menu"
+            aria-expanded={menu}
+            onClick={() => setMenu((v) => !v)}
+          >
             ⋮⋮
           </button>
         </div>
       ) : null}
       <BlockNode block={block} depth={0} ordinal={ordinal} line={line} />
       {menu ? (
-        <div className="n-menu" ref={menuRef}>
+        <div className="n-menu" ref={menuRef} role="menu" onKeyDown={menuKey}>
           <div className="sec">{TYPE_LABEL[block.type] ?? block.type.replace(/_/g, " ")}</div>
           {api.editable && !inline && block.type !== "divider" ? (
             <div className="empty" style={{ fontSize: 12 }}>
               Read-only here (formatting or block type) — open in Notion to edit
             </div>
           ) : null}
-          <div
+          <button
+            type="button"
+            role="menuitem"
             className="it"
-            onClick={() => {
-              setMenu(false);
-              api.openDraft(block.id, "paragraph", "");
-            }}
+            onClick={choose(() => api.openDraft(block.id, "paragraph", ""))}
           >
             <span className="ic">+</span>Add block below
-          </div>
-          <div
-            className="it danger"
-            onClick={() => {
-              setMenu(false);
-              api.remove(block);
-            }}
-          >
+          </button>
+          <button type="button" role="menuitem" className="it danger" onClick={choose(() => api.remove(block))}>
             <span className="ic">🗑</span>Delete
-          </div>
+          </button>
         </div>
       ) : null}
     </div>

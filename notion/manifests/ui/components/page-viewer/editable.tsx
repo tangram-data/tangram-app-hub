@@ -29,15 +29,24 @@ function insertText(text: string) {
   sel.addRange(r);
 }
 
-export function focusEnd(el: HTMLElement | null) {
+function focusAt(el: HTMLElement | null, toEnd: boolean) {
   if (!el) return;
   el.focus();
   const r = document.createRange();
   r.selectNodeContents(el);
-  r.collapse(false);
+  r.collapse(!toEnd);
   const sel = window.getSelection();
   sel?.removeAllRanges();
   sel?.addRange(r);
+}
+export const focusEnd = (el: HTMLElement | null) => focusAt(el, true);
+export const focusStart = (el: HTMLElement | null) => focusAt(el, false);
+
+// The first live editable line inside `scope` (a CSS selector).
+export function editableIn(scope: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    `${scope} [contenteditable="true"], ${scope} [contenteditable="plaintext-only"]`,
+  );
 }
 
 // Text before and after the caret (a selection between them is dropped).
@@ -85,7 +94,7 @@ export function Editable(props: EditableProps) {
   }, [props.text]);
 
   useEffect(() => {
-    if (props.autoFocus) focusEnd(ref.current);
+    if (props.autoFocus && !props.readOnly) focusEnd(ref.current);
   }, []);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -201,12 +210,14 @@ export function DraftBlock({
   ordinal,
   onType,
   onCreate,
+  onText,
   onDrop,
 }: {
   nb: NewBlock;
   ordinal: number;
   onType: (type: string, text: string) => void;
-  onCreate: (text: string, opts: { next: boolean; type?: string }) => void;
+  onCreate: (text: string, opts: { next: boolean; type?: string; tail?: string }) => void;
+  onText: (text: string) => void;
   onDrop: (focusPrev: boolean) => void;
 }) {
   const el = useRef<HTMLDivElement | null>(null);
@@ -229,6 +240,7 @@ export function DraftBlock({
     if (type === nb.type) {
       // Same shell, no remount: just replace the "/filter" text in place.
       if (el.current) el.current.textContent = rest;
+      onText(rest);
       focusEnd(el.current);
       return;
     }
@@ -237,10 +249,10 @@ export function DraftBlock({
     requestAnimationFrame(() => (switching.current = false));
   }
 
-  function create(text: string, next: boolean) {
+  function create(text: string, next: boolean, tail = "") {
     if (committing.current || nb.busy) return;
     committing.current = true;
-    onCreate(text, { next });
+    onCreate(text, { next, tail });
   }
   useEffect(() => {
     if (!nb.busy) committing.current = false;
@@ -256,6 +268,7 @@ export function DraftBlock({
       multiline={nb.type === "code"}
       placeholder={PLACEHOLDER[nb.type] ?? ""}
       onInput={(text, node) => {
+        onText(text);
         if (nb.type === "paragraph" && !text.startsWith("/")) {
           const hit = SHORTCUTS.find(([re]) => re.test(text));
           if (hit) {
@@ -293,7 +306,10 @@ export function DraftBlock({
           if (nb.type !== "paragraph") pick("paragraph");
           return;
         }
-        create(text, true);
+        // Caret at the start: nothing above to create; keep typing here.
+        if (!before.trim()) return;
+        // Split: this block keeps `before`; the successor starts with `after`.
+        create(before, true, after);
       }}
       onBackspaceEmpty={() => (nb.type !== "paragraph" ? pick("paragraph") : onDrop(true))}
       onCommit={(text) => {
@@ -309,7 +325,7 @@ export function DraftBlock({
   );
 
   return (
-    <div className={`n-block${nb.busy ? " busy" : ""}`}>
+    <div className={`n-block${nb.busy ? " busy" : ""}`} data-draft="">
       <BlockShell type={nb.type} ordinal={ordinal} checked={false}>
         {editor}
       </BlockShell>
