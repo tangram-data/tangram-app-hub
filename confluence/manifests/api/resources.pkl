@@ -77,16 +77,18 @@ types: List<resources.ResourceTypeDefinition> = List(
         new resources.Action {
           name = "Create"
           privilege = "Create"
-          effect = "Reversible"
+          // Publishing notifies space watchers; deleting the page can't unsend that.
+          effect = "Irreversible"
           idempotent = false
-          requiresConfirmation = false
-          doc = "Create a page in a space (spaceId from Space.List), optionally under parentId, with a storage-format body. status=draft keeps it unpublished."
+          requiresConfirmation = true
+          doc = "Create a page in a space (spaceId from Space.List), optionally under parentId, with a storage-format body. status=draft keeps it unpublished. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "createPage" }
         },
         new resources.Action {
           name = "Update"
           privilege = "Update"
-          effect = "Reversible"
+          // History restores content, not the notifications already sent.
+          effect = "Irreversible"
           idempotent = false
           requiresConfirmation = true
           doc = "Replace a page's title and whole body. Read it with Page.Get first; send version.number = current + 1 and the complete new body (omitted content is removed). Earlier versions stay in page history. Confirmation-gated."
@@ -122,9 +124,9 @@ types: List<resources.ResourceTypeDefinition> = List(
         new resources.Action {
           name = "Create"
           privilege = "Create"
-          effect = "Reversible"
-          idempotent = false
           // Notifies page watchers as the connected user.
+          effect = "Irreversible"
+          idempotent = false
           requiresConfirmation = true
           doc = "Post a footer comment on a page (or reply to one via parentCommentId) as the connected user; page watchers are notified. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "createComment" }

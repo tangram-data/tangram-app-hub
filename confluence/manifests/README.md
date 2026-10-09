@@ -14,7 +14,7 @@ Tangram OS ConnectorApp for Confluence Cloud (REST v2, plus v1 CQL search) throu
 | `confluence_list_page` | `Page.List` | Pages by `space-id` or exact `title`; bodies only with `body-format`. |
 | `confluence_get_page` | `Page.Get` | Page + storage-format body + `version.number`. |
 | `confluence_listchildren_page` | `Page.ListChildren` | Direct children — walk a tree from a space's `homepageId`. |
-| `confluence_create_page` | `Page.Create` | New page (storage XHTML body), optionally under `parentId`; `status: draft` keeps it unpublished. |
+| `confluence_create_page` | `Page.Create` | **Confirmation-gated.** New page (storage XHTML body), optionally under `parentId`; `status: draft` keeps it unpublished. |
 | `confluence_update_page` | `Page.Update` | **Confirmation-gated.** Full replace of title + body; `version.number` = current + 1. History keeps old versions. |
 | `confluence_delete_page` | `Page.Delete` | **Confirmation-gated.** Moves the page to the space trash. |
 | `confluence_list_comment` | `Comment.List` | Footer comments on a page. |
