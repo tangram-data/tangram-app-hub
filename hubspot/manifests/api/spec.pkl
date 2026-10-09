@@ -1,0 +1,51 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// HubSpot CRM API v3 (associations v4). One host for every portal: the
+// access token identifies the portal.
+endpoint = "https://api.hubapi.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.hubapi.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://app.hubspot.com/oauth/authorize"
+  tokenUrl = "https://api.hubapi.com/oauth/v1/token"
+  scopes = List(
+    "oauth",
+    "crm.objects.contacts.read",
+    "crm.objects.contacts.write",
+    "crm.objects.companies.read",
+    "crm.objects.companies.write",
+    "crm.objects.deals.read",
+    "crm.objects.deals.write",
+    "tickets",
+    "crm.objects.owners.read",
+    "crm.schemas.contacts.read",
+    "crm.schemas.companies.read",
+    "crm.schemas.deals.read"
+  )
+  clientIdSecret = "hubspotClientId"
+  clientSecretSecret = "hubspotClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.hubspot/hubspot"
+  tokenAuthMethod = "ClientSecretPost"
+  // No PKCE support. Access tokens live 30 min (expires_in); refresh tokens
+  // don't expire. Revocation is DELETE /oauth/v1/refresh-tokens/{token},
+  // not RFC 7009 — admins uninstall the app in HubSpot instead.
+  pkce = false
+  refreshWindowSeconds = 600
+  // HubSpot apps install per portal; users still act with their own seat.
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

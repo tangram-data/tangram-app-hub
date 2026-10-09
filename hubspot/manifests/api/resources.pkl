@@ -1,0 +1,115 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function crmObject(typeName: String, plural: String, typeDoc: String, props: String, searchName: String) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = List(
+      reader(searchName, "search\(typeName)", "Search \(plural): query matches default searchable text properties; filterGroups (OR of AND-ed filters: propertyName, operator EQ/NEQ/LT/LTE/GT/GTE/CONTAINS_TOKEN/HAS_PROPERTY/NOT_HAS_PROPERTY/IN/BETWEEN, value) narrow; properties picks returned fields (default only a few) — e.g. \(props). sorts by propertyName/direction. Max 200 per page, page with after; at most 10,000 results total."),
+      reader("Get", "get\(typeName)", "Read one \(typeName) by id with the listed properties (comma-separated, e.g. \(props)); associations lists linked object types (e.g. companies,deals)."),
+      new resources.Action {
+        name = "Create"
+        privilege = "Create"
+        // Workflows and sequences may enroll the record and send email.
+        effect = "Irreversible"
+        idempotent = false
+        requiresConfirmation = true
+        doc = "Create a \(typeName) from properties (internal property names; Property.List shows them and their allowed options). Confirmation-gated."
+        openApiMapping = new resources.OpenApiMapping { operationId = "create\(typeName)" }
+      },
+      new resources.Action {
+        name = "Update"
+        privilege = "Update"
+        effect = "Irreversible"
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Update a \(typeName)'s properties by id; only the given properties change (an empty string clears one). Confirmation-gated."
+        openApiMapping = new resources.OpenApiMapping { operationId = "update\(typeName)" }
+      }
+    )
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read", "Create", "Update")
+      description = "Search, read and edit \(plural) through the HubSpot connector."
+    })
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  crmObject("Contact", "contacts", "A person.", "email, firstname, lastname, phone, company, lifecyclestage, hubspot_owner_id", "Search"),
+  crmObject("Company", "companies", "An organization.", "name, domain, industry, city, numberofemployees, annualrevenue, hubspot_owner_id", "Find"),
+  crmObject("Deal", "deals", "A sales opportunity moving through a pipeline.", "dealname, amount, dealstage, pipeline, closedate, hubspot_owner_id", "Find"),
+  crmObject("Ticket", "tickets", "A customer support request moving through a pipeline.", "subject, content, hs_pipeline, hs_pipeline_stage, hs_ticket_priority, hubspot_owner_id", "Find"),
+  new resources.ResourceTypeDefinition {
+    name = "Association"
+    activeVersion = "v1"
+    doc = "A link between two CRM records (contact ↔ company, deal ↔ contact, ticket ↔ company, ...)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listAssociations", "Records of toObjectType linked to one record (e.g. the companies of contact 123, the contacts of deal 456): toObjectId plus association labels."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Link two records with HubSpot's default association (e.g. contact 123 → company 789). Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDefaultAssociation" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and create record links."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Owner"
+    activeVersion = "v1"
+    doc = "A HubSpot user who can own records (hubspot_owner_id)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(reader("List", "listOwners", "List owners (id, email, name, teams) — map hubspot_owner_id to people, or find an owner id by email."))
+      presetRoles = List(new resources.Role { name = "user"; permissions = List("Read"); description = "List owners." })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Pipeline"
+    activeVersion = "v1"
+    doc = "Deal or ticket pipelines and their stages."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(reader("List", "listPipelines", "Pipelines of deals or tickets with their stages (id, label, displayOrder, probability) — dealstage/hs_pipeline_stage values are stage ids, not labels."))
+      presetRoles = List(new resources.Role { name = "user"; permissions = List("Read"); description = "List pipelines." })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Property"
+    activeVersion = "v1"
+    doc = "A property (field) definition of a CRM object type."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(reader("List", "listProperties", "An object type's properties: internal name, label, type, fieldType, options (allowed enumeration values). Check before searching on or writing a property."))
+      presetRoles = List(new resources.Role { name = "user"; permissions = List("Read"); description = "List properties." })
+    })
+  }
+)

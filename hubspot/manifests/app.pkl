@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.hubspot"
+name = "hubspot"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developers.hubspot.com/docs/api/overview"
+category = "sales"
+tags = List("hubspot", "crm", "contacts", "companies", "deals", "tickets", "marketing", "oauth")
+description = "HubSpot CRM connector: search and read contacts, companies, deals and tickets, create and update records, link them together, and look up owners, pipelines and properties."
+readme      = read("README.md").text

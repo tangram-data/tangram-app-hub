@@ -1,0 +1,335 @@
+openapi: 3.0.3
+info:
+  title: HubSpot CRM API
+  version: "3"
+  description: Subset of the HubSpot CRM API (objects v3, associations v4, owners, pipelines, properties).
+servers:
+  - url: https://api.hubapi.com
+
+paths:
+  /crm/v3/objects/contacts/search:
+    post:
+      operationId: searchContact
+      summary: Search contacts
+      x-tangram-search:
+        hits: {items: results, id: id, title: "properties.email, properties.firstname, properties.lastname", modified: updatedAt}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SearchRequest"}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v3/objects/contacts:
+    post:
+      operationId: createContact
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+        "409": {description: "Conflict (e.g. a contact with this email exists)."}
+
+  /crm/v3/objects/contacts/{id}:
+    get:
+      operationId: getContact
+      summary: Get a contact
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. email, firstname, lastname, phone, company, lifecyclestage, hubspot_owner_id.", schema: {type: string}}
+        - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+    patch:
+      operationId: updateContact
+      summary: Update a contact
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+
+  /crm/v3/objects/companies/search:
+    post:
+      operationId: searchCompany
+      summary: Search companies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SearchRequest"}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v3/objects/companies:
+    post:
+      operationId: createCompany
+      summary: Create a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+        "409": {description: "Conflict (e.g. a contact with this email exists)."}
+
+  /crm/v3/objects/companies/{id}:
+    get:
+      operationId: getCompany
+      summary: Get a company
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. name, domain, industry, city, numberofemployees, annualrevenue, hubspot_owner_id.", schema: {type: string}}
+        - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+    patch:
+      operationId: updateCompany
+      summary: Update a company
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+
+  /crm/v3/objects/deals/search:
+    post:
+      operationId: searchDeal
+      summary: Search deals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SearchRequest"}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v3/objects/deals:
+    post:
+      operationId: createDeal
+      summary: Create a deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+        "409": {description: "Conflict (e.g. a contact with this email exists)."}
+
+  /crm/v3/objects/deals/{id}:
+    get:
+      operationId: getDeal
+      summary: Get a deal
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. dealname, amount, dealstage, pipeline, closedate, hubspot_owner_id.", schema: {type: string}}
+        - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+    patch:
+      operationId: updateDeal
+      summary: Update a deal
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+
+  /crm/v3/objects/tickets/search:
+    post:
+      operationId: searchTicket
+      summary: Search tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SearchRequest"}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v3/objects/tickets:
+    post:
+      operationId: createTicket
+      summary: Create a ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+        "409": {description: "Conflict (e.g. a contact with this email exists)."}
+
+  /crm/v3/objects/tickets/{id}:
+    get:
+      operationId: getTicket
+      summary: Get a ticket
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. subject, content, hs_pipeline, hs_pipeline_stage, hs_ticket_priority, hubspot_owner_id.", schema: {type: string}}
+        - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+    patch:
+      operationId: updateTicket
+      summary: Update a ticket
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PropertiesBody"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid property or value.}
+
+  /crm/v4/objects/{fromObjectType}/{fromObjectId}/associations/{toObjectType}:
+    get:
+      operationId: listAssociations
+      summary: List records linked to a record
+      parameters:
+        - $ref: "#/components/parameters/fromObjectType"
+        - {name: fromObjectId, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/toObjectType"
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500}}
+        - {name: after, in: query, required: false, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v4/objects/{fromObjectType}/{fromObjectId}/associations/default/{toObjectType}/{toObjectId}:
+    put:
+      operationId: createDefaultAssociation
+      summary: Link two records (default association)
+      parameters:
+        - $ref: "#/components/parameters/fromObjectType"
+        - {name: fromObjectId, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/toObjectType"
+        - {name: toObjectId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /crm/v3/owners:
+    get:
+      operationId: listOwners
+      summary: List owners
+      parameters:
+        - {name: email, in: query, required: false, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500}}
+        - {name: after, in: query, required: false, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Page"}
+
+  /crm/v3/pipelines/{objectType}:
+    get:
+      operationId: listPipelines
+      summary: List pipelines and stages
+      parameters:
+        - {name: objectType, in: path, required: true, schema: {type: string, enum: [deals, tickets]}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /crm/v3/properties/{objectType}:
+    get:
+      operationId: listProperties
+      summary: List an object type's properties
+      parameters:
+        - {name: objectType, in: path, required: true, schema: {type: string, enum: [contacts, companies, deals, tickets]}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+components:
+  parameters:
+    recordId:
+      {name: id, in: path, required: true, description: Record id., schema: {type: string}}
+    fromObjectType:
+      {name: fromObjectType, in: path, required: true, schema: {type: string, enum: [contacts, companies, deals, tickets]}}
+    toObjectType:
+      {name: toObjectType, in: path, required: true, schema: {type: string, enum: [contacts, companies, deals, tickets]}}
+  responses:
+    Ok:
+      description: HubSpot JSON response.
+      content:
+        application/json:
+          schema:
+            type: object
+    Page:
+      description: "{results:[...], paging?:{next:{after}}} (search adds total)."
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    PropertiesBody:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          type: object
+          description: Internal property names to values (strings; dates as ISO 8601 or epoch ms).
+          additionalProperties: true
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Text matched against the object's default searchable properties (name, email, domain, ...).
+        filterGroups:
+          type: array
+          description: Up to 5 groups (OR-ed), each up to 6 filters (AND-ed).
+          items:
+            type: object
+            properties:
+              filters:
+                type: array
+                items:
+                  type: object
+                  required: [propertyName, operator]
+                  properties:
+                    propertyName: {type: string}
+                    operator: {type: string, enum: [EQ, NEQ, LT, LTE, GT, GTE, BETWEEN, IN, NOT_IN, HAS_PROPERTY, NOT_HAS_PROPERTY, CONTAINS_TOKEN, NOT_CONTAINS_TOKEN]}
+                    value: {type: string}
+                    highValue: {type: string, description: Upper bound for BETWEEN.}
+                    values: {type: array, items: {type: string}, description: For IN / NOT_IN.}
+        properties:
+          type: array
+          items: {type: string}
+          description: Properties to return.
+        sorts:
+          type: array
+          items:
+            type: object
+            properties:
+              propertyName: {type: string}
+              direction: {type: string, enum: [ASCENDING, DESCENDING]}
+        limit: {type: integer, minimum: 1, maximum: 200}
+        after: {type: string, description: paging.next.after of the previous page.}
