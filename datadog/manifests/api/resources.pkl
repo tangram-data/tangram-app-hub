@@ -63,12 +63,12 @@ types: List<resources.ResourceTypeDefinition> = List(
       version = "v1"
       served = true
       actions = List(
-        reader("List", "listDowntimes", "List downtimes; current_only=true keeps active and upcoming ones."),
+        reader("List", "listDowntimes", "List downtimes. current_only=true keeps only the active ones — omit it to see upcoming maintenance too. Page with page[offset]/page[limit]."),
         new resources.Action {
           name = "Create"
           privilege = "Create"
-          // Silences alerts until cancelled or expired.
-          effect = "Reversible"
+          // Silences alerts and its message @-mentions notify — cancelling can't undo either.
+          effect = "Irreversible"
           idempotent = false
           requiresConfirmation = true
           doc = "Silence monitor notifications for a scope (e.g. env:prod AND service:checkout) — all monitors, one monitor_id, or monitors with monitor_tags — from schedule.start (default now) until schedule.end. Always set an end. Confirmation-gated: alerts in scope stay quiet while it runs."
@@ -77,7 +77,7 @@ types: List<resources.ResourceTypeDefinition> = List(
         new resources.Action {
           name = "Cancel"
           privilege = "Delete"
-          effect = "Reversible"
+          effect = "Irreversible"
           idempotent = true
           requiresConfirmation = true
           doc = "Cancel a downtime by id so its monitors notify again. Confirmation-gated."

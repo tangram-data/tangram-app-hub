@@ -18,7 +18,7 @@ OAuth is limited to Marketplace partners). US1 (`api.datadoghq.com`) by default;
 | `datadog_list_host` | `Host.List` | Hosts by name/tag. |
 | `datadog_list_dashboard` / `datadog_get_dashboard` | `Dashboard.List` / `Dashboard.Get` | Widget queries are reusable with `Metric.Query`. |
 | `datadog_list_slo` / `datadog_history_slo` | `SLO.List` / `SLO.History` | SLI and error budget over a window. |
-| `datadog_list_downtime` | `Downtime.List` | `current_only: true` for active/upcoming. |
+| `datadog_list_downtime` | `Downtime.List` | `current_only: true` = active only; omit it to include upcoming. `page[offset]`/`page[limit]` paging. |
 | `datadog_create_downtime` | `Downtime.Create` | **Confirmation-gated.** Silences notifications for a scope; always set `schedule.end`. |
 | `datadog_cancel_downtime` | `Downtime.Cancel` | **Confirmation-gated.** |
 
@@ -27,7 +27,8 @@ OAuth is limited to Marketplace partners). US1 (`api.datadoghq.com`) by default;
 1. **API key** — Organization Settings → API Keys.
 2. **Application key** — Organization Settings → Application Keys. Every call runs with this key's permissions, and the connection is shared by
    the workspace. Create it on a service account and **scope** it to what the actions need: `monitors_read`, `metrics_read`, `timeseries_query`,
-   `logs_read_data`, `logs_read_index_data`, `events_read`, `hosts_read`, `dashboards_read`, `slos_read`, `monitors_downtime` (drop
-   `monitors_downtime` to make the connector read-only).
+   `logs_read_data`, `logs_read_index_data`, `events_read`, `hosts_read`, `dashboards_read`, `slos_read`, `monitors_downtime`.
+   `monitors_downtime` covers listing downtimes as well as creating/cancelling them — to keep the connector read-only but still list downtimes,
+   keep the scope and withhold `Downtime.Create`/`Downtime.Cancel` through Tangram action permissions instead.
 
 Enter both as the install secrets `datadogApiKey` / `datadogApplicationKey`.

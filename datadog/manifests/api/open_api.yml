@@ -177,7 +177,9 @@ paths:
       operationId: listDowntimes
       summary: List downtimes
       parameters:
-        - {name: current_only, in: query, required: false, description: Only active and upcoming downtimes., schema: {type: boolean}}
+        - {name: current_only, in: query, required: false, description: Only active downtimes (omit to include upcoming ones)., schema: {type: boolean}}
+        - {name: "page[offset]", in: query, required: false, schema: {type: integer, minimum: 0}}
+        - {name: "page[limit]", in: query, required: false, description: Page size (default 30)., schema: {type: integer, minimum: 1}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
     post:
