@@ -4,8 +4,9 @@ info:
   version: "1.0"
   description: >
     Subset of the Confluence Cloud REST API (v2, plus v1 CQL search) reached
-    through Atlassian's OAuth gateway at api.atlassian.com. Every site path
-    is /ex/confluence/{cloudId}/wiki/...; get cloudId from listSites.
+    through Atlassian's OAuth gateway at api.atlassian.com. Upstream, every
+    site path is /ex/confluence/{cloudId}/wiki/...; the connected site's
+    cloudId is captured at connect time and injected via x-tangram-upstream.
 servers:
   - url: https://api.atlassian.com
 
@@ -24,12 +25,18 @@ paths:
                 items:
                   type: object
 
-  /ex/confluence/{cloudId}/wiki/rest/api/search:
+  /wiki/rest/api/search:
     get:
       operationId: searchContent
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/rest/api/search"
+      x-tangram-search:
+        queryParam: cql
+        queryTemplate: "siteSearch ~ '{query}' and type = page"
+        hits: {items: results, id: content.id, title: title, modified: lastModified, type: content.type}
+        read: {page: Page.Get}
       summary: Search content with CQL
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - name: cql
           in: query
           required: true
@@ -61,12 +68,13 @@ paths:
         "400":
           description: CQL syntax error.
 
-  /ex/confluence/{cloudId}/wiki/api/v2/spaces:
+  /wiki/api/v2/spaces:
     get:
       operationId: listSpaces
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/spaces"
       summary: List spaces
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - name: keys
           in: query
           required: false
@@ -95,12 +103,13 @@ paths:
               schema:
                 type: object
 
-  /ex/confluence/{cloudId}/wiki/api/v2/spaces/{id}:
+  /wiki/api/v2/spaces/{id}:
     get:
       operationId: getSpace
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/spaces/{id}"
       summary: Get a space
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - name: id
           in: path
           required: true
@@ -124,12 +133,13 @@ paths:
         "404":
           description: Not found or not visible to the account.
 
-  /ex/confluence/{cloudId}/wiki/api/v2/pages:
+  /wiki/api/v2/pages:
     get:
       operationId: listPages
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages"
       summary: List pages
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - name: space-id
           in: query
           required: false
@@ -172,9 +182,10 @@ paths:
                 type: object
     post:
       operationId: createPage
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages"
       summary: Create a page
       parameters:
-        - $ref: "#/components/parameters/cloudId"
       requestBody:
         required: true
         content:
@@ -207,12 +218,13 @@ paths:
         "400":
           description: Invalid body (malformed storage XHTML, duplicate title in the space, ...).
 
-  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}:
+  /wiki/api/v2/pages/{id}:
     get:
       operationId: getPage
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}"
       summary: Get a page with its body
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - $ref: "#/components/parameters/pageId"
         - name: body-format
           in: query
@@ -233,9 +245,10 @@ paths:
           description: Not found or not visible to the account.
     put:
       operationId: updatePage
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}"
       summary: Replace a page's title and body
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - $ref: "#/components/parameters/pageId"
       requestBody:
         required: true
@@ -279,9 +292,10 @@ paths:
           description: Version conflict — re-read the page and retry with the new number + 1.
     delete:
       operationId: deletePage
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}"
       summary: Move a page to the trash
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - $ref: "#/components/parameters/pageId"
       responses:
         "204":
@@ -289,12 +303,13 @@ paths:
         "404":
           description: Not found or not visible to the account.
 
-  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}/children:
+  /wiki/api/v2/pages/{id}/children:
     get:
       operationId: listPageChildren
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}/children"
       summary: List a page's direct child pages
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - $ref: "#/components/parameters/pageId"
         - $ref: "#/components/parameters/limit"
         - $ref: "#/components/parameters/cursor"
@@ -306,12 +321,13 @@ paths:
               schema:
                 type: object
 
-  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}/footer-comments:
+  /wiki/api/v2/pages/{id}/footer-comments:
     get:
       operationId: listPageComments
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}/footer-comments"
       summary: List a page's footer comments
       parameters:
-        - $ref: "#/components/parameters/cloudId"
         - $ref: "#/components/parameters/pageId"
         - name: body-format
           in: query
@@ -330,12 +346,13 @@ paths:
               schema:
                 type: object
 
-  /ex/confluence/{cloudId}/wiki/api/v2/footer-comments:
+  /wiki/api/v2/footer-comments:
     post:
       operationId: createComment
+      x-tangram-upstream:
+        path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/footer-comments"
       summary: Post a footer comment on a page
       parameters:
-        - $ref: "#/components/parameters/cloudId"
       requestBody:
         required: true
         content:
@@ -362,13 +379,6 @@ paths:
 
 components:
   parameters:
-    cloudId:
-      name: cloudId
-      in: path
-      required: true
-      description: Site cloud id from listSites.
-      schema:
-        type: string
     pageId:
       name: id
       in: path

@@ -1,14 +1,17 @@
 # Confluence Cloud connector
 
-Tangram OS ConnectorApp for Confluence Cloud (REST v2, plus v1 CQL search) through Atlassian's OAuth 2.0 (3LO) gateway. Every call goes to
-`https://api.atlassian.com/ex/confluence/{cloudId}/wiki/...`. One grant can cover several sites, so `cloudId` is a parameter on every action —
-`confluence_list_site` returns it.
+Tangram OS ConnectorApp for Confluence Cloud (REST v2, plus v1 CQL search) through Atlassian's OAuth 2.0 (3LO) gateway. Upstream calls go to
+`https://api.atlassian.com/ex/confluence/{cloudId}/wiki/...`; the site's `cloudId` is captured when the account connects (the **first** site in
+Atlassian's `accessible-resources`) and injected by the platform, so no action takes it. To use another site, reconnect and grant only that site.
+
+Searchable from Tangram's cross-app search: `Content.Search` declares `x-tangram-search` (the words become
+`siteSearch ~ '<words>' and type = page`), and each page hit opens with `Page.Get`.
 
 ## Agent tools
 
 | Tool | Action | Notes |
 |------|--------|-------|
-| `confluence_list_site` | `Site.List` | Reachable sites: `id` (= `cloudId`), `name`, `url`. Call first. |
+| `confluence_list_site` | `Site.List` | Granted sites (`id`, `name`, `url`); the connection uses the first. |
 | `confluence_search_content` | `Content.Search` | CQL search, e.g. `type = page and text ~ "onboarding"`. Hits carry `content.id`, `title`, `excerpt`, `url`. |
 | `confluence_list_space` / `confluence_get_space` | `Space.List` / `Space.Get` | Spaces with `id`, `key`, `name`, `homepageId`. |
 | `confluence_list_page` | `Page.List` | Pages by `space-id` or exact `title`; bodies only with `body-format`. |
