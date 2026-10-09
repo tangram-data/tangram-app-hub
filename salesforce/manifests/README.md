@@ -24,8 +24,8 @@ Writes are marked irreversible: record-triggered flows, assignment rules and ema
 
 ## OAuth setup
 
-Create an **External Client App** (or Connected App) in Salesforce Setup with OAuth enabled, scopes **Manage user data via APIs (`api`)** and
-**Perform requests at any time (`refresh_token`, `offline_access`)**, PKCE required, and the callback:
+Create an **External Client App** (or Connected App) in Salesforce Setup with OAuth enabled, scopes **Manage user data via APIs (`api`)**,
+**Access the identity URL service (`id`)** and **Perform requests at any time (`refresh_token`, `offline_access`)**, PKCE required, and the callback:
 
 ```
 https://<your-tangram-host>/api/core/v1/connector-oauth/callback/com.salesforce/salesforce

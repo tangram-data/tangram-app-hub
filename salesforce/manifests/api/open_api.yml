@@ -49,6 +49,7 @@ paths:
       x-tangram-search:
         queryTemplate: "FIND {{query}} IN ALL FIELDS RETURNING Account(Id, Name), Contact(Id, Name, Email), Lead(Id, Name, Company), Opportunity(Id, Name, StageName), Case(Id, CaseNumber, Subject) LIMIT 25"
         hits: {items: searchRecords, id: Id, title: "Name, Subject, CaseNumber", type: attributes.type}
+        escape: sosl
       parameters:
         - name: q
           in: query

@@ -24,8 +24,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.salesforce.com/services/oauth2/authorize"
   tokenUrl = "https://login.salesforce.com/services/oauth2/token"
   revocationUrl = "https://login.salesforce.com/services/oauth2/revoke"
-  // api = REST access; refresh_token = offline refresh.
-  scopes = List("api", "refresh_token")
+  // api = REST access; id = the userinfo endpoint (User.Me); refresh_token = offline refresh.
+  scopes = List("api", "id", "refresh_token")
   clientIdSecret = "salesforceClientId"
   clientSecretSecret = "salesforceClientSecret"
   callbackPath = "/api/core/v1/connector-oauth/callback/com.salesforce/salesforce"

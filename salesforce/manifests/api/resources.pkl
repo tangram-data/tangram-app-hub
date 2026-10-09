@@ -34,7 +34,8 @@ local function write(actionName: String, privilegeName: String, op: String, text
   privilege = privilegeName
   // Record-triggered flows, assignment and email alerts may fire; undoing the record doesn't undo them.
   effect = "Irreversible"
-  idempotent = actionName != "Create"
+  // retries can re-fire automation
+  idempotent = false
   requiresConfirmation = true
   doc = text
   openApiMapping = new resources.OpenApiMapping { operationId = op }
