@@ -1,0 +1,58 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Confluence Cloud through Atlassian's OAuth 2.0 (3LO) gateway. Every site
+// is addressed as /ex/confluence/{cloudId}/wiki/... on api.atlassian.com; a
+// grant can cover several sites, so cloudId is a client path parameter that
+// Site.List (accessible-resources) returns.
+endpoint = "https://api.atlassian.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.atlassian.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://auth.atlassian.com/authorize"
+  tokenUrl = "https://auth.atlassian.com/oauth/token"
+  // Granular scopes only (classic and granular don't mix on one grant).
+  // read:content-details covers v1 CQL search; offline_access yields a
+  // refresh token.
+  scopes = List(
+    "read:space:confluence",
+    "read:page:confluence",
+    "write:page:confluence",
+    "delete:page:confluence",
+    "read:comment:confluence",
+    "write:comment:confluence",
+    "read:content-details:confluence",
+    "offline_access"
+  )
+  clientIdSecret = "atlassianClientId"
+  clientSecretSecret = "atlassianClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.atlassian/confluence"
+  tokenAuthMethod = "ClientSecretPost"
+  // audience is mandatory; prompt=consent re-shows the site picker.
+  additionalAuthorizeParams = List(
+    new oauthTypes.AuthorizeParam { name = "audience"; value = "api.atlassian.com" },
+    new oauthTypes.AuthorizeParam { name = "prompt"; value = "consent" }
+  )
+  // Atlassian 3LO has no PKCE and no RFC 7009 revocation endpoint; users
+  // revoke at id.atlassian.com/manage-profile/apps. Access tokens live 1h;
+  // refresh tokens rotate on use.
+  pkce = false
+  refreshWindowSeconds = 600
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

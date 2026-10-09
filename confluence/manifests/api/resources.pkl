@@ -1,0 +1,140 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Site"
+    activeVersion = "v1"
+    doc = "A Confluence Cloud site (cloud id + URL) the connected account granted access to."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listSites", "List the Atlassian sites this connection can reach: id (the cloudId every other Confluence action needs), name, url, scopes. Call first; when there are several sites, pick by url/name.")
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "List reachable Confluence sites."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Content"
+    activeVersion = "v1"
+    doc = "Searchable Confluence content — pages, blog posts, attachments, comments."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Search", "searchContent", "Search a site with CQL, e.g. 'type = page and text ~ \"onboarding\"', 'space = ENG and title ~ \"runbook\" order by lastmodified desc', 'type = page and lastmodified >= now(\"-7d\")'. Hits carry content.id (the page id for Page.Get), title, excerpt and url. Page with cursor from _links.next.")
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Search Confluence content."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Space"
+    activeVersion = "v1"
+    doc = "A Confluence space — a top-level container of pages, identified by a numeric id and a short key (e.g. ENG)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listSpaces", "List spaces visible to the account; filter by comma-separated keys or type (global, personal). Returns id, key, name, homepageId. Page with cursor."),
+        reader("Get", "getSpace", "Get one space by numeric id, optionally with its description.")
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Browse Confluence spaces."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Page"
+    activeVersion = "v1"
+    doc = "A Confluence page. Bodies use the storage format (XHTML, e.g. <p>text</p><h2>Heading</h2><ul><li>item</li></ul>)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listPages", "List pages, usually within one space (space-id) or by exact title. Bodies are omitted unless body-format is set. Page with cursor."),
+        reader("Get", "getPage", "Read a page by id: title, spaceId, parentId, version.number, and its body (storage format by default). version.number is needed for Update."),
+        reader("ListChildren", "listPageChildren", "List the direct child pages of a page (id, title, childPosition) — walk a page tree from a space's homepageId."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a page in a space (spaceId from Space.List), optionally under parentId, with a storage-format body. status=draft keeps it unpublished."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createPage" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Replace a page's title and whole body. Read it with Page.Get first; send version.number = current + 1 and the complete new body (omitted content is removed). Earlier versions stay in page history. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updatePage" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          // Moves the page to the space trash; restorable by a space admin.
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Move a page to the space trash (space admins can restore it). Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deletePage" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update", "Delete")
+        description = "Read and manage pages through the Confluence connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Comment"
+    activeVersion = "v1"
+    doc = "A footer comment on a Confluence page."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listPageComments", "List a page's footer comments with their storage-format bodies, oldest first."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          // Notifies page watchers as the connected user.
+          requiresConfirmation = true
+          doc = "Post a footer comment on a page (or reply to one via parentCommentId) as the connected user; page watchers are notified. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createComment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and post page comments."
+      })
+    })
+  }
+)

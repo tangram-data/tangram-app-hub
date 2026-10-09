@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.atlassian"
+name = "confluence"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.atlassian.com/cloud/confluence/rest/v2/"
+category = "productivity"
+tags = List("confluence", "atlassian", "wiki", "pages", "docs", "knowledge", "oauth")
+description = "Confluence Cloud connector: search with CQL, browse spaces and page trees, read pages, create and update pages, and read and post comments."
+readme      = read("README.md").text

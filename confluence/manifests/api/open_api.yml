@@ -1,0 +1,405 @@
+openapi: 3.0.3
+info:
+  title: Confluence Cloud
+  version: "1.0"
+  description: >
+    Subset of the Confluence Cloud REST API (v2, plus v1 CQL search) reached
+    through Atlassian's OAuth gateway at api.atlassian.com. Every site path
+    is /ex/confluence/{cloudId}/wiki/...; get cloudId from listSites.
+servers:
+  - url: https://api.atlassian.com
+
+paths:
+  /oauth/token/accessible-resources:
+    get:
+      operationId: listSites
+      summary: List the Atlassian sites this connection can reach
+      responses:
+        "200":
+          description: Array of {id (cloudId), name, url, scopes, avatarUrl}.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /ex/confluence/{cloudId}/wiki/rest/api/search:
+    get:
+      operationId: searchContent
+      summary: Search content with CQL
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - name: cql
+          in: query
+          required: true
+          description: >
+            Confluence Query Language, e.g. type = page and text ~ "onboarding",
+            space = ENG and title ~ "runbook" order by lastmodified desc.
+            Fields: type, space, title, text, label, creator, contributor,
+            ancestor, created, lastmodified.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Results per page (default 25, max 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: >
+            {results:[{content:{id,type,title,status,_links},title,excerpt,url,lastModified,resultGlobalContainer}],
+            size, totalSize, _links.next (carries cursor=...)}.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: CQL syntax error.
+
+  /ex/confluence/{cloudId}/wiki/api/v2/spaces:
+    get:
+      operationId: listSpaces
+      summary: List spaces
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - name: keys
+          in: query
+          required: false
+          description: Comma-separated space keys to return, e.g. ENG,OPS.
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [global, personal]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [current, archived]
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: "{results:[{id,key,name,type,status,homepageId}], _links.next}."
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /ex/confluence/{cloudId}/wiki/api/v2/spaces/{id}:
+    get:
+      operationId: getSpace
+      summary: Get a space
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - name: id
+          in: path
+          required: true
+          description: Numeric space id (from listSpaces).
+          schema:
+            type: string
+        - name: description-format
+          in: query
+          required: false
+          description: Include the description as plain text or rendered HTML.
+          schema:
+            type: string
+            enum: [plain, view]
+      responses:
+        "200":
+          description: The space.
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not found or not visible to the account.
+
+  /ex/confluence/{cloudId}/wiki/api/v2/pages:
+    get:
+      operationId: listPages
+      summary: List pages
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - name: space-id
+          in: query
+          required: false
+          description: Comma-separated numeric space ids.
+          schema:
+            type: string
+        - name: title
+          in: query
+          required: false
+          description: Exact page title.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [current, archived, draft, trashed]
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [id, -id, title, -title, created-date, -created-date, modified-date, -modified-date]
+        - name: body-format
+          in: query
+          required: false
+          description: Include bodies in this format; omit for metadata only.
+          schema:
+            type: string
+            enum: [storage, atlas_doc_format]
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: "{results:[{id,title,spaceId,parentId,status,version,body?}], _links.next}."
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      operationId: createPage
+      summary: Create a page
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spaceId, title, body]
+              properties:
+                spaceId:
+                  type: string
+                  description: Numeric space id.
+                status:
+                  type: string
+                  enum: [current, draft]
+                  description: current publishes (default); draft keeps it unpublished.
+                title:
+                  type: string
+                parentId:
+                  type: string
+                  description: Parent page id; omit to create at the space root.
+                body:
+                  $ref: "#/components/schemas/StorageBody"
+      responses:
+        "200":
+          description: The created page with id and version.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Invalid body (malformed storage XHTML, duplicate title in the space, ...).
+
+  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}:
+    get:
+      operationId: getPage
+      summary: Get a page with its body
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - $ref: "#/components/parameters/pageId"
+        - name: body-format
+          in: query
+          required: false
+          description: Body format (storage XHTML by default).
+          schema:
+            type: string
+            enum: [storage, atlas_doc_format, view]
+            default: storage
+      responses:
+        "200":
+          description: "{id,title,spaceId,parentId,status,version:{number},body:{storage:{value}},_links}."
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not found or not visible to the account.
+    put:
+      operationId: updatePage
+      summary: Replace a page's title and body
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - $ref: "#/components/parameters/pageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, status, title, body, version]
+              properties:
+                id:
+                  type: string
+                  description: Same page id as the path.
+                status:
+                  type: string
+                  enum: [current, draft]
+                title:
+                  type: string
+                parentId:
+                  type: string
+                  description: Set to move the page under another parent.
+                body:
+                  $ref: "#/components/schemas/StorageBody"
+                version:
+                  type: object
+                  required: [number]
+                  properties:
+                    number:
+                      type: integer
+                      description: Current version.number + 1.
+                    message:
+                      type: string
+                      description: Optional change note shown in page history.
+      responses:
+        "200":
+          description: The updated page.
+          content:
+            application/json:
+              schema:
+                type: object
+        "409":
+          description: Version conflict — re-read the page and retry with the new number + 1.
+    delete:
+      operationId: deletePage
+      summary: Move a page to the trash
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - $ref: "#/components/parameters/pageId"
+      responses:
+        "204":
+          description: Trashed.
+        "404":
+          description: Not found or not visible to the account.
+
+  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}/children:
+    get:
+      operationId: listPageChildren
+      summary: List a page's direct child pages
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - $ref: "#/components/parameters/pageId"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: "{results:[{id,title,status,spaceId,childPosition}], _links.next}."
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /ex/confluence/{cloudId}/wiki/api/v2/pages/{id}/footer-comments:
+    get:
+      operationId: listPageComments
+      summary: List a page's footer comments
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+        - $ref: "#/components/parameters/pageId"
+        - name: body-format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [storage, atlas_doc_format]
+            default: storage
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: "{results:[{id,status,title,version:{authorId,createdAt},body}], _links.next}."
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /ex/confluence/{cloudId}/wiki/api/v2/footer-comments:
+    post:
+      operationId: createComment
+      summary: Post a footer comment on a page
+      parameters:
+        - $ref: "#/components/parameters/cloudId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                pageId:
+                  type: string
+                  description: Page to comment on (omit when replying).
+                parentCommentId:
+                  type: string
+                  description: Comment to reply to.
+                body:
+                  $ref: "#/components/schemas/StorageBody"
+      responses:
+        "201":
+          description: The created comment.
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  parameters:
+    cloudId:
+      name: cloudId
+      in: path
+      required: true
+      description: Site cloud id from listSites.
+      schema:
+        type: string
+    pageId:
+      name: id
+      in: path
+      required: true
+      description: Numeric page id.
+      schema:
+        type: string
+    limit:
+      name: limit
+      in: query
+      required: false
+      description: Results per page (default 25, max 250).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 250
+    cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from the previous response's _links.next.
+      schema:
+        type: string
+  schemas:
+    StorageBody:
+      type: object
+      required: [representation, value]
+      properties:
+        representation:
+          type: string
+          enum: [storage]
+        value:
+          type: string
+          description: Storage-format XHTML, e.g. <p>Hello</p><h2>Steps</h2><ol><li>One</li></ol>.
