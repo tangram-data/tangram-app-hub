@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: Salesforce REST API
+  version: "62.0"
+  description: >
+    Subset of the Salesforce REST API (v62.0) on the org's My Domain host.
+    Errors come back as [{"message","errorCode","fields"}].
+servers:
+  - url: https://example.my.salesforce.com
+
+paths:
+  /services/oauth2/userinfo:
+    get:
+      operationId: getUserInfo
+      summary: The connected user
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /services/data/v62.0/query:
+    get:
+      operationId: query
+      summary: Run a SOQL query
+      parameters:
+        - {name: q, in: query, required: true, description: "SOQL, e.g. SELECT Id, Name FROM Account WHERE Industry = 'Energy' LIMIT 20.", schema: {type: string}}
+      responses:
+        "200":
+          description: "{totalSize, done, nextRecordsUrl?, records:[{attributes:{type,url}, Id, ...}]}."
+          content:
+            application/json:
+              schema:
+                type: object
+        "400": {description: "SOQL error (MALFORMED_QUERY, INVALID_FIELD, ...)."}
+
+  /query-more/{locator}:
+    get:
+      operationId: queryMore
+      summary: Next page of a SOQL result
+      x-tangram-upstream:
+        path: "/services/data/v62.0/query/{locator}"
+      parameters:
+        - {name: locator, in: path, required: true, description: Last path segment of nextRecordsUrl., schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /services/data/v62.0/search:
+    get:
+      operationId: search
+      summary: Full-text search (SOSL)
+      x-tangram-search:
+        queryTemplate: "FIND {{query}} IN ALL FIELDS RETURNING Account(Id, Name), Contact(Id, Name, Email), Lead(Id, Name, Company), Opportunity(Id, Name, StageName), Case(Id, CaseNumber, Subject) LIMIT 25"
+        hits: {items: searchRecords, id: Id, title: "Name, Subject, CaseNumber", type: attributes.type}
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: >
+            SOSL, e.g. FIND {Acme} IN ALL FIELDS RETURNING Account(Id, Name), Contact(Id, Name, Email) LIMIT 20.
+            Inside the braces escape reserved characters (? & | ! { } [ ] ( ) ^ ~ * : \ " ' + -) with a backslash.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{searchRecords:[{attributes:{type,url}, Id, ...}]}."
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /services/data/v62.0/sobjects:
+    get:
+      operationId: listObjects
+      summary: List the org's objects
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /describe/{sobject}:
+    get:
+      operationId: describeObject
+      summary: Describe an object's fields
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/{sobject}/describe"
+      parameters:
+        - $ref: "#/components/parameters/sobject"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Unknown object.}
+
+  /services/data/v62.0/sobjects/{sobject}:
+    post:
+      operationId: createRecord
+      summary: Create a record
+      parameters:
+        - $ref: "#/components/parameters/sobject"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Fields"
+      responses:
+        "201":
+          description: "{id, success, errors}."
+          content:
+            application/json:
+              schema:
+                type: object
+        "400": {description: "Validation error (REQUIRED_FIELD_MISSING, FIELD_CUSTOM_VALIDATION_EXCEPTION, ...)."}
+
+  /services/data/v62.0/sobjects/{sobject}/{id}:
+    get:
+      operationId: getRecord
+      summary: Get a record
+      parameters:
+        - $ref: "#/components/parameters/sobject"
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+    patch:
+      operationId: updateRecord
+      summary: Update a record's fields
+      parameters:
+        - $ref: "#/components/parameters/sobject"
+        - $ref: "#/components/parameters/recordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Fields"
+      responses:
+        "204": {description: Updated.}
+        "400": {description: Validation error.}
+    delete:
+      operationId: deleteRecord
+      summary: Delete a record
+      parameters:
+        - $ref: "#/components/parameters/sobject"
+        - $ref: "#/components/parameters/recordId"
+      responses:
+        "204": {description: Deleted (Recycle Bin).}
+
+  /accounts/{id}:
+    get:
+      operationId: getAccount
+      summary: Get a Account
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/Account/{id}"
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      summary: Get a Contact
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/Contact/{id}"
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+  /leads/{id}:
+    get:
+      operationId: getLead
+      summary: Get a Lead
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/Lead/{id}"
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+  /opportunities/{id}:
+    get:
+      operationId: getOpportunity
+      summary: Get a Opportunity
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/Opportunity/{id}"
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+  /cases/{id}:
+    get:
+      operationId: getCase
+      summary: Get a Case
+      x-tangram-upstream:
+        path: "/services/data/v62.0/sobjects/Case/{id}"
+      parameters:
+        - $ref: "#/components/parameters/recordId"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+components:
+  parameters:
+    sobject:
+      {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
+    recordId:
+      {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+    fields:
+      {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
+  responses:
+    Ok:
+      description: Salesforce JSON response.
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    Fields:
+      type: object
+      description: Field API names to values, e.g. {"Name":"Acme","Industry":"Energy"}.
+      additionalProperties: true

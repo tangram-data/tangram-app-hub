@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.salesforce"
+name = "salesforce"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/"
+category = "sales"
+tags = List("salesforce", "crm", "accounts", "opportunities", "leads", "cases", "soql", "oauth")
+description = "Salesforce connector: query any object with SOQL, search across accounts, contacts, leads, opportunities and cases, inspect object fields, and create, update, or delete records."
+readme      = read("README.md").text

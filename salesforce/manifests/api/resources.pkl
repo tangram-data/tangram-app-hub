@@ -1,0 +1,91 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+// A standard object whose search hits open in one call (Get by id).
+local function standardObject(typeName: String, typeDoc: String) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = List(
+      reader("Get", "get\(typeName)", "Read one \(typeName) by Id (all fields, or a comma-separated fields list). For lists and filters use Record.Query (SOQL); to change it use Record.Update with sobject=\(typeName).")
+    )
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) records through the Salesforce connector."
+    })
+  })
+}
+
+local function write(actionName: String, privilegeName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = privilegeName
+  // Record-triggered flows, assignment and email alerts may fire; undoing the record doesn't undo them.
+  effect = "Irreversible"
+  idempotent = actionName != "Create"
+  requiresConfirmation = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "User"
+    activeVersion = "v1"
+    doc = "The connected Salesforce user."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Me", "getUserInfo", "The connected user and org: user_id, organization_id, name, email, locale, urls. Cheapest connection check.")
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read")
+        description = "Read the connected user."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Record"
+    activeVersion = "v1"
+    doc = "Any Salesforce object record (standard or custom, e.g. Account, Opportunity, Invoice__c)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Query", "query", "Run SOQL, the universal read: e.g. \"SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity WHERE IsClosed = false AND CloseDate = THIS_QUARTER ORDER BY Amount DESC LIMIT 50\", \"SELECT Id, Subject, Status FROM Case WHERE Account.Name = 'Acme'\". Relationship fields use dots (Account.Name); date literals like LAST_N_DAYS:30. When done=false, fetch the rest with QueryMore."),
+        reader("QueryMore", "queryMore", "Next page of a SOQL result: pass the last path segment of nextRecordsUrl (e.g. 0r8xx3HXGl1lsMn-2000)."),
+        reader("Search", "search", "Full-text search (SOSL) across accounts, contacts, leads, opportunities and cases by name, email, phone, or other text. Returns searchRecords with attributes.type and Id."),
+        reader("ListObjects", "listObjects", "List the org's objects (sobjects): name, label, custom, queryable — find custom object API names (ending in __c)."),
+        reader("Describe", "describeObject", "An object's fields (name, label, type, picklistValues, referenceTo, updateable, nillable) — check before writing SOQL or a create/update body."),
+        reader("Get", "getRecord", "Read one record of any object by sobject + Id, optionally only the listed fields."),
+        write("Create", "Create", "createRecord", "Create a record: sobject (e.g. Lead, Task, Opportunity) + a body of field API names to values, e.g. {\"LastName\":\"Ng\",\"Company\":\"Acme\"}. Required fields come from Describe. Returns the new id. Confirmation-gated."),
+        write("Update", "Update", "updateRecord", "Update fields on a record by sobject + Id; only the given fields change (e.g. {\"StageName\":\"Closed Won\"}). Confirmation-gated."),
+        write("Delete", "Delete", "deleteRecord", "Delete a record by sobject + Id (to the Recycle Bin for 15 days; cascades to some child records). Confirmation-gated.")
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update", "Delete")
+        description = "Query, search and manage records through the Salesforce connector."
+      })
+    })
+  },
+  standardObject("Account", "A company or organization."),
+  standardObject("Contact", "A person associated with an account."),
+  standardObject("Lead", "A prospect not yet qualified."),
+  standardObject("Opportunity", "A pending or closed deal."),
+  standardObject("Case", "A customer issue or support request.")
+)

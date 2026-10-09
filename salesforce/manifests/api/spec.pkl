@@ -1,0 +1,43 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Salesforce REST API. Every org has its own API host, so installs supply
+// the org's My Domain URL (https://<domain>.my.salesforce.com); sandboxes'
+// <domain>--<sandbox>.sandbox.my.salesforce.com also matches.
+endpointOverridable = true
+endpointRequired = true
+endpointHostAllowlist = List("*.my.salesforce.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  // Production login; tokens it issues work on the org's My Domain host.
+  authorizationUrl = "https://login.salesforce.com/services/oauth2/authorize"
+  tokenUrl = "https://login.salesforce.com/services/oauth2/token"
+  revocationUrl = "https://login.salesforce.com/services/oauth2/revoke"
+  // api = REST access; refresh_token = offline refresh.
+  scopes = List("api", "refresh_token")
+  clientIdSecret = "salesforceClientId"
+  clientSecretSecret = "salesforceClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.salesforce/salesforce"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  // Access tokens carry no expires_in and last the org's session timeout
+  // (15 min at the shortest); the platform assumes 15 min, so a 5-min window
+  // renews them after 10.
+  refreshWindowSeconds = 300
+  // Each rep sees records their sharing rules allow.
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}
