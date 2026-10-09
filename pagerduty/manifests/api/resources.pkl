@@ -1,0 +1,101 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = acts
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) data through the PagerDuty connector."
+    })
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "Incident"
+    activeVersion = "v1"
+    doc = "A PagerDuty incident — a problem on a service that pages its escalation policy until acknowledged or resolved."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listIncidents", "List incidents, newest first by default. Without since/until PagerDuty only looks back 30 days; date_range=all removes the window. Filter by statuses[] (triggered, acknowledged, resolved), service_ids[], urgencies[] (high, low), team_ids[], user_ids[] (assigned). Page with offset/limit while more=true."),
+        reader("Get", "getIncident", "Get one incident by id or number: title, status, urgency, service, assignments, escalation policy, priority, created_at, html_url."),
+        reader("ListLogEntries", "listIncidentLogEntries", "The incident timeline: trigger, notifications, acknowledgements, escalations, reassignments, notes, resolution — with who and when."),
+        reader("ListNotes", "listIncidentNotes", "Notes responders added to an incident."),
+        reader("ListAlerts", "listIncidentAlerts", "Alerts grouped into the incident, with the monitoring payload (body.details) that triggered them."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Pages real people; cannot be unsent.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Open an incident on a service; it immediately notifies the service's escalation policy (or the given assignments). Confirmation-gated. Pass incident_key to dedupe retries."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createIncident" }
+        },
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Acknowledge (status=acknowledged), resolve (status=resolved — cannot be reopened), reassign (assignments), escalate (escalation_level), or change urgency/priority/title of one incident. Acts as the connected user. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateIncident" }
+        },
+        new resources.Action {
+          name = "AddNote"
+          privilege = "Update"
+          // Notes cannot be edited or deleted.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Add a note to an incident's timeline as the connected user (e.g. findings, mitigation steps). Notes cannot be edited or deleted. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createIncidentNote" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Update")
+        description = "Read and respond to incidents through the PagerDuty connector."
+      })
+    })
+  },
+  readOnly("Service", "A PagerDuty service — something that can have incidents, routed by its escalation policy.", List(
+    reader("List", "listServices", "List services; query filters by name, team_ids[] by team. Returns id, name, status (active, warning, critical, maintenance, disabled), escalation_policy."),
+    reader("Get", "getService", "Get one service by id, including integrations and its escalation policy.")
+  )),
+  readOnly("OnCall", "Who is on call, per escalation policy level and schedule.", List(
+    reader("List", "listOnCalls", "Who is on call now (or between since/until): user, schedule, escalation_policy, escalation_level, start/end. Filter by escalation_policy_ids[], schedule_ids[], user_ids[]; earliest=true keeps one entry per user/policy/level.")
+  )),
+  readOnly("Schedule", "An on-call rotation schedule.", List(
+    reader("List", "listSchedules", "List schedules; query filters by name."),
+    reader("Get", "getSchedule", "Get a schedule with its rendered final_schedule (who is on call when, overrides applied) between since and until.")
+  )),
+  readOnly("EscalationPolicy", "Who gets paged, in which order, for a service's incidents.", List(
+    reader("List", "listEscalationPolicies", "List escalation policies with their rules (targets per level) — filter by query, user_ids[], team_ids[].")
+  )),
+  readOnly("User", "A PagerDuty user.", List(
+    reader("Me", "getCurrentUser", "The connected user: id, name, email, role, time_zone. Cheapest connection check."),
+    reader("List", "listUsers", "List users; query filters by name or email, team_ids[] by team.")
+  )),
+  readOnly("Team", "A PagerDuty team.", List(
+    reader("List", "listTeams", "List teams; query filters by name.")
+  ))
+)

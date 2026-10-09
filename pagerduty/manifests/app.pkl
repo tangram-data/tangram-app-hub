@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.pagerduty"
+name = "pagerduty"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.pagerduty.com/api-reference/"
+category = "developer"
+tags = List("pagerduty", "incidents", "on-call", "alerting", "sre", "oauth")
+description = "PagerDuty connector: find and triage incidents, read timelines and notes, see who is on call, browse services, schedules and escalation policies, and acknowledge, resolve, or open incidents."
+readme      = read("README.md").text

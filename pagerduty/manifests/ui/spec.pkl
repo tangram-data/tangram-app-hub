@@ -1,0 +1,6 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+logo = "static/pagerduty.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}

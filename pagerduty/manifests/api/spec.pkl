@@ -1,0 +1,49 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// PagerDuty REST API v2. US service region by default; EU accounts point
+// the install's endpoint override at api.eu.pagerduty.com.
+endpoint = "https://api.pagerduty.com"
+endpointOverridable = true
+endpointRequired = false
+endpointHostAllowlist = List("api.pagerduty.com", "api.eu.pagerduty.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/vnd.pagerduty+json;version=2" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  // PagerDuty Scoped OAuth (App Registration → OAuth 2.0, user authorization).
+  authorizationUrl = "https://identity.pagerduty.com/oauth/authorize"
+  tokenUrl = "https://identity.pagerduty.com/oauth/token"
+  revocationUrl = "https://identity.pagerduty.com/oauth/revoke"
+  scopes = List(
+    "incidents.read",
+    "incidents.write",
+    "services.read",
+    "oncalls.read",
+    "schedules.read",
+    "escalation_policies.read",
+    "users.read",
+    "teams.read"
+  )
+  clientIdSecret = "pagerdutyClientId"
+  clientSecretSecret = "pagerdutyClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.pagerduty/pagerduty"
+  tokenAuthMethod = "ClientSecretPost"
+  pkce = true
+  refreshWindowSeconds = 600
+  // User tokens act as the connected responder, so writes are attributed
+  // to them (no From header needed).
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}

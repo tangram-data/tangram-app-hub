@@ -1,0 +1,316 @@
+openapi: 3.0.3
+info:
+  title: PagerDuty REST API
+  version: "2"
+  description: >
+    Subset of the PagerDuty REST API v2. List endpoints page with
+    offset/limit and return more=true while further pages exist.
+servers:
+  - url: https://api.pagerduty.com
+
+paths:
+  /incidents:
+    get:
+      operationId: listIncidents
+      summary: List incidents
+      parameters:
+        - {name: "statuses[]", in: query, required: false, description: "triggered, acknowledged, resolved.", schema: {type: array, items: {type: string, enum: [triggered, acknowledged, resolved]}}}
+        - {name: "service_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - {name: "team_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - {name: "user_ids[]", in: query, required: false, description: Incidents currently assigned to these users., schema: {type: array, items: {type: string}}}
+        - {name: "urgencies[]", in: query, required: false, schema: {type: array, items: {type: string, enum: [high, low]}}}
+        - $ref: "#/components/parameters/since"
+        - $ref: "#/components/parameters/until"
+        - {name: date_range, in: query, required: false, description: "all = ignore since/until and the default 30-day window.", schema: {type: string, enum: [all]}}
+        - {name: sort_by, in: query, required: false, description: "e.g. created_at:desc, incident_number:asc, urgency:desc.", schema: {type: string}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    post:
+      operationId: createIncident
+      summary: Open an incident (pages responders)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [incident]
+              properties:
+                incident:
+                  type: object
+                  required: [type, title, service]
+                  properties:
+                    type: {type: string, enum: [incident]}
+                    title: {type: string, description: Short summary shown in notifications.}
+                    service: {$ref: "#/components/schemas/ServiceRef"}
+                    urgency: {type: string, enum: [high, low]}
+                    incident_key: {type: string, description: Dedup key; an open incident with the same key on the service is not duplicated.}
+                    body:
+                      type: object
+                      required: [type, details]
+                      properties:
+                        type: {type: string, enum: [incident_body]}
+                        details: {type: string, description: Longer description.}
+                    escalation_policy: {$ref: "#/components/schemas/EscalationPolicyRef"}
+                    assignments: {$ref: "#/components/schemas/Assignments"}
+                    priority: {$ref: "#/components/schemas/PriorityRef"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid incident (unknown service, disabled service, ...).}
+
+  /incidents/{id}:
+    get:
+      operationId: getIncident
+      summary: Get an incident
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+    put:
+      operationId: updateIncident
+      summary: Acknowledge, resolve, reassign, escalate, or edit an incident
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [incident]
+              properties:
+                incident:
+                  type: object
+                  required: [type]
+                  properties:
+                    type: {type: string, enum: [incident_reference]}
+                    status: {type: string, enum: [acknowledged, resolved]}
+                    resolution: {type: string, description: Resolution note (with status=resolved).}
+                    title: {type: string}
+                    urgency: {type: string, enum: [high, low]}
+                    escalation_level: {type: integer, minimum: 1, description: Escalate to this level of the policy.}
+                    assignments: {$ref: "#/components/schemas/Assignments"}
+                    escalation_policy: {$ref: "#/components/schemas/EscalationPolicyRef"}
+                    priority: {$ref: "#/components/schemas/PriorityRef"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid transition (e.g. already resolved).}
+
+  /incidents/{id}/log_entries:
+    get:
+      operationId: listIncidentLogEntries
+      summary: An incident's timeline
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+        - {name: is_overview, in: query, required: false, description: true = only the major changes., schema: {type: boolean}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /incidents/{id}/notes:
+    get:
+      operationId: listIncidentNotes
+      summary: List an incident's notes
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    post:
+      operationId: createIncidentNote
+      summary: Add a note to an incident
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: object
+                  required: [content]
+                  properties:
+                    content: {type: string}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+
+  /incidents/{id}/alerts:
+    get:
+      operationId: listIncidentAlerts
+      summary: List the alerts in an incident
+      parameters:
+        - $ref: "#/components/parameters/incidentId"
+        - {name: "statuses[]", in: query, required: false, schema: {type: array, items: {type: string, enum: [triggered, resolved]}}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /services:
+    get:
+      operationId: listServices
+      summary: List services
+      parameters:
+        - $ref: "#/components/parameters/query"
+        - {name: "team_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /services/{id}:
+    get:
+      operationId: getService
+      summary: Get a service
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: "include[]", in: query, required: false, schema: {type: array, items: {type: string, enum: [escalation_policies, teams, integrations]}}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /oncalls:
+    get:
+      operationId: listOnCalls
+      summary: List on-call entries
+      parameters:
+        - $ref: "#/components/parameters/since"
+        - $ref: "#/components/parameters/until"
+        - {name: earliest, in: query, required: false, description: One entry per user/policy/level (the earliest)., schema: {type: boolean}}
+        - {name: "escalation_policy_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - {name: "schedule_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - {name: "user_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - $ref: "#/components/parameters/timeZone"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /schedules:
+    get:
+      operationId: listSchedules
+      summary: List schedules
+      parameters:
+        - $ref: "#/components/parameters/query"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /schedules/{id}:
+    get:
+      operationId: getSchedule
+      summary: Get a schedule and its rendered rotation
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/since"
+        - $ref: "#/components/parameters/until"
+        - $ref: "#/components/parameters/timeZone"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /escalation_policies:
+    get:
+      operationId: listEscalationPolicies
+      summary: List escalation policies
+      parameters:
+        - $ref: "#/components/parameters/query"
+        - {name: "user_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - {name: "team_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      summary: The connected user
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users
+      parameters:
+        - $ref: "#/components/parameters/query"
+        - {name: "team_ids[]", in: query, required: false, schema: {type: array, items: {type: string}}}
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /teams:
+    get:
+      operationId: listTeams
+      summary: List teams
+      parameters:
+        - $ref: "#/components/parameters/query"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+components:
+  parameters:
+    incidentId:
+      {name: id, in: path, required: true, description: Incident id (e.g. PT4KHLK) or number., schema: {type: string}}
+    query:
+      {name: query, in: query, required: false, description: Name filter (substring)., schema: {type: string}}
+    since:
+      {name: since, in: query, required: false, description: ISO 8601 start., schema: {type: string, format: date-time}}
+    until:
+      {name: until, in: query, required: false, description: ISO 8601 end., schema: {type: string, format: date-time}}
+    timeZone:
+      {name: time_zone, in: query, required: false, description: IANA zone for rendered times, e.g. America/New_York., schema: {type: string}}
+    limit:
+      {name: limit, in: query, required: false, description: Page size (default 25, max 100)., schema: {type: integer, minimum: 1, maximum: 100}}
+    offset:
+      {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
+  responses:
+    Ok:
+      description: PagerDuty JSON envelope (e.g. {incidents:[...], more, offset, limit} or {incident:{...}}).
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    ServiceRef:
+      type: object
+      required: [id, type]
+      properties:
+        id: {type: string}
+        type: {type: string, enum: [service_reference]}
+    EscalationPolicyRef:
+      type: object
+      required: [id, type]
+      properties:
+        id: {type: string}
+        type: {type: string, enum: [escalation_policy_reference]}
+    PriorityRef:
+      type: object
+      required: [id, type]
+      properties:
+        id: {type: string}
+        type: {type: string, enum: [priority_reference]}
+    Assignments:
+      type: array
+      description: Users to assign (replaces the escalation-policy routing).
+      items:
+        type: object
+        required: [assignee]
+        properties:
+          assignee:
+            type: object
+            required: [id, type]
+            properties:
+              id: {type: string}
+              type: {type: string, enum: [user_reference]}
