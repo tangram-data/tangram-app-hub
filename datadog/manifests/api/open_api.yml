@@ -45,8 +45,8 @@ paths:
       operationId: queryMetrics
       summary: Query timeseries points
       parameters:
-        - {name: from, in: query, required: true, description: Start, UNIX seconds., schema: {type: integer}}
-        - {name: to, in: query, required: true, description: End, UNIX seconds., schema: {type: integer}}
+        - {name: from, in: query, required: true, description: "Start, UNIX seconds.", schema: {type: integer}}
+        - {name: to, in: query, required: true, description: "End, UNIX seconds.", schema: {type: integer}}
         - {name: query, in: query, required: true, description: "Metric query, e.g. avg:system.cpu.user{env:prod} by {host}.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
@@ -122,7 +122,7 @@ paths:
       operationId: listHosts
       summary: List hosts
       parameters:
-        - {name: filter, in: query, required: false, description: Host name, alias, or tag (env:prod)., schema: {type: string}}
+        - {name: filter, in: query, required: false, description: "Host name, alias, or tag (env:prod).", schema: {type: string}}
         - {name: from, in: query, required: false, description: Only hosts seen since this UNIX second., schema: {type: integer}}
         - {name: start, in: query, required: false, description: Offset., schema: {type: integer, minimum: 0}}
         - {name: count, in: query, required: false, description: Page size (max 1000)., schema: {type: integer, minimum: 1, maximum: 1000}}

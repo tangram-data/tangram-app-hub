@@ -58,7 +58,7 @@ paths:
                     priority: {$ref: "#/components/schemas/PriorityRef"}
       responses:
         "201": {$ref: "#/components/responses/Ok"}
-        "400": {description: Invalid incident (unknown service, disabled service, ...).}
+        "400": {description: "Invalid incident (unknown service, disabled service, ...)."}
 
   /incidents/{id}:
     get:
@@ -97,7 +97,7 @@ paths:
                     priority: {$ref: "#/components/schemas/PriorityRef"}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
-        "400": {description: Invalid transition (e.g. already resolved).}
+        "400": {description: "Invalid update (unknown assignee, bad escalation level, ...)."}
 
   /incidents/{id}/log_entries:
     get:
@@ -270,9 +270,9 @@ components:
     until:
       {name: until, in: query, required: false, description: ISO 8601 end., schema: {type: string, format: date-time}}
     timeZone:
-      {name: time_zone, in: query, required: false, description: IANA zone for rendered times, e.g. America/New_York., schema: {type: string}}
+      {name: time_zone, in: query, required: false, description: "IANA zone for rendered times, e.g. America/New_York.", schema: {type: string}}
     limit:
-      {name: limit, in: query, required: false, description: Page size (default 25, max 100)., schema: {type: integer, minimum: 1, maximum: 100}}
+      {name: limit, in: query, required: false, description: "Page size (default 25, max 100).", schema: {type: integer, minimum: 1, maximum: 100}}
     offset:
       {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
   responses:

@@ -13,7 +13,7 @@ US region (`api.pagerduty.com`) by default; EU accounts set the install's endpoi
 | `pagerduty_listnotes_incident` | `Incident.ListNotes` | Responder notes. |
 | `pagerduty_listalerts_incident` | `Incident.ListAlerts` | Alerts in the incident with their monitoring payload. |
 | `pagerduty_create_incident` | `Incident.Create` | **Confirmation-gated.** Pages the service's escalation policy. `incident_key` dedupes retries. |
-| `pagerduty_update_incident` | `Incident.Update` | **Confirmation-gated.** Acknowledge, resolve (final), reassign, escalate, change urgency/priority/title. |
+| `pagerduty_update_incident` | `Incident.Update` | **Confirmation-gated.** Acknowledge, resolve, reassign, escalate, change urgency/priority/title. Acknowledging a resolved incident reopens it and assigns it to the connected user. |
 | `pagerduty_addnote_incident` | `Incident.AddNote` | **Confirmation-gated.** Notes cannot be edited or deleted. |
 | `pagerduty_list_service` / `pagerduty_get_service` | `Service.List` / `Service.Get` | Services and their status/escalation policy. |
 | `pagerduty_list_oncall` | `OnCall.List` | Who is on call now or in a window, per policy level and schedule. |

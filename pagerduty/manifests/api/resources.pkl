@@ -56,7 +56,7 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Irreversible"
           idempotent = false
           requiresConfirmation = true
-          doc = "Acknowledge (status=acknowledged), resolve (status=resolved — cannot be reopened), reassign (assignments), escalate (escalation_level), or change urgency/priority/title of one incident. Acts as the connected user. Confirmation-gated."
+          doc = "Acknowledge (status=acknowledged — on a resolved incident this REOPENS it and assigns it to the connected user), resolve (status=resolved), reassign (assignments), escalate (escalation_level), or change urgency/priority/title of one incident. Acts as the connected user. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "updateIncident" }
         },
         new resources.Action {
