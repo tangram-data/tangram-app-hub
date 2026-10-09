@@ -1,0 +1,31 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+
+// Datadog API — one host per Datadog site. US1 by default; other sites set
+// the install's endpoint override (e.g. https://api.datadoghq.eu).
+endpoint = "https://api.datadoghq.com"
+endpointOverridable = true
+endpointRequired = false
+endpointHostAllowlist = List(
+  "api.datadoghq.com",
+  "api.us3.datadoghq.com",
+  "api.us5.datadoghq.com",
+  "api.datadoghq.eu",
+  "api.ap1.datadoghq.com",
+  "api.ap2.datadoghq.com",
+  "api.ddog-gov.com"
+)
+
+apiSpecFile = "open_api.yml"
+
+// API key identifies the org; the application key carries user/scope
+// permissions. Both are install secrets — Datadog OAuth is partner-only.
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "DD-API-KEY",
+    new connector.HeaderTemplate { template = "{{secrets.datadogApiKey}}" },
+    "DD-APPLICATION-KEY",
+    new connector.HeaderTemplate { template = "{{secrets.datadogApplicationKey}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}

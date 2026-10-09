@@ -1,0 +1,238 @@
+openapi: 3.0.3
+info:
+  title: Datadog API
+  version: "1.0"
+  description: Subset of the Datadog API (v1 + v2), authenticated with DD-API-KEY and DD-APPLICATION-KEY.
+servers:
+  - url: https://api.datadoghq.com
+
+paths:
+  /api/v1/validate:
+    get:
+      operationId: validateApiKey
+      summary: Validate the API key
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "403": {description: Invalid API key.}
+
+  /api/v1/monitor/search:
+    get:
+      operationId: searchMonitors
+      summary: Search monitors
+      x-tangram-search:
+        hits: {items: monitors, id: id, title: name}
+      parameters:
+        - {name: query, in: query, required: false, description: "Monitor query, e.g. status:alert tag:env:prod, or words in the name.", schema: {type: string}}
+        - {name: page, in: query, required: false, description: Zero-based page., schema: {type: integer, minimum: 0}}
+        - {name: per_page, in: query, required: false, description: Page size (default 30)., schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {name: sort, in: query, required: false, description: "e.g. status,asc or name,desc.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v1/monitor/{monitor_id}:
+    get:
+      operationId: getMonitor
+      summary: Get a monitor
+      parameters:
+        - {name: monitor_id, in: path, required: true, schema: {type: integer}}
+        - {name: group_states, in: query, required: false, description: "all, or a comma list of alert,warn,no data,ok — include per-group states.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /api/v1/query:
+    get:
+      operationId: queryMetrics
+      summary: Query timeseries points
+      parameters:
+        - {name: from, in: query, required: true, description: Start, UNIX seconds., schema: {type: integer}}
+        - {name: to, in: query, required: true, description: End, UNIX seconds., schema: {type: integer}}
+        - {name: query, in: query, required: true, description: "Metric query, e.g. avg:system.cpu.user{env:prod} by {host}.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Bad query.}
+
+  /api/v1/metrics:
+    get:
+      operationId: listActiveMetrics
+      summary: List actively reporting metrics
+      parameters:
+        - {name: from, in: query, required: true, description: UNIX seconds; metrics reported since then., schema: {type: integer}}
+        - {name: host, in: query, required: false, schema: {type: string}}
+        - {name: tag_filter, in: query, required: false, description: "e.g. env:prod AND service:checkout.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v2/logs/events/search:
+    post:
+      operationId: searchLogs
+      summary: Search logs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  properties:
+                    query: {type: string, description: "Log query, e.g. service:checkout status:error."}
+                    from: {type: string, description: "ISO 8601 or relative (now-15m). Default now-15m."}
+                    to: {type: string, description: Default now.}
+                    indexes: {type: array, items: {type: string}, description: "Log indexes (default all: [\"*\"])."}
+                sort: {type: string, enum: [timestamp, -timestamp]}
+                page:
+                  type: object
+                  properties:
+                    limit: {type: integer, minimum: 1, maximum: 1000, description: Default 10.}
+                    cursor: {type: string, description: meta.page.after of the previous response.}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "403": {description: Application key lacks logs_read_data.}
+
+  /api/v2/events/search:
+    post:
+      operationId: searchEvents
+      summary: Search events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  properties:
+                    query: {type: string, description: "Event query, e.g. source:github tags:service:checkout."}
+                    from: {type: string, description: "ISO 8601 or relative (now-1h). Default now-15m."}
+                    to: {type: string, description: Default now.}
+                sort: {type: string, enum: [timestamp, -timestamp]}
+                page:
+                  type: object
+                  properties:
+                    limit: {type: integer, minimum: 1, maximum: 1000, description: Default 10.}
+                    cursor: {type: string, description: meta.page.after of the previous response.}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v1/hosts:
+    get:
+      operationId: listHosts
+      summary: List hosts
+      parameters:
+        - {name: filter, in: query, required: false, description: Host name, alias, or tag (env:prod)., schema: {type: string}}
+        - {name: from, in: query, required: false, description: Only hosts seen since this UNIX second., schema: {type: integer}}
+        - {name: start, in: query, required: false, description: Offset., schema: {type: integer, minimum: 0}}
+        - {name: count, in: query, required: false, description: Page size (max 1000)., schema: {type: integer, minimum: 1, maximum: 1000}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v1/dashboard:
+    get:
+      operationId: listDashboards
+      summary: List dashboards
+      parameters:
+        - {name: count, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {name: start, in: query, required: false, schema: {type: integer, minimum: 0}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v1/dashboard/{dashboard_id}:
+    get:
+      operationId: getDashboard
+      summary: Get a dashboard
+      parameters:
+        - {name: dashboard_id, in: path, required: true, description: "e.g. abc-def-ghi.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /api/v1/slo:
+    get:
+      operationId: listSLOs
+      summary: List SLOs
+      parameters:
+        - {name: query, in: query, required: false, description: Name filter., schema: {type: string}}
+        - {name: tags_query, in: query, required: false, description: "e.g. service:checkout.", schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v1/slo/{slo_id}/history:
+    get:
+      operationId: getSLOHistory
+      summary: SLO history and error budget
+      parameters:
+        - {name: slo_id, in: path, required: true, schema: {type: string}}
+        - {name: from_ts, in: query, required: true, description: UNIX seconds., schema: {type: integer}}
+        - {name: to_ts, in: query, required: true, description: UNIX seconds., schema: {type: integer}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/v2/downtime:
+    get:
+      operationId: listDowntimes
+      summary: List downtimes
+      parameters:
+        - {name: current_only, in: query, required: false, description: Only active and upcoming downtimes., schema: {type: boolean}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    post:
+      operationId: createDowntime
+      summary: Schedule a downtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [type, attributes]
+                  properties:
+                    type: {type: string, enum: [downtime]}
+                    attributes:
+                      type: object
+                      required: [scope, monitor_identifier]
+                      properties:
+                        scope: {type: string, description: "Scope query, e.g. env:prod AND service:checkout (\"*\" = everything)."}
+                        monitor_identifier:
+                          type: object
+                          description: Exactly one of monitor_id or monitor_tags (["*"] = all monitors).
+                          properties:
+                            monitor_id: {type: integer}
+                            monitor_tags: {type: array, items: {type: string}}
+                        message: {type: string, description: Shown on the downtime; @-mentions notify.}
+                        display_timezone: {type: string}
+                        schedule:
+                          type: object
+                          properties:
+                            start: {type: string, description: ISO 8601; omit for now.}
+                            end: {type: string, description: ISO 8601; omit only for an open-ended downtime.}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid downtime.}
+
+  /api/v2/downtime/{downtime_id}:
+    delete:
+      operationId: cancelDowntime
+      summary: Cancel a downtime
+      parameters:
+        - {name: downtime_id, in: path, required: true, schema: {type: string}}
+      responses:
+        "204": {description: Cancelled.}
+        "404": {description: Not found.}
+
+components:
+  responses:
+    Ok:
+      description: Datadog JSON response.
+      content:
+        application/json:
+          schema:
+            type: object

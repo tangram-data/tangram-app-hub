@@ -1,0 +1,94 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = acts
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) data through the Datadog connector."
+    })
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  readOnly("Connection", "The Datadog credentials this install uses.", List(
+    reader("Validate", "validateApiKey", "Check that the API key is valid ({valid: true}). Cheapest connection check.")
+  )),
+  readOnly("Monitor", "A Datadog monitor — an alert rule over metrics, logs, APM, synthetics, etc.", List(
+    reader("Search", "searchMonitors", "Search monitors with Datadog's monitor query syntax, e.g. 'status:alert', 'service:checkout status:(alert OR warn)', 'tag:env:prod notification:@pagerduty', or plain words matching the name. Returns id, name, status, tags, last triggered. Start here for 'what is alerting?'."),
+    reader("Get", "getMonitor", "Get one monitor by id: query, message, thresholds, options, overall_state, and with group_states=all the per-group (host/service) states.")
+  )),
+  readOnly("Metric", "Timeseries metrics.", List(
+    reader("Query", "queryMetrics", "Query timeseries points between from and to (UNIX seconds), e.g. 'avg:system.cpu.user{env:prod} by {host}', 'sum:trace.http.request.errors{service:checkout}.as_count()'. Keep windows tight — long ranges roll up coarsely."),
+    reader("ListActive", "listActiveMetrics", "Metric names that reported since 'from' (UNIX seconds), optionally only for a host or tag_filter — discover what to query.")
+  )),
+  readOnly("Log", "Indexed log events.", List(
+    reader("Search", "searchLogs", "Search logs with Datadog log query syntax (e.g. 'service:checkout status:error @http.status_code:5*') over filter.from/filter.to (ISO 8601 or relative like now-15m). Page with page.cursor from meta.page.after. Requires logs_read_data on the application key.")
+  )),
+  readOnly("Event", "Events in the Datadog event stream (deploys, alerts, config changes).", List(
+    reader("Search", "searchEvents", "Search events with event query syntax (e.g. 'source:github tags:service:checkout') over filter.from/filter.to. Useful to correlate an alert with a deploy.")
+  )),
+  readOnly("Host", "A host reporting to Datadog.", List(
+    reader("List", "listHosts", "List hosts, optionally matching filter (name, alias, or tag like env:prod); returns up/muted state, apps, tags, metrics.")
+  )),
+  readOnly("Dashboard", "A Datadog dashboard.", List(
+    reader("List", "listDashboards", "List dashboards (id, title, url, author)."),
+    reader("Get", "getDashboard", "Get a dashboard's definition: widgets and their queries — reuse those queries with Metric.Query.")
+  )),
+  readOnly("SLO", "A service level objective.", List(
+    reader("List", "listSLOs", "List SLOs, optionally filtered by query (name) or tags_query (e.g. service:checkout)."),
+    reader("History", "getSLOHistory", "SLI value and error budget for one SLO between from_ts and to_ts (UNIX seconds).")
+  )),
+  new resources.ResourceTypeDefinition {
+    name = "Downtime"
+    activeVersion = "v1"
+    doc = "A scheduled downtime that silences monitor notifications for a scope."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listDowntimes", "List downtimes; current_only=true keeps active and upcoming ones."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Silences alerts until cancelled or expired.
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Silence monitor notifications for a scope (e.g. env:prod AND service:checkout) — all monitors, one monitor_id, or monitors with monitor_tags — from schedule.start (default now) until schedule.end. Always set an end. Confirmation-gated: alerts in scope stay quiet while it runs."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createDowntime" }
+        },
+        new resources.Action {
+          name = "Cancel"
+          privilege = "Delete"
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Cancel a downtime by id so its monitors notify again. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "cancelDowntime" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Delete")
+        description = "Schedule and cancel downtimes through the Datadog connector."
+      })
+    })
+  }
+)

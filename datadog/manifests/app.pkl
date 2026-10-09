@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.datadoghq"
+name = "datadog"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://docs.datadoghq.com/api/latest/"
+category = "developer"
+tags = List("datadog", "monitoring", "observability", "metrics", "logs", "alerts", "sre")
+description = "Datadog connector: check monitors and their alert state, query metrics, search logs and events, browse hosts, dashboards and SLOs, and schedule or cancel downtimes."
+readme      = read("README.md").text
