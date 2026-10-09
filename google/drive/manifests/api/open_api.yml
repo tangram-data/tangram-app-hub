@@ -12,6 +12,9 @@ paths:
   /drive/v3/files:
     get:
       operationId: listFiles
+      x-tangram-search:
+        queryTemplate: "fullText contains '{query}' and trashed = false"
+        hits: {items: files, id: id, title: name, url: webViewLink, modified: modifiedTime}
       summary: List or search files
       parameters:
         - name: q

@@ -14,6 +14,8 @@ paths:
   /v1/search:
     post:
       operationId: search
+      x-tangram-search:
+        hits: {items: results, id: id, title: "properties.title.title, title", url: url, modified: last_edited_time}
       x-tangram-agent-view:
         dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived]
         textKeys: [rich_text, title, caption, description]

@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.google"
 name = "drive"
-version = "0.1.2"
+version = "0.1.3"
 appType = "Connector"
 providerWebsite = "https://developers.google.com/drive/api"
 category = "productivity"

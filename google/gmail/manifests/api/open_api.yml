@@ -12,6 +12,8 @@ paths:
   /gmail/v1/users/me/messages:
     get:
       operationId: listMessages
+      x-tangram-search:
+        hits: {items: messages, id: id}
       summary: Search messages in the connected mailbox
       parameters:
         - name: q

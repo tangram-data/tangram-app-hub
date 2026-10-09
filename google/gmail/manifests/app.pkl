@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.google"
 name = "gmail"
-version = "0.3.2"
+version = "0.3.3"
 appType = "Connector"
 providerWebsite = "https://developers.google.com/gmail/api"
 category = "communication"
