@@ -14,6 +14,12 @@ paths:
   /v1/search:
     post:
       operationId: search
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: Search pages and databases shared with the integration
       requestBody:
         required: true
@@ -63,6 +69,12 @@ paths:
   /v1/pages/{page_id}:
     get:
       operationId: getPage
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: Retrieve a page's properties (not its content blocks)
       parameters:
         - name: page_id
@@ -162,6 +174,12 @@ paths:
   /v1/blocks/{block_id}/children:
     get:
       operationId: getBlockChildren
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived, parent, created_time, object]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: List a block's child blocks (a page's content)
       parameters:
         - name: block_id
@@ -283,6 +301,12 @@ paths:
   /v1/databases/{database_id}:
     get:
       operationId: getDatabase
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: Retrieve a database's schema (property names and types)
       parameters:
         - name: database_id
@@ -304,6 +328,12 @@ paths:
   /v1/databases/{database_id}/query:
     post:
       operationId: queryDatabase
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived, created_time]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: Query a database's items with filters and sorts
       parameters:
         - name: database_id
@@ -399,6 +429,12 @@ paths:
   /v1/users:
     get:
       operationId: listUsers
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: List the workspace's users (for people mentions and property values)
       parameters:
         - name: start_cursor
@@ -425,6 +461,12 @@ paths:
   /v1/comments:
     get:
       operationId: listComments
+      x-tangram-agent-view:
+        dropKeys: [annotations, created_by, last_edited_by, request_id, icon, cover, color, is_toggleable, is_locked, public_url, in_trash, is_archived, parent]
+        textKeys: [rich_text, title, caption, description]
+        textField: plain_text
+        dropEmpty: true
+        mapKeys: [properties]
       summary: List open comments on a page or block
       parameters:
         - name: block_id
