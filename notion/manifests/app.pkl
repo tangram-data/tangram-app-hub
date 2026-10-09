@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.notion"
 name = "notion"
-version = "0.1.4"
+version = "0.1.5"
 appType = "Connector"
 providerWebsite = "https://developers.notion.com"
 category = "productivity"

@@ -81,6 +81,10 @@ paths:
         read those instead of the base64url payload parts.
       x-tangram-response-adapter:
         name: mime-text-parts
+      # the message as a document (knowledge): its decoded plain-text body
+      x-tangram-agent-view:
+        markdown:
+          text: decoded.text
       parameters:
         - name: id
           in: path

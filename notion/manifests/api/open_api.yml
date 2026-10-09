@@ -184,6 +184,12 @@ paths:
         textField: plain_text
         dropEmpty: true
         mapKeys: [properties]
+        # a page's blocks as a document (knowledge): one line per block, prefixed by its type
+        markdown:
+          items: results
+          text: "{type}.rich_text"
+          prefix: {heading_1: "# ", heading_2: "## ", heading_3: "### ", bulleted_list_item: "- ", numbered_list_item: "1. ", to_do: "- [ ] ", quote: "> ", callout: "> "}
+          modified: last_edited_time
       summary: List a block's child blocks (a page's content)
       parameters:
         - name: block_id
