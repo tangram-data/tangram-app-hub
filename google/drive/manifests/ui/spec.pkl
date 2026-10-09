@@ -63,7 +63,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
         properties {
           ["fileId"] = new Dynamic {
             type = "string"
-            description = "Drive file id, e.g. from drive_list_file or the file-browser component."
+            description = "Drive file id, e.g. from drive_search_file or the file-browser component."
           }
         }
       }

@@ -1,4 +1,4 @@
-// Search/browse Google Drive through the connector's read-only File.List
+// Search/browse Google Drive through the connector's read-only File.Search
 // action. An agent can prefill the query via render inputs; the user can edit
 // it — plain text becomes a name search, text with Drive operators is passed
 // through as a raw q. Folder rows drill down ('<id>' in parents); file rows
@@ -113,7 +113,7 @@ export default function FileBrowser() {
       setState(pageToken ? "more" : "loading");
       setError("");
       tangram
-        .performAction({ resourceType: "File", action: "List" }, {
+        .performAction({ resourceType: "File", action: "Search" }, {
           parameters: {
             q: toQuery(q),
             orderBy: order || undefined,

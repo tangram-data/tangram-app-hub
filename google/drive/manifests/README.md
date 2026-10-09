@@ -8,7 +8,7 @@ service host): file discovery, metadata, download/export, copy, and sharing.
 It exists mainly to fill a gap in the other Workspace connectors: the Sheets,
 Docs, and Slides APIs have no list endpoints, so finding an existing
 spreadsheet/doc/presentation by name or content is the Drive API's job. Use
-`drive_list_file` with a `mimeType` filter for discovery, then hand the file
+`drive_search_file` with a `mimeType` filter for discovery, then hand the file
 id to the per-product connector — or skip them entirely and read any Workspace
 document as plain text/CSV via `drive_export_file`.
 
@@ -16,8 +16,8 @@ document as plain text/CSV via `drive_export_file`.
 
 | Tool | Action | Notes |
 |------|--------|-------|
-| `drive_list_file` | `File.List` | List/search with a Drive query, e.g. `fullText contains 'roadmap'` or `name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'`. Paginated via `nextPageToken`. |
-| `drive_get_file` | `File.Get` | Metadata by file id. `fields` defaults to id, name, mimeType, size, modifiedTime, owners, parents, webViewLink (same mask for `drive_list_file`); override as needed. |
+| `drive_search_file` | `File.Search` | List or search with a Drive query, e.g. `fullText contains 'roadmap'` or `name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'`. Paginated via `nextPageToken`. |
+| `drive_get_file` | `File.Get` | Metadata by file id. `fields` defaults to id, name, mimeType, size, modifiedTime, owners, parents, webViewLink (same mask for `drive_search_file`); override as needed. |
 | `drive_export_file` | `File.Export` | Export a Google Workspace document's content: Docs → `text/plain`/`text/markdown`, Sheets → `text/csv`, etc. Fails with 400 on unsupported mimeType/file combos. |
 | `drive_download_file` | `File.Download` | Bytes of an uploaded (non-Workspace) file, e.g. PDF/image/Office; saved to a workspace file. Docs/Sheets/Slides → use `drive_export_file`. |
 | `drive_copy_file` | `File.Copy` | Copy a file with an optional new `name` and one destination folder in `parents`. |
@@ -37,7 +37,7 @@ inlined up to 32 KB; anything larger (and any binary export mimeType, e.g.
 Two sandboxed components ship with the app (`manifests/ui/spec.pkl`), catalogued as `com.google/drive/file-browser` and
 `com.google/drive/file-viewer`:
 
-- **file-browser** — search/browse files via the `File.List` binding. An agent can prefill a Drive query via render inputs; the user
+- **file-browser** — search/browse files via the `File.Search` binding. An agent can prefill a Drive query via render inputs; the user
   can edit it (plain text becomes a `name contains` search, text with Drive operators is passed through as a raw `q`). Folder rows
   drill down (`'<id>' in parents`) with a breadcrumb trail back to the original search, file names link to Drive, pagination via *Load more*, and a per-row Select button emits an
   `open` output (`fileId`/`name`/`mimeType`/`webViewLink`) — e.g. for wiring to the viewer.

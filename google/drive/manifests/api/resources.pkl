@@ -10,11 +10,11 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         new resources.Action {
-          name = "List"
+          name = "Search"
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "List/search files with a Drive query, e.g. name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'."
+          doc = "List or search files; `q` takes a Drive query, e.g. name contains 'Q3' and mimeType='application/vnd.google-apps.spreadsheet'."
           openApiMapping = new resources.OpenApiMapping { operationId = "listFiles" }
         },
         new resources.Action {

@@ -10,11 +10,11 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         new resources.Action {
-          name = "List"
+          name = "Search"
           privilege = "Read"
           effect = "Stateless"
           idempotent = true
-          doc = "Search the mailbox with a Gmail query string (same syntax as the Gmail search box)."
+          doc = "List or search the mailbox; `q` takes a Gmail query string (same syntax as the Gmail search box)."
           openApiMapping = new resources.OpenApiMapping { operationId = "listMessages" }
         },
         new resources.Action {

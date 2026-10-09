@@ -5,7 +5,7 @@ Tangram OS ConnectorApp for the Google Slides API. It proxies the pinned
 connected Google account as agent tools.
 
 The Slides API does not provide file discovery. To find an existing presentation,
-use the Google Drive connector's `drive_list_file` tool with the MIME type
+use the Google Drive connector's `drive_search_file` tool with the MIME type
 `application/vnd.google-apps.presentation`, then pass the returned file id as the
 `presentationId` here.
 

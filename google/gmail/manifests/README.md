@@ -7,7 +7,7 @@ exposes the mailbox behind the OAuth connection as agent tools. All operations a
 
 | Tool | Action | Notes |
 |------|--------|-------|
-| `gmail_list_message` | `Message.List` | Search with a Gmail query string (same syntax as the Gmail search box); filter by label ids from `gmail_list_label`. |
+| `gmail_search_message` | `Message.Search` | List or search with a Gmail query string (same syntax as the Gmail search box); filter by label ids from `gmail_list_label`. |
 | `gmail_get_message` | `Message.Get` | Full message: headers, body, MIME parts. |
 | `gmail_send_message` | `Message.Send` | **Confirmation-gated** (irreversible). Accepts normal `to`/`cc`/`bcc`/`subject`/`text`/`html` fields and optional attachments. |
 | `gmail_modify_message` | `Message.Modify` | Add/remove label ids: mark read = remove `UNREAD`, archive = remove `INBOX`, star = add `STARRED`. |

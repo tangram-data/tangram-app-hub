@@ -3,7 +3,7 @@
 Tangram OS ConnectorApp for the Google Docs API. Proxies exactly one upstream host (`https://docs.googleapis.com`, pinned — not overridable at install)
 and exposes documents accessible to the OAuth connection as agent tools.
 
-The Docs API has no list/search endpoint — discovery is the Drive connector's job (`drive_list_file` with `mimeType='application/vnd.google-apps.document'`);
+The Docs API has no list/search endpoint — discovery is the Drive connector's job (`drive_search_file` with `mimeType='application/vnd.google-apps.document'`);
 this app operates on known documentIds (from a Docs URL, Drive, or `docs_create_document`).
 
 ## Agent tools

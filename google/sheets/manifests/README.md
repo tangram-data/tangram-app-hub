@@ -5,7 +5,7 @@ Tangram OS ConnectorApp for the Google Sheets API. It proxies the pinned
 connected Google account as agent tools.
 
 The Sheets API does not provide file discovery. To find an existing spreadsheet,
-use the Google Drive connector's `drive_list_file` tool with the MIME type
+use the Google Drive connector's `drive_search_file` tool with the MIME type
 `application/vnd.google-apps.spreadsheet`, then pass the returned file id as the
 `spreadsheetId` here.
 

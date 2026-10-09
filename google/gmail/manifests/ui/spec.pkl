@@ -22,7 +22,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
         properties {
           ["messageId"] = new Dynamic {
             type = "string"
-            description = "Gmail message id, e.g. from gmail_list_message."
+            description = "Gmail message id, e.g. from gmail_search_message."
           }
         }
       }
