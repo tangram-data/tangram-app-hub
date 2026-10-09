@@ -19,7 +19,7 @@ types: List<resources.ResourceTypeDefinition> = List(
       version = "v1"
       served = true
       actions = List(
-        reader("List", "listSites", "List the Atlassian sites the connected account granted: id, name, url, scopes. The connection acts on the FIRST site listed; use this to tell the user which site that is (its url is also the base for page links).")
+        reader("List", "listSites", "List the Atlassian sites the connected account granted: id, name, url, scopes. Actions run against the install's configured site (its url is the base for page links); other listed sites are not reachable through this connector.")
       )
       presetRoles = List(new resources.Role {
         name = "user"

@@ -3,8 +3,8 @@ import "@tangram-app-manifest/oauth.pkl" as oauthTypes
 
 // Confluence Cloud through Atlassian's OAuth 2.0 (3LO) gateway. Every site
 // is addressed as /ex/confluence/{cloudId}/wiki/... on api.atlassian.com;
-// the connection captures the first granted site's cloudId at connect time
-// (oauth.tenant) and x-tangram-upstream injects it, so actions and
+// each connection captures the cloudId of the install's siteUrl at connect
+// time (oauth.tenant) and x-tangram-upstream injects it, so actions and
 // cross-app search never carry it.
 endpoint = "https://api.atlassian.com"
 endpointOverridable = false
@@ -51,11 +51,11 @@ oauth = new oauthTypes.OAuth2AuthCode {
   // revoke at id.atlassian.com/manage-profile/apps. Access tokens live 1h;
   // refresh tokens rotate on use.
   pkce = false
-  // accessible-resources lists the sites the user granted; the connection
-  // acts on the first one (connect again to switch sites).
+  // accessible-resources lists every site the account granted (grants
+  // accumulate); pick the install's site, never an arbitrary first one.
   tenant = new oauthTypes.UserInfo {
     url = "https://api.atlassian.com/oauth/token/accessible-resources"
-    jsonPath = "$[0].id"
+    jsonPath = "$[?(@.url=='{{settings.siteUrl}}')].id"
   }
   refreshWindowSeconds = 600
   connectionScope = new oauthTypes.SelectableScope {
