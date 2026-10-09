@@ -23,7 +23,6 @@ oauth = new oauthTypes.OAuth2AuthCode {
   // PagerDuty Scoped OAuth (App Registration → OAuth 2.0, user authorization).
   authorizationUrl = "https://identity.pagerduty.com/oauth/authorize"
   tokenUrl = "https://identity.pagerduty.com/oauth/token"
-  revocationUrl = "https://identity.pagerduty.com/oauth/revoke"
   scopes = List(
     "incidents.read",
     "incidents.write",
@@ -38,6 +37,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   clientSecretSecret = "pagerdutyClientSecret"
   callbackPath = "/api/core/v1/connector-oauth/callback/com.pagerduty/pagerduty"
   tokenAuthMethod = "ClientSecretPost"
+  // No RFC 7009 revocation endpoint: users remove the app under
+  // My Profile → Apps (or admins under Integrations → App Registration).
   pkce = true
   refreshWindowSeconds = 600
   // User tokens act as the connected responder, so writes are attributed

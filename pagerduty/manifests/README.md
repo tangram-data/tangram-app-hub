@@ -33,5 +33,6 @@ https://<your-tangram-host>/api/core/v1/connector-oauth/callback/com.pagerduty/p
 ```
 
 and grant `incidents.read`, `incidents.write`, `services.read`, `oncalls.read`, `schedules.read`, `escalation_policies.read`, `users.read`,
-`teams.read`. Store the credentials as the global system secrets `pagerdutyClientId` / `pagerdutyClientSecret`. Tokens refresh automatically;
-disconnect revokes the grant. Connection scope: **PerUser** (default — actions run as each responder) or **WorkspaceShared**.
+`teams.read`. Store the credentials as the global system secrets `pagerdutyClientId` / `pagerdutyClientSecret`. Tokens refresh automatically.
+PagerDuty has no token-revocation endpoint: disconnect clears Tangram's tokens; to revoke the grant, remove the app in PagerDuty
+([Remove apps](https://docs.pagerduty.com/integrations/apps#remove-apps)). Connection scope: **PerUser** (default — actions run as each responder) or **WorkspaceShared**.
