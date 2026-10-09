@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.stripe"
+name = "stripe"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://docs.stripe.com/api"
+category = "finance"
+tags = List("stripe", "payments", "billing", "invoices", "subscriptions", "revenue")
+description = "Stripe connector (read-only): look up customers, payments, charges, invoices, subscriptions, refunds, disputes, payouts, products and prices, and check the balance."
+readme      = read("README.md").text

@@ -1,0 +1,19 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+
+// Stripe API. Read-only by design: Stripe writes take form-encoded bodies,
+// which the connector gateway doesn't send, and money movement belongs
+// behind a dedicated, reviewed integration. The install's restricted key
+// (read permissions only) is the second fence.
+endpoint = "https://api.stripe.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.stripe.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{secrets.stripeApiKey}}" }
+  )
+}

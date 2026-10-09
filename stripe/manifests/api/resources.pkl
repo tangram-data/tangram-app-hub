@@ -1,0 +1,83 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = acts
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) data through the Stripe connector."
+    })
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  readOnly("Balance", "The account's Stripe balance.", List(
+    reader("Get", "getBalance", "Available and pending balance per currency (amounts in the smallest currency unit, e.g. cents). Cheapest connection check.")
+  )),
+  readOnly("Customer", "A customer: name, email, address, default payment method, balance.", List(
+    reader("Search", "searchCustomers", "Search customers with Stripe search query syntax, e.g. email:'jo@acme.com', name~'acme', metadata['crm_id']:'123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listCustomers", "List customers, newest first. Filter by email and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getCustomer", "Retrieve one customer by id; expand[] inlines related objects.")
+  )),
+  readOnly("PaymentIntent", "A payment attempt and its status (succeeded, requires_payment_method, canceled, ...).", List(
+    reader("Find", "searchPaymentIntents", "Search payment intents with Stripe search query syntax, e.g. status:'succeeded' AND amount>10000, customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listPaymentIntents", "List payment intents, newest first. Filter by customer and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getPaymentIntent", "Retrieve one payment intent by id; expand[] inlines related objects.")
+  )),
+  readOnly("Charge", "A charge against a payment method, with outcome, refund and dispute state.", List(
+    reader("Find", "searchCharges", "Search charges with Stripe search query syntax, e.g. amount>999 AND status:'failed', customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listCharges", "List charges, newest first. Filter by customer, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getCharge", "Retrieve one charge by id; expand[] inlines related objects.")
+  )),
+  readOnly("Invoice", "An invoice: line items, totals, amount_due/paid, status, hosted_invoice_url.", List(
+    reader("Find", "searchInvoices", "Search invoices with Stripe search query syntax, e.g. status:'open' AND total>5000, customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listInvoices", "List invoices, newest first. Filter by customer, subscription, status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getInvoice", "Retrieve one invoice by id; expand[] inlines related objects.")
+  )),
+  readOnly("Subscription", "A recurring subscription: items/prices, status, current period, cancel_at_period_end.", List(
+    reader("Find", "searchSubscriptions", "Search subscriptions with Stripe search query syntax, e.g. status:'past_due', metadata['plan']:'pro'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listSubscriptions", "List subscriptions, newest first. Filter by customer, price, status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getSubscription", "Retrieve one subscription by id; expand[] inlines related objects.")
+  )),
+  readOnly("Refund", "A refund of a charge.", List(
+    reader("List", "listRefunds", "List refunds, newest first. Filter by charge, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getRefund", "Retrieve one refund by id; expand[] inlines related objects.")
+  )),
+  readOnly("Dispute", "A chargeback dispute: reason, status, evidence due date.", List(
+    reader("List", "listDisputes", "List disputes, newest first. Filter by charge, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getDispute", "Retrieve one dispute by id; expand[] inlines related objects.")
+  )),
+  readOnly("Payout", "A payout from the Stripe balance to a bank account.", List(
+    reader("List", "listPayouts", "List payouts, newest first. Filter by status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getPayout", "Retrieve one payout by id; expand[] inlines related objects.")
+  )),
+  readOnly("Product", "A product sold.", List(
+    reader("Find", "searchProducts", "Search products with Stripe search query syntax, e.g. active:'true' AND name~'pro'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
+    reader("List", "listProducts", "List products, newest first. Filter by active and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getProduct", "Retrieve one product by id; expand[] inlines related objects.")
+  )),
+  readOnly("Price", "A price of a product (unit_amount, currency, recurring interval).", List(
+    reader("List", "listPrices", "List prices, newest first. Filter by product, active and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getPrice", "Retrieve one price by id; expand[] inlines related objects.")
+  )),
+  readOnly("BalanceTransaction", "A movement in the Stripe balance (charge, refund, fee, payout, ...), with fee and net.", List(
+    reader("List", "listBalanceTransactions", "List balance transactions, newest first. Filter by type, payout, source and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
+    reader("Get", "getBalanceTransaction", "Retrieve one balance transaction by id; expand[] inlines related objects.")
+  ))
+)
