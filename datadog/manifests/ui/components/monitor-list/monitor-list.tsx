@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/datadog.css";
 import "../../shared/tangram-buttons.css";
 import { MonitorDetail } from "./monitor-detail";
-import { errorText, fullTime, statusLook, timeLabel } from "./monitor-status";
+import { errorText, fullTime, stableKey, statusLook, timeLabel } from "./monitor-status";
 
 const tangram = (window as any).tangram;
 
@@ -83,7 +83,13 @@ export default function MonitorList() {
       load(q, 0);
     };
     // onInput fires at once when the frame is initialised and again on every new input; getInputs() is a promise.
-    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => apply(inputs ?? {}));
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => {
+      const key = stableKey(inputs ?? {});
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [load]);
 
   const busy = state === "loading";

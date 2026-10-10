@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CartesianGrid, Line as ChartLine, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "../../shared/datadog.css";
 import "../../shared/tangram-buttons.css";
-import { axisUnit, compact, fullTime, hasData, isIsolated, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toLines } from "./metric-series";
+import { axisUnit, compact, fullTime, hasData, isIsolated, MAX_SERIES, stableKey, QueryResult, RANGES, Series, tickTime, toLines } from "./metric-series";
 
 const tangram = (window as any).tangram;
 
@@ -78,7 +78,13 @@ export default function MetricChart() {
       load(q, w);
     };
     // onInput fires at once when the frame is initialised and again on every new input; getInputs() is a promise.
-    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => apply(inputs ?? {}));
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => {
+      const key = stableKey(inputs ?? {});
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [load]);
 
   const lines = useMemo(() => toLines(series.slice(0, MAX_SERIES)), [series]);

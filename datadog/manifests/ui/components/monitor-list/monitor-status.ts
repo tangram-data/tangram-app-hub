@@ -48,3 +48,14 @@ export function fullTime(unixSeconds: number | null | undefined): string {
 export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
+
+// Stable JSON (sorted keys) — a re-sent tangram:init with the same inputs must not reset the view.
+export function stableKey(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableKey).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as Record<string, unknown>)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableKey((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}

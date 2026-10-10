@@ -91,3 +91,14 @@ export function compact(v: number | null | undefined): string {
   if (a < 0.01) return v.toExponential(1);
   return String(Number(v.toPrecision(3)));
 }
+
+// Stable JSON (sorted keys) — a re-sent tangram:init with the same inputs must not reset the view.
+export function stableKey(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableKey).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as Record<string, unknown>)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableKey((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
