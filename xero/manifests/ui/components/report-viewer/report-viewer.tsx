@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/tangram-buttons.css";
 import "../../shared/xero.css";
-import { errorText, money } from "../../shared/xero-format";
+import { errorText, money, stableKey } from "../../shared/xero-format";
 
 const tangram = (window as any).tangram;
 
@@ -149,7 +149,13 @@ export default function ReportViewer() {
       setParams(p);
       run(p);
     };
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown>) => {
+      const key = stableKey(inputs);
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [run]);
 
   const update = (patch: Partial<Params>) => {

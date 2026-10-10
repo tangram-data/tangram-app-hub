@@ -48,3 +48,14 @@ export const STATUS: Record<string, { color: string; label: string; bad?: boolea
 export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
+
+// Stable JSON (sorted keys): the shell re-sends unchanged inputs on token renewal, which must not reload.
+export function stableKey(v: unknown): string {
+  const norm = (x: unknown): unknown =>
+    Array.isArray(x)
+      ? x.map(norm)
+      : x && typeof x === "object"
+        ? Object.fromEntries(Object.keys(x as object).sort().map((k) => [k, norm((x as Record<string, unknown>)[k])]))
+        : x;
+  return JSON.stringify(norm(v ?? {}));
+}

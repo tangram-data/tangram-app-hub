@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/tangram-buttons.css";
 import "../../shared/xero.css";
-import { STATUS, dateLabel, errorText, money, xeroDate } from "../../shared/xero-format";
+import { STATUS, dateLabel, errorText, money, xeroDate, stableKey } from "../../shared/xero-format";
 
 const tangram = (window as any).tangram;
 
@@ -107,7 +107,13 @@ export default function InvoiceViewer() {
       setInvoiceId(id);
       load(id);
     };
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown>) => {
+      const key = stableKey(inputs);
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [load]);
 
   if (state === "loading" || state === "idle")
