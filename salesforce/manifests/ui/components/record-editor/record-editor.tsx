@@ -394,7 +394,11 @@ export default function RecordEditor() {
                   : "No changes"}
           </span>
           <span className="sp" />
-          <Button disabled={busy || !dirty} onClick={() => setValues({ ...original })}>
+          <Button disabled={busy || !dirty} onClick={() => {
+              setValues({ ...original });
+              // a cleared create form sends nothing it was prefilled with
+              if (creating) setPrefilled([]);
+            }}>
             {creating ? "Clear" : "Discard changes"}
           </Button>
           {status.kind === "unknown" ? (
