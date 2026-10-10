@@ -21,7 +21,7 @@ type Status =
   | { kind: "loading" }
   | { kind: "ready" }
   | { kind: "saving" }
-  | { kind: "saved"; created: boolean }
+  | { kind: "saved"; created: boolean; note?: string }
   | { kind: "error"; message: string; fatal?: boolean }
   // the write may or may not have happened; a create needs an explicit retry
   | { kind: "unknown"; message: string; created: boolean };
@@ -94,6 +94,8 @@ export default function RecordEditor() {
         const editable = new Map(d.fields.filter((f) => writable(f, creating)).map((f) => [f.name, f]));
         const base: Values = {};
         if (!creating) for (const name of editable.keys()) base[name] = rec?.[name] ?? null;
+        // checkboxes always save a value: start them at the field default so what's shown is what's created
+        else for (const f of editable.values()) if (f.type === "boolean") base[f.name] = f.defaultValue === true;
         const pre = Object.keys(prefill).filter((k) => editable.has(k));
         setIgnored(Object.keys(prefill).filter((k) => !editable.has(k)));
         setPrefilled(pre);
@@ -143,15 +145,18 @@ export default function RecordEditor() {
 
   draft.current = { sobject, id: id || null, mode: creating ? "create" : "edit", changes: body, missingRequired: missing.map((f) => f.name) };
 
+  const touched = (n: string) => (blank(values[n]) ? null : values[n]) !== (blank(original[n]) ? null : original[n]);
   const common = commonFieldNames();
   const visible = showAll
     ? editable
-    : editable.filter((f) => required(f) || f === nf || prefilled.includes(f.name) || common.has(f.name) || f.name in body);
+    : editable.filter((f) => required(f) || f === nf || prefilled.includes(f.name) || common.has(f.name) || touched(f.name));
   // name field first, then required, then describe order
   const ordered = [...visible].sort((a, b) => Number(b === nf) - Number(a === nf) || Number(required(b)) - Number(required(a)));
 
   const busy = status.kind === "saving" || status.kind === "loading";
-  const dirty = Object.keys(body).length > 0;
+  // checkbox defaults ride along in a create body but aren't changes on their own
+  const changed = Object.keys(body).filter(touched);
+  const dirty = changed.length > 0;
 
   function save(force = false) {
     if (!dirty || missing.length || busy || saving.current) return;
@@ -165,38 +170,57 @@ export default function RecordEditor() {
       ? tangram.performAction({ resourceType: "Record", action: "Create" }, { parameters: { sobject }, requestBody: sent })
       : tangram.performAction({ resourceType: "Record", action: "Update" }, { parameters: { sobject, id }, requestBody: sent });
 
-    const landed = (savedId: string) => {
-      // the saved values become the baseline: further saves update this record
-      const next = { ...original, ...values };
+    // the record as Salesforce now has it becomes the edit baseline (server-populated fields included)
+    const landed = (savedId: string, rec: SfRecord | null, refreshError?: string) => {
+      const base: Values = {};
+      if (rec && desc) for (const f of desc.fields) if (writable(f, false)) base[f.name] = rec[f.name] ?? null;
+      const next = rec ? base : { ...original, ...values };
+      if (rec && nf && !blank(rec[nf.name])) setRecordName(String(rec[nf.name]));
       setOriginal(next);
       setValues(next);
       setPrefilled([]);
       setId(savedId);
-      setStatus({ kind: "saved", created: target.creating });
+      setStatus({ kind: "saved", created: target.creating, note: refreshError });
       tangram.emit("saved", { sobject: target.sobject, id: savedId });
     };
+    const reread = (recId: string) =>
+      tangram.performAction({ resourceType: "Record", action: "Get" }, { parameters: { sobject: target.sobject, id: recId } }) as Promise<SfRecord>;
 
+    // write outcome and refresh outcome are handled separately: a failed re-read never turns a save into an error
     call
-      .then((r) => {
-        if (target.creating && r && r.success === false) throw new Error(`Upstream API error 400: ${JSON.stringify(r.errors ?? "Create failed")}`);
-        const savedId = target.creating ? String(r?.id ?? "") : target.id;
-        if (target.creating && !savedId)
-          return setStatus({ kind: "unknown", created: true, message: "Salesforce answered without a record id." });
-        landed(savedId);
-      })
-      .catch((e: unknown) => {
-        const failure = classify(e);
-        if (failure.definitive) return setStatus({ kind: "error", message: failure.message });
-        if (target.creating) return setStatus({ kind: "unknown", created: true, message: failure.message });
-        // an edit can be checked: re-read the record and see whether the change landed
-        return (tangram.performAction({ resourceType: "Record", action: "Get" }, { parameters: { sobject: target.sobject, id: target.id } }) as Promise<SfRecord>)
-          .then((now) => {
-            const missed = notLanded(fields, sent, now ?? {});
-            if (missed.length === 0) landed(target.id);
-            else setStatus({ kind: "error", message: `${failure.message} — the record shows the change did not land (${missed.join(", ")}).` });
-          })
-          .catch(() => setStatus({ kind: "unknown", created: false, message: failure.message }));
-      })
+      .then(
+        (r) => {
+          if (target.creating && r && r.success === false)
+            return setStatus({ kind: "error", message: JSON.stringify(r.errors ?? "Create failed") });
+          const savedId = target.creating ? String(r?.id ?? "") : target.id;
+          if (target.creating && !savedId)
+            return setStatus({ kind: "unknown", created: true, message: "Salesforce answered without a record id." });
+          return reread(savedId).then(
+            (rec) => landed(savedId, rec ?? {}),
+            (e: unknown) => landed(savedId, null, `Saved, but the record couldn't be reloaded: ${errorText(e)}`),
+          );
+        },
+        (e: unknown) => {
+          const failure = classify(e);
+          if (failure.definitive) return setStatus({ kind: "error", message: failure.message });
+          if (target.creating) return setStatus({ kind: "unknown", created: true, message: failure.message });
+          // an edit can be checked: a re-read showing every sent value counts as saved; anything else stays unknown
+          // (the request may still land, or automation / another user changed the values)
+          return reread(target.id).then(
+            (now) => {
+              const missed = notLanded(fields, sent, now ?? {});
+              if (missed.length === 0) landed(target.id, now ?? {});
+              else
+                setStatus({
+                  kind: "unknown",
+                  created: false,
+                  message: `${failure.message}; the record doesn't show ${missed.join(", ")} yet`,
+                });
+            },
+            () => setStatus({ kind: "unknown", created: false, message: failure.message }),
+          );
+        },
+      )
       .finally(settle);
   }
 
@@ -241,6 +265,7 @@ export default function RecordEditor() {
         {status.kind === "saved" ? (
           <div className="sf-ok" role="status">
             {status.created ? `${desc.label} created` : "Changes saved"} — <span className="sf-mono">{id}</span>
+            {status.note ? <div className="sf-eyebrow">{status.note}</div> : null}
           </div>
         ) : null}
         {status.kind === "error" ? (
@@ -254,7 +279,7 @@ export default function RecordEditor() {
             <b>Outcome unknown — check Salesforce before retrying</b>
             {status.created
               ? `The ${desc.label} may have been created anyway; retrying could create a duplicate.`
-              : "The record couldn't be re-read to confirm whether the change landed."}{" "}
+              : "It isn't confirmed whether the change landed; retrying may repeat its automation."}{" "}
             ({status.message})
           </div>
         ) : null}
@@ -300,7 +325,7 @@ export default function RecordEditor() {
             {missing.length
               ? `Required: ${missing.map((f) => f.label).join(", ")}`
               : dirty
-                ? `${Object.keys(body).length} field${Object.keys(body).length === 1 ? "" : "s"} to save`
+                ? `${changed.length} field${changed.length === 1 ? "" : "s"} to save`
                 : "No changes"}
           </span>
           <span className="sp" />

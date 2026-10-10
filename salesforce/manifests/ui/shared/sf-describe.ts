@@ -21,6 +21,7 @@ export type Field = {
   picklistValues?: Picklist[];
   length?: number;
   inlineHelpText?: string | null;
+  defaultValue?: unknown;
 };
 export type Describe = { name: string; label: string; keyPrefix?: string; fields: Field[] };
 export type SfRecord = Record<string, unknown> & { attributes?: { type?: string; url?: string } };
