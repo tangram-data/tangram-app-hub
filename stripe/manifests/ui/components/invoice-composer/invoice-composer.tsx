@@ -57,6 +57,9 @@ export default function InvoiceComposer() {
   // successful sends per invoice: each completed send makes the next one a new logical request (new key)
   const sendAttempt = useRef(new Map<string, number>());
   const keys = useRef(new IdempotencyKeys());
+  // drafts this composer created, by create payload — kept across input changes so a repeat create of the same
+  // draft is offered as a resume instead of making another invoice
+  const [createdDrafts, setCreatedDrafts] = useState<Record<string, string>>({});
   // bumped on every input change: results of reads/writes started earlier are dropped
   const gen = useRef(0);
   const seq = useRef(0);
@@ -155,16 +158,30 @@ export default function InvoiceComposer() {
     await reload(inv.id, g);
   }
 
+  const createBody = (): Record<string, unknown> => {
+    const body: Record<string, unknown> = { customer: customerId, auto_advance: false, collection_method: method };
+    if (method === "send_invoice") body.days_until_due = daysUntilDue;
+    if (description.trim()) body.description = description.trim();
+    return body;
+  };
+
   const createDraft = () =>
     run(async (g, live) => {
-      const body: Record<string, unknown> = { customer: customerId, auto_advance: false, collection_method: method };
-      if (method === "send_invoice") body.days_until_due = daysUntilDue;
-      if (description.trim()) body.description = description.trim();
+      const body = createBody();
       const key = keys.current.keyFor("create", body);
       const inv: Invoice = await act("Invoice", "Create", { "Idempotency-Key": key }, body);
-      keys.current.done("create", key);
+      // recorded whatever the inputs did meanwhile: the draft exists either way
+      setCreatedDrafts((prev) => ({ ...prev, [JSON.stringify(body)]: inv.id }));
+      keys.current.done("create", body);
       await applied(inv, g, live);
     });
+
+  const resume = (id: string) => {
+    const g = ++gen.current;
+    setTarget(id);
+    setError("");
+    reload(id, g);
+  };
 
   const addLine = (line: LineBody) =>
     run(async (g, live) => {
@@ -172,7 +189,7 @@ export default function InvoiceComposer() {
       const body = { customer: invoice.customer, invoice: invoice.id, ...line };
       const key = keys.current.keyFor("line", body);
       await act("InvoiceItem", "Create", { "Idempotency-Key": key }, body);
-      keys.current.done("line", key);
+      keys.current.done("line", body);
       if (!live()) return;
       // the line exists; totals are unknown until the invoice reloads
       setStale(true);
@@ -188,7 +205,7 @@ export default function InvoiceComposer() {
       const slot = `finalize:${invoice.id}`;
       const key = keys.current.keyFor(slot, body);
       const inv: Invoice = await act("Invoice", "Finalize", { id: invoice.id, "Idempotency-Key": key }, body);
-      keys.current.done(slot, key);
+      keys.current.done(slot, body);
       await applied(inv, g, live);
     });
 
@@ -197,9 +214,10 @@ export default function InvoiceComposer() {
       if (!invoice) return;
       const id = invoice.id;
       const slot = `send:${id}`;
-      const key = keys.current.keyFor(slot, { attempt: sendAttempt.current.get(id) ?? 0 });
+      const attempt = { attempt: sendAttempt.current.get(id) ?? 0 };
+      const key = keys.current.keyFor(slot, attempt);
       const inv: Invoice = await act("Invoice", "Send", { id, "Idempotency-Key": key });
-      keys.current.done(slot, key);
+      keys.current.done(slot, attempt);
       // the next click is a deliberate resend (new key); a failed attempt keeps its key for the retry
       sendAttempt.current.set(id, (sendAttempt.current.get(id) ?? 0) + 1);
       if (!live()) return;
@@ -248,7 +266,8 @@ export default function InvoiceComposer() {
     );
 
   if (!invoice) {
-    const ready = /^cus_\w+$/.test(customerId) && (method === "charge_automatically" || daysUntilDue >= 0);
+    const prior = createdDrafts[JSON.stringify(createBody())];
+    const ready = !prior && /^cus_\w+$/.test(customerId) && (method === "charge_automatically" || daysUntilDue >= 0);
     return (
       <div className="s-root s-pad">
         <div className="s-steps" aria-label="Steps">
@@ -283,6 +302,14 @@ export default function InvoiceComposer() {
         <p className="s-faint" style={{ margin: "12px 0" }}>
           The draft stays a draft: it won't be finalized, emailed or charged until you finalize it here.
         </p>
+        {prior ? (
+          <div className="s-warn" role="note">
+            You already created this draft ({prior}).{" "}
+            <Button size="small" disabled={busy} onClick={() => resume(prior)}>
+              Resume it
+            </Button>
+          </div>
+        ) : null}
         {errorBox}
         <div className="s-bar">
           <span className="sp" />
