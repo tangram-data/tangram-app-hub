@@ -111,7 +111,7 @@ export default function IncidentViewer() {
       setNoteText("");
       load(id);
     };
-    apply(tangram.getInputs() ?? {});
+    // getInputs() is a promise in the sandbox shell; onInput fires once initialised and on every change.
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
     tangram.provideState?.(() => ({ incidentId: canonicalId.current, status: statusRef.current }));
   }, [load]);

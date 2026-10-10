@@ -123,7 +123,7 @@ export default function OncallBoard() {
       setFilters(f);
       load(f.policies, f.schedules);
     };
-    apply(tangram.getInputs() ?? {});
+    // getInputs() is a promise in the sandbox shell; onInput fires once initialised and on every change.
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
