@@ -70,6 +70,9 @@ export default function RecordEditor() {
   // inputs that arrive mid-save wait here, so the save's result is never dropped
   const saving = useRef(false);
   const queued = useRef<Record<string, unknown> | null>(null);
+  // writes with an unknown outcome, by "sobject|id" ("sobject|" = a create): they survive input updates and stay
+  // unresolved until a save of the same target settles definitively or the user retries anyway
+  const unresolved = useRef(new Map<string, { created: boolean; message: string }>());
 
   const load = useCallback((obj: string, recId: string, prefill: Values) => {
     const mine = ++seq.current;
@@ -104,7 +107,8 @@ export default function RecordEditor() {
         setDesc(d);
         setOriginal(base);
         setValues({ ...base, ...Object.fromEntries(pre.map((k) => [k, prefill[k]])) });
-        setStatus({ kind: "ready" });
+        const pending = unresolved.current.get(`${obj}|${recId}`);
+        setStatus(pending ? { kind: "unknown", ...pending } : { kind: "ready" });
       })
       .catch((e: unknown) => {
         if (mine !== seq.current) return;
@@ -157,12 +161,23 @@ export default function RecordEditor() {
   // checkbox defaults ride along in a create body but aren't changes on their own
   const changed = Object.keys(body).filter(touched);
   const dirty = changed.length > 0;
+  // a create may rely entirely on server defaults (auto-number objects); an update needs a change
+  const canSave = !busy && missing.length === 0 && (creating || dirty);
 
   function save(force = false) {
-    if (!dirty || missing.length || busy || saving.current) return;
+    if (!canSave || saving.current) return;
     if (status.kind === "unknown" && !force) return;
     const sent = { ...body };
     const target = { sobject, id, creating };
+    const key = `${sobject}|${id}`;
+    const markUnknown = (created: boolean, message: string) => {
+      unresolved.current.set(key, { created, message });
+      setStatus({ kind: "unknown", created, message });
+    };
+    const fail = (message: string) => {
+      unresolved.current.delete(key);
+      setStatus({ kind: "error", message });
+    };
     const fields = editable;
     saving.current = true;
     setStatus({ kind: "saving" });
@@ -172,6 +187,7 @@ export default function RecordEditor() {
 
     // the record as Salesforce now has it becomes the edit baseline (server-populated fields included)
     const landed = (savedId: string, rec: SfRecord | null, refreshError?: string) => {
+      unresolved.current.delete(key);
       const base: Values = {};
       if (rec && desc) for (const f of desc.fields) if (writable(f, false)) base[f.name] = rec[f.name] ?? null;
       const next = rec ? base : { ...original, ...values };
@@ -191,10 +207,10 @@ export default function RecordEditor() {
       .then(
         (r) => {
           if (target.creating && r && r.success === false)
-            return setStatus({ kind: "error", message: JSON.stringify(r.errors ?? "Create failed") });
+            return fail(JSON.stringify(r.errors ?? "Create failed"));
           const savedId = target.creating ? String(r?.id ?? "") : target.id;
           if (target.creating && !savedId)
-            return setStatus({ kind: "unknown", created: true, message: "Salesforce answered without a record id." });
+            return markUnknown(true, "Salesforce answered without a record id.");
           return reread(savedId).then(
             (rec) => landed(savedId, rec ?? {}),
             (e: unknown) => landed(savedId, null, `Saved, but the record couldn't be reloaded: ${errorText(e)}`),
@@ -202,8 +218,8 @@ export default function RecordEditor() {
         },
         (e: unknown) => {
           const failure = classify(e);
-          if (failure.definitive) return setStatus({ kind: "error", message: failure.message });
-          if (target.creating) return setStatus({ kind: "unknown", created: true, message: failure.message });
+          if (failure.definitive) return fail(failure.message);
+          if (target.creating) return markUnknown(true, failure.message);
           // an edit can be checked: a re-read showing every sent value counts as saved; anything else stays unknown
           // (the request may still land, or automation / another user changed the values)
           return reread(target.id).then(
@@ -211,13 +227,9 @@ export default function RecordEditor() {
               const missed = notLanded(fields, sent, now ?? {});
               if (missed.length === 0) landed(target.id, now ?? {});
               else
-                setStatus({
-                  kind: "unknown",
-                  created: false,
-                  message: `${failure.message}; the record doesn't show ${missed.join(", ")} yet`,
-                });
+                markUnknown(false, `${failure.message}; the record doesn't show ${missed.join(", ")} yet`);
             },
-            () => setStatus({ kind: "unknown", created: false, message: failure.message }),
+            () => markUnknown(false, failure.message),
           );
         },
       )
@@ -326,18 +338,20 @@ export default function RecordEditor() {
               ? `Required: ${missing.map((f) => f.label).join(", ")}`
               : dirty
                 ? `${changed.length} field${changed.length === 1 ? "" : "s"} to save`
-                : "No changes"}
+                : creating
+                  ? "Creates with the object's defaults"
+                  : "No changes"}
           </span>
           <span className="sp" />
           <Button disabled={busy || !dirty} onClick={() => setValues({ ...original })}>
             {creating ? "Clear" : "Discard changes"}
           </Button>
           {status.kind === "unknown" ? (
-            <Button danger disabled={busy || !dirty || missing.length > 0} onClick={() => save(true)}>
+            <Button danger disabled={!canSave} onClick={() => save(true)}>
               Retry anyway
             </Button>
           ) : (
-            <Button type="primary" loading={status.kind === "saving"} disabled={busy || !dirty || missing.length > 0} onClick={() => save()}>
+            <Button type="primary" loading={status.kind === "saving"} disabled={!canSave} onClick={() => save()}>
               {creating ? "Create" : "Save"}
             </Button>
           )}

@@ -126,11 +126,12 @@ export function iconFor(sobject: string): { color: string; text: string } {
   return { color: ICONS[sobject] ?? "#0176d3", text: sobject.replace(/__c$/, "").slice(0, 2).toUpperCase() };
 }
 
-// Only absolute http(s) URLs leave the frame (through tangram.openUrl; the sandbox has no popups).
+// Only absolute https URLs leave the frame (through tangram.openUrl, which relays https only; the sandbox has no
+// popups). http values render as plain text.
 export function safeHttpUrl(s: string): string {
   try {
     const u = new URL(s.trim());
-    return (u.protocol === "https:" || u.protocol === "http:") && u.hostname.includes(".") ? u.href : "";
+    return u.protocol === "https:" && u.hostname.includes(".") ? u.href : "";
   } catch {
     return "";
   }
