@@ -81,7 +81,7 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/{sobject}/describe"
       parameters:
-        - $ref: "#/components/parameters/sobject"
+        - {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Unknown object.}
@@ -91,7 +91,7 @@ paths:
       operationId: createRecord
       summary: Create a record
       parameters:
-        - $ref: "#/components/parameters/sobject"
+        - {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
       requestBody:
         required: true
         content:
@@ -112,9 +112,9 @@ paths:
       operationId: getRecord
       summary: Get a record
       parameters:
-        - $ref: "#/components/parameters/sobject"
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
@@ -122,8 +122,8 @@ paths:
       operationId: updateRecord
       summary: Update a record's fields
       parameters:
-        - $ref: "#/components/parameters/sobject"
-        - $ref: "#/components/parameters/recordId"
+        - {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
       requestBody:
         required: true
         content:
@@ -137,8 +137,8 @@ paths:
       operationId: deleteRecord
       summary: Delete a record
       parameters:
-        - $ref: "#/components/parameters/sobject"
-        - $ref: "#/components/parameters/recordId"
+        - {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
       responses:
         "204": {description: Deleted (Recycle Bin).}
 
@@ -149,8 +149,8 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/Account/{id}"
       parameters:
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
@@ -162,8 +162,8 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/Contact/{id}"
       parameters:
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
@@ -175,8 +175,8 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/Lead/{id}"
       parameters:
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
@@ -188,8 +188,8 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/Opportunity/{id}"
       parameters:
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
@@ -201,20 +201,13 @@ paths:
       x-tangram-upstream:
         path: "/services/data/v62.0/sobjects/Case/{id}"
       parameters:
-        - $ref: "#/components/parameters/recordId"
-        - $ref: "#/components/parameters/fields"
+        - {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
+        - {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found or not visible to the user.}
 
 components:
-  parameters:
-    sobject:
-      {name: sobject, in: path, required: true, description: "Object API name, e.g. Account, Opportunity, Invoice__c.", schema: {type: string, pattern: "^[A-Za-z][A-Za-z0-9_]*$"}}
-    recordId:
-      {name: id, in: path, required: true, description: 15- or 18-character record Id., schema: {type: string, pattern: "^[A-Za-z0-9]{15}([A-Za-z0-9]{3})?$"}}
-    fields:
-      {name: fields, in: query, required: false, description: "Comma-separated field API names; omit for all fields.", schema: {type: string}}
   responses:
     Ok:
       description: Salesforce JSON response.

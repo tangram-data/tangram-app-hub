@@ -1,0 +1,57 @@
+/* Salesforce Lightning look for the Salesforce connector components.
+   Source of truth: design/kits/salesforce.css — run scripts/sync-ui-kits.sh after editing. */
+.sf-root {
+  --sf-font: "Salesforce Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --sf-brand: #0176d3; --sf-brand-dark: #014486; --sf-text: #181818; --sf-weak: #444444; --sf-faint: #747474;
+  --sf-line: #e5e5e5; --sf-bg: #f3f3f3; --sf-card: #fff; --sf-hover: #f3f3f3; --sf-error: #ba0517; --sf-error-bg: #fef1ee;
+  --sf-success: #2e844a;
+  font-family: var(--sf-font); color: var(--sf-text); background: var(--sf-bg); font-size: 13px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box; padding: 12px;
+}
+.sf-root *, .sf-root *::before, .sf-root *::after { box-sizing: border-box; }
+.sf-root .ant-btn, .sf-root .ant-input, .sf-root .ant-select, .sf-root .ant-picker, .sf-root .ant-input-number { font-family: var(--sf-font); }
+.sf-root a { color: var(--sf-brand); text-decoration: none; } .sf-root a:hover { text-decoration: underline; color: var(--sf-brand-dark); }
+.sf-card { background: var(--sf-card); border: 1px solid var(--sf-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0,0,0,.1); margin-bottom: 12px; }
+/* Record header */
+.sf-head { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; }
+.sf-icon { width: 32px; height: 32px; border-radius: 4px; display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 700; flex: none; }
+.sf-head .meta { flex: 1; min-width: 0; }
+.sf-eyebrow { font-size: 12px; color: var(--sf-weak); line-height: 1.25; }
+.sf-title { font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-head .acts { display: flex; gap: 8px; flex: none; }
+/* Highlights row */
+.sf-highlights { display: flex; flex-wrap: wrap; gap: 4px 32px; padding: 0 16px 12px 60px; }
+.sf-hl { min-width: 0; max-width: 240px; }
+.sf-hl .k { font-size: 12px; color: var(--sf-weak); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-hl .v { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Section + details grid */
+.sf-section { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--sf-bg); border-radius: 4px; margin: 12px 12px 4px; font-size: 14px; font-weight: 700; }
+.sf-section .sp { flex: 1; }
+.sf-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; padding: 0 16px 12px; }
+@container (max-width: 520px) { .sf-grid { grid-template-columns: 1fr; } }
+.sf-grid-wrap { container-type: inline-size; }
+.sf-field { border-bottom: 1px solid var(--sf-line); padding: 6px 0; min-height: 52px; min-width: 0; }
+.sf-field .k { font-size: 12px; color: var(--sf-weak); }
+.sf-field .v { min-height: 20px; word-break: break-word; white-space: pre-wrap; }
+.sf-field .v.empty { color: var(--sf-faint); }
+.sf-req { color: var(--sf-error); margin-right: 2px; }
+.sf-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--sf-brand); cursor: pointer; text-align: left; word-break: break-all; }
+.sf-linkbtn:hover { text-decoration: underline; }
+.sf-mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; }
+.sf-check { font-weight: 700; } .sf-check.on { color: var(--sf-success); } .sf-check.off { color: var(--sf-faint); }
+/* Form */
+.sf-form { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 12px; padding: 4px 16px 16px; }
+@container (max-width: 520px) { .sf-form { grid-template-columns: 1fr; } }
+.sf-form .full { grid-column: 1 / -1; }
+.sf-form label.k { display: block; font-size: 12px; color: var(--sf-weak); margin-bottom: 2px; }
+.sf-form .help { font-size: 12px; color: var(--sf-faint); margin-top: 2px; }
+.sf-form .err { font-size: 12px; color: var(--sf-error); margin-top: 2px; }
+.sf-footer { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--sf-line); background: #fafaf9; border-radius: 0 0 4px 4px; }
+.sf-footer .sp { flex: 1; }
+.sf-footer .note { font-size: 12px; color: var(--sf-faint); }
+/* States */
+.sf-error { margin: 12px 16px; padding: 10px 14px; border-radius: 4px; background: var(--sf-error-bg); color: var(--sf-error); border: 1px solid #fecdca; }
+.sf-error b { display: block; }
+.sf-ok { margin: 12px 16px; padding: 10px 14px; border-radius: 4px; background: #ebf7e6; color: var(--sf-success); border: 1px solid #c2e3b6; }
+.sf-empty { padding: 32px 16px; text-align: center; color: var(--sf-weak); }
+.sf-pad { padding: 12px 16px; }

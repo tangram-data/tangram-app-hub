@@ -4,3 +4,88 @@ logo = "static/salesforce.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "record-viewer"
+    kind = "sandboxed"
+    entry = "components/record-viewer/record-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Salesforce record"
+      description = "Show any Salesforce record as a Lightning record page: name, a highlights row of key fields, and a two-column details grid with labels, picklist labels and currency/date formatting from the object's describe. Lookup fields open the related record (emits `open`)."
+      inputs {
+        type = "object"
+        required {
+          "sobject"
+          "id"
+        }
+        properties {
+          ["sobject"] = new Dynamic {
+            type = "string"
+            description = "Object API name, e.g. Account, Opportunity, Invoice__c."
+          }
+          ["id"] = new Dynamic {
+            type = "string"
+            description = "15- or 18-character record Id."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["sobject"] = new Dynamic { type = "string" }
+              ["id"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "record-editor"
+    kind = "sandboxed"
+    entry = "components/record-editor/record-editor.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Salesforce record editor"
+      description = "Create a record (no id) or edit one (with id) in a form built from the object's describe: required fields marked, picklists, dates, numbers, checkboxes. Edits save only the changed fields; the save is confirmation-gated. Prefill values with `fields`. The draft (pending changes, missing required fields) is readable via component state; `saved` fires with the record id."
+      inputs {
+        type = "object"
+        required {
+          "sobject"
+        }
+        properties {
+          ["sobject"] = new Dynamic {
+            type = "string"
+            description = "Object API name, e.g. Lead, Opportunity, Task."
+          }
+          ["id"] = new Dynamic {
+            type = "string"
+            description = "Record Id to edit; omit to create a new record."
+          }
+          ["fields"] = new Dynamic {
+            type = "object"
+            description = "Prefill: field API names to values, e.g. {\"LastName\":\"Ng\",\"Company\":\"Acme\"}. Non-editable fields are ignored."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["sobject"] = new Dynamic { type = "string" }
+              ["id"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

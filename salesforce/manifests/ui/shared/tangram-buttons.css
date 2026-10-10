@@ -1,0 +1,114 @@
+/* Synced copy of ui/src/common/buttons/buttons.css (Tangram button language). Edit there first. */
+/*
+ * Tangram button language (design/button-language.html):
+ *   blue = commit your own work, purple = invoke AI (AskTangramButton),
+ *   green = approve someone else's request, red = destroy/reject, else neutral.
+ * No solid fills: every colored button is a soft fill + hairline border.
+ * antd hover/active rules use :not(:disabled):not(.ant-btn-disabled), so ours
+ * repeat that chain to win on specificity.
+ */
+
+/* Primary: solid and soft-blue both become soft blue + hairline.
+ * Brand buttons that set an inline background (Slack, Google…) keep antd's solid look.
+ * The login button is the one deliberate exception: it stays antd solid blue. */
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-solid:not(
+    [style*="background"]
+  ):not(.loginButton),
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-filled {
+  color: #1668dc;
+  background: #edf4ff;
+  border-color: #c6dcff;
+  box-shadow: none;
+}
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-solid:not(
+    [style*="background"]
+  ):not(.loginButton):not(:disabled):not(.ant-btn-disabled):hover,
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-filled:not(
+    :disabled
+  ):not(.ant-btn-disabled):hover {
+  color: #0958d9;
+  background: #e0ecff;
+  border-color: #a4c6ff;
+}
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-solid:not(
+    [style*="background"]
+  ):not(.loginButton):not(:disabled):not(.ant-btn-disabled):active,
+.ant-btn:not(.tg-ai-send).ant-btn-color-primary.ant-btn-variant-filled:not(
+    :disabled
+  ):not(.ant-btn-disabled):active {
+  background: #d4e4ff;
+}
+
+/* Danger solid (final confirm) becomes soft red + hairline. */
+.ant-btn.ant-btn-color-dangerous.ant-btn-variant-solid:not(
+    .ant-btn-background-ghost
+  ),
+.ant-btn.ant-btn-color-dangerous.ant-btn-variant-filled {
+  color: #d92d20;
+  background: #fef3f2;
+  border-color: #fecdca;
+  box-shadow: none;
+}
+.ant-btn.ant-btn-color-dangerous.ant-btn-variant-solid:not(
+    .ant-btn-background-ghost
+  ):not(:disabled):not(.ant-btn-disabled):hover,
+.ant-btn.ant-btn-color-dangerous.ant-btn-variant-filled:not(:disabled):not(
+    .ant-btn-disabled
+  ):hover {
+  color: #b42318;
+  background: #fee4e2;
+  border-color: #fda29b;
+}
+
+/* Gray-filled is retired: it renders as the neutral outlined secondary. */
+.ant-btn.ant-btn-color-default.ant-btn-variant-filled {
+  background: #fff;
+  border-color: #d9d9d9;
+}
+.ant-btn.ant-btn-color-default.ant-btn-variant-filled:not(:disabled):not(
+    .ant-btn-disabled
+  ):hover {
+  background: #fff;
+  color: #4096ff;
+  border-color: #4096ff;
+}
+
+/* Reject: negative half of a decision pair — soft red, mirrors Approve. */
+.ant-btn.tg-reject-btn,
+.ant-btn.tg-reject-btn.ant-btn-variant-outlined,
+.ant-btn.tg-reject-btn.ant-btn-variant-solid {
+  color: #d92d20;
+  background: #fef3f2;
+  border-color: #fecdca;
+  box-shadow: none;
+}
+.ant-btn.tg-reject-btn:not(:disabled):not(.ant-btn-disabled):hover {
+  color: #b42318;
+  background: #fee4e2;
+  border-color: #fda29b;
+}
+.ant-btn.tg-reject-btn:not(:disabled):not(.ant-btn-disabled):active {
+  background: #fdd8d5;
+}
+
+/* Approve: positive half of a decision pair on someone else's request. */
+.ant-btn.tg-approve-btn,
+.ant-btn.tg-approve-btn.ant-btn-variant-solid,
+.ant-btn.tg-approve-btn.ant-btn-variant-filled {
+  color: #067647;
+  background: #ecfdf3;
+  border-color: #abefc6;
+  box-shadow: none;
+}
+.ant-btn.tg-approve-btn:not(:disabled):not(.ant-btn-disabled):hover {
+  color: #05603a;
+  background: #dcfae6;
+  border-color: #75e0a7;
+}
+.ant-btn.tg-approve-btn:not(:disabled):not(.ant-btn-disabled):active {
+  background: #d1f5dd;
+}
+.ant-btn.tg-approve-btn.ant-btn-variant-text {
+  background: transparent;
+  border-color: transparent;
+}
