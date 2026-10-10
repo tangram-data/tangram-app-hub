@@ -50,9 +50,12 @@ export class WriteBook {
 
   /** A read that saw the result of every write on the invoice reconciles it; true when it did. */
   readSucceeded(t: ReadToken, status: string): boolean {
-    this.pendingDeletes.delete(t.id);
     const reconciled = t.clean && !this.inFlight.has(t.id) && (this.epochs.get(t.id) ?? 0) === t.epoch;
-    if (reconciled) this.unreconciled.delete(t.id);
+    // only a read that started after the Delete settled proves the invoice survived it
+    if (reconciled) {
+      this.unreconciled.delete(t.id);
+      this.pendingDeletes.delete(t.id);
+    }
     if (status !== "draft") this.retireDraft(t.id);
     return reconciled;
   }

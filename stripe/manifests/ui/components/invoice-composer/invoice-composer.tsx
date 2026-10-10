@@ -3,7 +3,7 @@
 // user finalizes (charge-automatically invoices are then collected by Stripe; emailed ones wait for Send); every
 // create carries an Idempotency-Key that is reused on retry. Emits `saved` {invoiceId, status} after each step.
 import { DeleteOutlined, ExportOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
-import { Button, Input, InputNumber, Select, Skeleton } from "antd";
+import { Button, Input, InputNumber, Select, Skeleton, Tooltip } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/stripe.css";
 import "../../shared/tangram-buttons.css";
@@ -374,6 +374,9 @@ export default function InvoiceComposer() {
           {st.word}
         </span>
         <span className="sp" />
+        <Tooltip title="Refresh">
+          <Button size="small" aria-label="Refresh" icon={<ReloadOutlined aria-hidden="true" />} loading={loading} onClick={retry} />
+        </Tooltip>
         <ExtLink href={dashboardUrl("invoices", invoice.id, invoice.livemode)}>
           Open in Stripe <ExportOutlined aria-hidden="true" />
         </ExtLink>
@@ -429,8 +432,8 @@ export default function InvoiceComposer() {
       {draft ? <LineForm currency={invoice.currency} busy={locked} onAdd={addLine} /> : null}
       {draft && charges ? (
         <div className="s-warn" role="note">
-          Finalizing charges the customer's saved payment method {money(invoice.amount_due, invoice.currency)} — Stripe collects it
-          automatically right after. It can't be undone, only refunded.
+          Finalizing turns on automatic collection: Stripe then tries to charge the customer's saved payment method{" "}
+          {money(invoice.amount_due, invoice.currency)}. Until it's paid the invoice can still be voided; after payment, only refunded.
         </div>
       ) : null}
       {invoice.status === "open" && !charges && safeUrl(invoice.hosted_invoice_url) ? (
