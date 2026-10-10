@@ -164,6 +164,7 @@ function fileBadge(name: string): { label: string; color: string } {
 }
 
 export default function MailViewer() {
+  const retry = useRef<(() => void) | null>(null);
   const [msg, setMsg] = useState<GraphMessage | null>(null);
   const [attachments, setAttachments] = useState<GraphAttachment[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -221,7 +222,11 @@ export default function MailViewer() {
   }, []);
 
   useEffect(() => {
-    onNewInputs(load);
+    // Retry re-runs the last inputs: identical input replays are ignored, so they can't recover a failed load.
+    onNewInputs((inputs) => {
+      retry.current = () => load(inputs);
+      load(inputs);
+    });
   }, [load]);
 
   if (state === "loading")
@@ -236,6 +241,11 @@ export default function MailViewer() {
         <div className="m-error" role="alert">
           <b>Couldn't load message</b>
           {error}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => retry.current?.()}>
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );

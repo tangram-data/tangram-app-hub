@@ -290,10 +290,10 @@ export default function EventList() {
           Could not load the calendar list; pass a calendarId input.
         </div>
       ) : null}
-      {(loading || (waitingForCalendars && !calendarsFailed)) && events.length === 0 ? (
+      {(loading || !criteria || (waitingForCalendars && !calendarsFailed)) && events.length === 0 ? (
         <Spin style={{ display: "block", margin: "24px auto" }} />
       ) : null}
-      {!loading && !waitingForCalendars && events.length === 0 && status.kind !== "error" ? (
+      {!loading && criteria && !waitingForCalendars && events.length === 0 && status.kind !== "error" ? (
         <div className="m-empty">No events in this window</div>
       ) : null}
       {[...byDay.entries()].map(([day, dayEvents]) => (

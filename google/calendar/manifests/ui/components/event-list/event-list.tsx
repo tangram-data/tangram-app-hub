@@ -268,8 +268,8 @@ export default function EventList() {
         </div>
       ) : null}
       {status.kind === "error" ? <div className="g-error">{status.message}</div> : null}
-      {loading && events.length === 0 ? <Spin style={{ display: "block", margin: "24px auto" }} /> : null}
-      {!loading && events.length === 0 && status.kind !== "error" ? (
+      {(loading || !criteria) && events.length === 0 ? <Spin style={{ display: "block", margin: "24px auto" }} /> : null}
+      {!loading && criteria && events.length === 0 && status.kind !== "error" ? (
         <div className="g-empty">No events in this window</div>
       ) : null}
       {[...byDay.entries()].map(([day, dayEvents]) => (

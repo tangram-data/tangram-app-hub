@@ -6,7 +6,7 @@
 // untrusted email markup cannot track the reader or reach connector actions.
 import { LoadingOutlined, RollbackOutlined } from "@ant-design/icons";
 import { Button, Skeleton } from "antd";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
 import { onNewInputs } from "../../shared/sandbox-inputs";
@@ -675,6 +675,7 @@ function fileBadge(name: string, mime: string): { label: string; color: string }
 }
 
 export default function MailViewer() {
+  const retry = useRef<(() => void) | null>(null);
   const [msg, setMsg] = useState<GmailMessage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string>("");
@@ -705,7 +706,11 @@ export default function MailViewer() {
   }, []);
 
   useEffect(() => {
-    onNewInputs(load);
+    // Retry re-runs the last inputs: identical input replays are ignored, so they can't recover a failed load.
+    onNewInputs((inputs) => {
+      retry.current = () => load(inputs);
+      load(inputs);
+    });
   }, [load]);
 
   if (state === "loading")
@@ -720,6 +725,11 @@ export default function MailViewer() {
         <div className="g-error">
           <b>Couldn't load message</b>
           {error ? <div>{error}</div> : null}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => retry.current?.()}>
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );

@@ -8,7 +8,7 @@
 import { ExportOutlined, FolderFilled } from "@ant-design/icons";
 import { Button, Skeleton, Table } from "antd";
 import dayjs from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
 import { onNewInputs } from "../../shared/sandbox-inputs";
@@ -127,6 +127,7 @@ function fileBadge(mime: string): { text: string; color: string } {
 }
 
 export default function FileViewer() {
+  const retry = useRef<(() => void) | null>(null);
   const [file, setFile] = useState<DriveFile | null>(null);
   const [content, setContent] = useState<Content>({ kind: "none" });
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -184,7 +185,11 @@ export default function FileViewer() {
           setState("error");
         });
     };
-    onNewInputs(load);
+    // Retry re-runs the last inputs: identical input replays are ignored, so they can't recover a failed load.
+    onNewInputs((inputs) => {
+      retry.current = () => load(inputs);
+      load(inputs);
+    });
   }, []);
 
   if (state === "loading")
@@ -199,6 +204,11 @@ export default function FileViewer() {
         <div className="g-error">
           <b>Couldn't load file</b>
           {error ? <div>{error}</div> : null}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => retry.current?.()}>
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );

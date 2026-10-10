@@ -10,7 +10,7 @@
 import { ExportOutlined, FileOutlined, FilePdfOutlined, FolderFilled } from "@ant-design/icons";
 import { Button, Skeleton, Table } from "antd";
 import dayjs from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "../../shared/microsoft.css";
 import "../../shared/tangram-buttons.css";
 import { onNewInputs } from "../../shared/sandbox-inputs";
@@ -155,6 +155,7 @@ function ItemIcon({ item }: { item: DriveItem }) {
 }
 
 export default function FileViewer() {
+  const retry = useRef<(() => void) | null>(null);
   const [item, setItem] = useState<DriveItem | null>(null);
   const [content, setContent] = useState<Content>({ kind: "none" });
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -201,7 +202,11 @@ export default function FileViewer() {
           setState("error");
         });
     };
-    onNewInputs(load);
+    // Retry re-runs the last inputs: identical input replays are ignored, so they can't recover a failed load.
+    onNewInputs((inputs) => {
+      retry.current = () => load(inputs);
+      load(inputs);
+    });
   }, []);
 
   // format=pdf conversion is binary: large results arrive as a saved-file
@@ -246,6 +251,11 @@ export default function FileViewer() {
         <div className="m-error" role="alert">
           <b>Couldn't load item</b>
           {error}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => retry.current?.()}>
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );
