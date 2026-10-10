@@ -59,7 +59,12 @@ export default function PageComposer() {
     original.current = { storage, draft: conv.draft, title: p.title ?? "", version: p.version?.number ?? 0, lossy: conv.lossy };
     setVersion(p.version?.number ?? 0);
     setLossy(conv.lossy);
-    pageUrl(p).then(setUrl, () => setUrl(""));
+    // Only the generation that asked may set the link (inputs can switch pages mid-lookup).
+    const g = gen.current;
+    pageUrl(p).then(
+      (u) => g === gen.current && setUrl(u),
+      () => g === gen.current && setUrl(""),
+    );
     return conv;
   };
 
@@ -138,11 +143,12 @@ export default function PageComposer() {
   const wholeBlocked = mode === "whole" && lossy.length > 0;
 
   // A write that is known to have landed (directly, or found by reconciliation) becomes the new baseline.
-  function landed(p: Page, value: string, link: string) {
+  // `draft` is the markdown that produced `value` (the baseline for further whole-page edits).
+  function landed(p: Page, value: string, link: string, draft: string) {
     const saved = { ...p, body: { storage: { value } }, title: p.title ?? title.trim() };
     adopt(saved);
     if (mode !== "append") {
-      original.current.draft = body; // the markdown just saved is the baseline for further whole-page edits
+      original.current.draft = draft;
       bodyBase.current = value;
     }
     if (mode === "create" && p.id) {
@@ -176,7 +182,7 @@ export default function PageComposer() {
           const link = await pageUrl(page);
           if (!current()) return;
           attempt.current = null;
-          landed(page, page.body?.storage?.value ?? "", link);
+          landed(page, page.body?.storage?.value ?? "", link, a.draft);
         }
       })
       .catch((e: unknown) => current() && setStatus({ kind: "unsure", message: `Couldn't check: ${errText(e)}` }));
@@ -194,14 +200,25 @@ export default function PageComposer() {
       setStatus({ kind: "error", message: `The page now has ${conv.lossy.join(", ")} that markdown can't keep — append instead, or edit in Confluence.` });
       return;
     }
-    save(retryBody(a, original.current.storage, draftToStorage(section), draftToStorage(body)));
+    // A title-only retry carries the latest body: show it, and make it the draft's baseline.
+    const draftNow = a.mode === "whole" && !a.bodyEdited ? conv.draft : body;
+    if (draftNow !== body) setBody(draftNow);
+    if (a.mode === "whole") bodyBase.current = original.current.storage;
+    save({
+      value: retryBody(a, original.current.storage, draftToStorage(section), draftToStorage(draftNow)),
+      draft: draftNow,
+      bodyEdited: a.bodyEdited, // the original intent survives retries
+    });
   }
 
-  async function save(override?: string) {
+  // `retry`: an explicit body (and its draft and intent) from "again anyway", instead of the current editor state.
+  async function save(retry?: { value: string; draft: string; bodyEdited: boolean }) {
     const s = seq.current;
     // Checked against the baseline ref, so it holds even right after a baseline change.
     if (mode === "whole" && original.current.lossy.length) return;
-    const value = override ?? outgoing();
+    const value = retry?.value ?? outgoing();
+    const sentDraft = retry?.draft ?? body;
+    const sentEdited = retry?.bodyEdited ?? wholeEdited;
     setStatus({ kind: "busy" });
     let before = new Set<string>();
     if (!editing) {
@@ -224,7 +241,7 @@ export default function PageComposer() {
     call
       .then(async (p: Page) => {
         const link = await pageUrl(p);
-        if (s === seq.current) landed(p, value, link);
+        if (s === seq.current) landed(p, value, link, sentDraft);
       })
       .catch((e: unknown) => {
         if (s !== seq.current) return;
@@ -244,7 +261,8 @@ export default function PageComposer() {
             title: title.trim(),
             sentBody: value,
             baseVersion: original.current.version,
-            bodyEdited: wholeEdited,
+            bodyEdited: sentEdited,
+            draft: sentDraft,
           };
           checkUpdate(s);
         } else setStatus({ kind: "error", message });

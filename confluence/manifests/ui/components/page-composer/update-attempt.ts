@@ -13,6 +13,7 @@ export type UpdateAttempt = {
   readonly sentBody: string; // exact storage sent
   readonly baseVersion: number;
   readonly bodyEdited: boolean; // whole mode: the body (not just the title) was being changed
+  readonly draft: string; // whole mode: the markdown that produced sentBody (baseline once it lands)
 };
 
 export type Reconciled = { outcome: "landed" | "unchanged" | "unknown"; page: Page };

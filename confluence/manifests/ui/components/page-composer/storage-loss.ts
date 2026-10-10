@@ -113,7 +113,9 @@ const SYNONYM: Record<string, string> = { b: "strong", i: "em" };
 // at block edges. Two bodies with the same canonical form read the same.
 export function canonical(body: Element): string {
   const walk = (n: Node, raw: boolean): string => {
-    if (n.nodeType === Node.TEXT_NODE) return raw ? n.textContent ?? "" : (n.textContent ?? "").replace(/\s+/g, " ");
+    // Code text is encoded so no whitespace normalisation (here or in the block-edge trim below) can touch it.
+    if (n.nodeType === Node.TEXT_NODE)
+      return raw ? `\u0001${encodeURIComponent(n.textContent ?? "")}\u0002` : (n.textContent ?? "").replace(/\s+/g, " ");
     if (n.nodeType !== Node.ELEMENT_NODE) return "";
     const el = n as Element;
     const t = SYNONYM[tag(el)] ?? tag(el);
@@ -123,7 +125,7 @@ export function canonical(body: Element): string {
       .map((a) => ` ${a.name}="${a.value}"`)
       .sort()
       .join("");
-    const isRaw = raw || t === "pre" || t === "ac:plain-text-body";
+    const isRaw = raw || t === "pre" || t === "code" || t === "ac:plain-text-body";
     return `<${t}${keep}>${Array.from(el.childNodes).map((c) => walk(c, isRaw)).join("")}</${t}>`;
   };
   return walk(body, false).replace(new RegExp(`\\s*(</?(?:${BLOCKS})(?:\\s[^>]*)?>)\\s*`, "g"), "$1");
