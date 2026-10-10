@@ -1,6 +1,7 @@
 // Idempotency keys per logical request: the same request retried reuses its key (Stripe returns the first
 // result instead of acting twice); a changed request gets a fresh key (Stripe rejects a key reused with
-// different parameters). A key is dropped once its request succeeds.
+// different parameters). A key is released only by the request that used it, so a late completion of an
+// older request can't drop a newer request's key.
 export class IdempotencyKeys {
   private slots = new Map<string, { body: string; key: string }>();
 
@@ -13,8 +14,8 @@ export class IdempotencyKeys {
     return key;
   }
 
-  done(slot: string) {
-    this.slots.delete(slot);
+  done(slot: string, key: string) {
+    if (this.slots.get(slot)?.key === key) this.slots.delete(slot);
   }
 }
 

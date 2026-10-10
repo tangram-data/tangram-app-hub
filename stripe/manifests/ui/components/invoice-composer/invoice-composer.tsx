@@ -51,6 +51,10 @@ export default function InvoiceComposer() {
   const [method, setMethod] = useState<Method>("send_invoice");
   const [daysUntilDue, setDaysUntilDue] = useState<number>(30);
   const [description, setDescription] = useState("");
+  // invoice ids this composer emailed; Send turns into an explicit Resend
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  // successful sends per invoice: each completed send makes the next one a new logical request (new key)
+  const sendAttempt = useRef(new Map<string, number>());
   const keys = useRef(new IdempotencyKeys());
   // bumped on every input change: results of reads/writes started earlier are dropped
   const gen = useRef(0);
@@ -90,6 +94,7 @@ export default function InvoiceComposer() {
       setError("");
       setStale(false);
       setBusy(false);
+      setSent(new Set());
       setCustomerId(String(inputs?.customerId ?? "").trim());
       if (invoiceId) reload(invoiceId, g);
       else {
@@ -97,7 +102,7 @@ export default function InvoiceComposer() {
         setLoading(false);
       }
     };
-    apply(tangram.getInputs() ?? {});
+    // onInput fires as soon as the frame is initialised (getInputs() is async in the sandbox shell)
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [reload]);
 
@@ -110,6 +115,7 @@ export default function InvoiceComposer() {
     total: invoice?.total ?? null,
     lines: (invoice?.lines?.data ?? []).map((l) => ({ description: l.description, amount: l.amount, quantity: l.quantity })),
     outOfDate: stale,
+    sent: invoice ? sent.has(invoice.id) : false,
   };
   useEffect(() => {
     tangram.provideState?.(() => ({ ...stateRef.current }));
@@ -127,7 +133,12 @@ export default function InvoiceComposer() {
       await step(g, live);
       return live();
     } catch (e) {
-      if (live()) setError(errorText(e));
+      if (live()) {
+        setError(errorText(e));
+        // The write may have happened even though no answer came back: nothing else may change until the
+        // invoice reloads. Retrying the same request reuses its idempotency key.
+        if (invoice) setStale(true);
+      }
       return false;
     } finally {
       if (live()) setBusy(false);
@@ -150,7 +161,7 @@ export default function InvoiceComposer() {
       if (description.trim()) body.description = description.trim();
       const key = keys.current.keyFor("create", body);
       const inv: Invoice = await act("Invoice", "Create", { "Idempotency-Key": key }, body);
-      keys.current.done("create");
+      keys.current.done("create", key);
       await applied(inv, g, live);
     });
 
@@ -160,7 +171,7 @@ export default function InvoiceComposer() {
       const body = { customer: invoice.customer, invoice: invoice.id, ...line };
       const key = keys.current.keyFor("line", body);
       await act("InvoiceItem", "Create", { "Idempotency-Key": key }, body);
-      keys.current.done("line");
+      keys.current.done("line", key);
       if (!live()) return;
       // the line exists; totals are unknown until the invoice reloads
       setStale(true);
@@ -172,14 +183,26 @@ export default function InvoiceComposer() {
       if (!invoice) return;
       // Emailed invoices stay put until Send; charge-automatically ones need auto_advance for Stripe to collect.
       const autoAdvance = invoice.collection_method === "charge_automatically";
-      const inv: Invoice = await act("Invoice", "Finalize", { id: invoice.id }, { auto_advance: autoAdvance });
+      const body = { auto_advance: autoAdvance };
+      const slot = `finalize:${invoice.id}`;
+      const key = keys.current.keyFor(slot, body);
+      const inv: Invoice = await act("Invoice", "Finalize", { id: invoice.id, "Idempotency-Key": key }, body);
+      keys.current.done(slot, key);
       await applied(inv, g, live);
     });
 
   const send = () =>
     run(async (g, live) => {
       if (!invoice) return;
-      const inv: Invoice = await act("Invoice", "Send", { id: invoice.id });
+      const id = invoice.id;
+      const slot = `send:${id}`;
+      const key = keys.current.keyFor(slot, { attempt: sendAttempt.current.get(id) ?? 0 });
+      const inv: Invoice = await act("Invoice", "Send", { id, "Idempotency-Key": key });
+      keys.current.done(slot, key);
+      // the next click is a deliberate resend (new key); a failed attempt keeps its key for the retry
+      sendAttempt.current.set(id, (sendAttempt.current.get(id) ?? 0) + 1);
+      if (!live()) return;
+      setSent((prev) => new Set(prev).add(id));
       await applied(inv, g, live);
     });
 
@@ -187,8 +210,8 @@ export default function InvoiceComposer() {
     run(async (_g, live) => {
       if (!invoice) return;
       await act("Invoice", "Delete", { id: invoice.id });
-      tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
       if (!live()) return;
+      tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
       seq.current++;
       setDeleted(invoice.id);
       setInvoice(null);
@@ -368,7 +391,16 @@ export default function InvoiceComposer() {
             {charges ? "Finalize and charge" : "Finalize"}
           </Button>
         ) : null}
-        {invoice.status === "open" && !charges ? (
+        {invoice.status === "open" && !charges && sent.has(invoice.id) ? (
+          <>
+            <span className="s-status" style={{ ["--dot" as any]: "#16a34a" }}>
+              Sent to the customer
+            </span>
+            <Button icon={<SendOutlined aria-hidden="true" />} loading={busy} disabled={locked} onClick={send}>
+              Resend
+            </Button>
+          </>
+        ) : invoice.status === "open" && !charges ? (
           <Button type="primary" icon={<SendOutlined aria-hidden="true" />} loading={busy} disabled={locked} onClick={send}>
             Send invoice
           </Button>

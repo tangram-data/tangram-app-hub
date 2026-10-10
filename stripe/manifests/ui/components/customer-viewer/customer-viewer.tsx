@@ -152,7 +152,7 @@ export default function CustomerViewer() {
 
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => load(String(inputs?.customerId ?? "").trim());
-    apply(tangram.getInputs() ?? {});
+    // onInput fires as soon as the frame is initialised (getInputs() is async in the sandbox shell)
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 

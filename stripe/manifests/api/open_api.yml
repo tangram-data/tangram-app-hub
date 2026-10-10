@@ -256,6 +256,7 @@ paths:
       summary: Finalize a draft invoice
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/idempotencyKey"
       requestBody:
         required: false
         content:
@@ -275,6 +276,7 @@ paths:
       summary: Email an invoice to the customer
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/idempotencyKey"
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "400": {description: "Invalid request (error.message, error.param)."}
@@ -285,6 +287,7 @@ paths:
       summary: Void an invoice
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/idempotencyKey"
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "400": {description: "Invalid request (error.message, error.param)."}
