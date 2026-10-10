@@ -14,7 +14,7 @@ scope: Stripe takes form-encoded write bodies, which the connector gateway does 
 | `stripe_list_<object>` | `<Object>.List` | Customers, payment intents, charges, invoices, subscriptions, refunds, disputes, payouts, products, prices, balance transactions — filters + `created[gte]`/`created[lte]`, cursor paging with `starting_after`. |
 | `stripe_get_<object>` | `<Object>.Get` | One object by id; `expand[]` inlines related objects. |
 
-Amounts are integers in the smallest currency unit (`4999` = $49.99). Search results can lag about a minute behind writes and are not available
+Requests pin `Stripe-Version: 2024-06-20`. Amounts are integers in the smallest currency unit (`4999` = $49.99). Search results can lag about a minute behind writes and are not available
 for accounts in India — use `List` filters there.
 
 ## Setup

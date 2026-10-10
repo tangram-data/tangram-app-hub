@@ -14,6 +14,10 @@ apiSpecFile = "open_api.yml"
 auth = new connector.ConnectorAuth {
   httpHeaders = Map(
     "Authorization",
-    new connector.HeaderTemplate { template = "Bearer {{secrets.stripeApiKey}}" }
+    new connector.HeaderTemplate { template = "Bearer {{secrets.stripeApiKey}}" },
+    // Pinned so response shapes don't follow the account's default version,
+    // and search (2020-08-27+) works on older accounts.
+    "Stripe-Version",
+    new connector.HeaderTemplate { template = "2024-06-20" }
   )
 }
