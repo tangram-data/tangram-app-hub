@@ -9,7 +9,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/box.css";
 import "../../shared/tangram-buttons.css";
-import { BoxItem, badgeFor, canOpen, errorText, formatSize, modifiedLabel, openItem } from "../../shared/box-format";
+import { BoxItem, badgeFor, canOpen, errorText, formatSize, modifiedLabel, onNewInputs, openItem } from "../../shared/box-format";
 import { PlainLink } from "./plain-link";
 
 const tangram = (window as any).tangram;
@@ -106,8 +106,9 @@ export default function FileBrowser() {
       setTrail([]);
       load(src);
     };
-    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous apply)
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous apply);
+    // a token-renewal re-init repeats the same inputs and must not reset navigation.
+    tangram.onInput(onNewInputs(apply));
   }, [load]);
 
   const busy = state === "loading" || state === "more";

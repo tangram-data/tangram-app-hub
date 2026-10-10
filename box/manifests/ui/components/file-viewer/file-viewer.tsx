@@ -9,7 +9,7 @@ import dayjs from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
 import "../../shared/box.css";
 import "../../shared/tangram-buttons.css";
-import { BoxItem, badgeFor, boxUrl, errorText, extensionOf, formatSize, openExternal, pathLabel } from "../../shared/box-format";
+import { badgeFor, BoxItem, boxUrl, errorText, extensionOf, formatSize, onNewInputs, openExternal, pathLabel } from "../../shared/box-format";
 import { isTable, isTextLike, parseDelimited, unwrapDownload } from "./download";
 
 const tangram = (window as any).tangram;
@@ -100,8 +100,9 @@ export default function FileViewer() {
 
   useEffect(() => {
     const load = (inputs: Record<string, unknown>) => loadFile(String(inputs?.fileId ?? "").trim());
-    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous load)
-    tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
+    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous load);
+    // a token-renewal re-init repeats the same inputs and must not reload the preview.
+    tangram.onInput(onNewInputs(load));
   }, []);
 
   if (state === "loading")

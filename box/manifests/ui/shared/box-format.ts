@@ -90,3 +90,25 @@ export function openItem(item: Pick<BoxItem, "type" | "id" | "url">) {
   if (!canOpen(item)) return;
   openExternal(item.type === "web_link" ? (item.url ?? "").trim() : boxUrl(item));
 }
+
+// Key-order-stable JSON, to tell a re-sent init (token renewal re-sends the same inputs) from new inputs.
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
+
+// Wraps an onInput handler so inputs equal to the last applied ones are ignored.
+export function onNewInputs(apply: (inputs: Record<string, unknown>) => void) {
+  let last: string | undefined;
+  return (inputs: Record<string, unknown>) => {
+    const key = stableJson(inputs ?? {});
+    if (key === last) return;
+    last = key;
+    apply(inputs ?? {});
+  };
+}
