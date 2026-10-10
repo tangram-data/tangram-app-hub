@@ -1,0 +1,140 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+types: List<resources.ResourceTypeDefinition> = List(
+  new resources.ResourceTypeDefinition {
+    name = "User"
+    activeVersion = "v1"
+    doc = "The connected Box user."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(reader("Me", "getCurrentUser", "The connected user: id, name, login, space used. Cheapest connection check."))
+      presetRoles = List(new resources.Role { name = "user"; permissions = List("Read"); description = "Read the connected user." })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Item"
+    activeVersion = "v1"
+    doc = "Any Box item — file, folder or web link."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Search", "searchContent", "Full-text search over names, descriptions, file contents, comments and tags the user can see. Narrow with type (file, folder, web_link), file_extensions (pdf,docx), ancestor_folder_ids, updated_at_range, content_types. Hits carry type, id, name, modified_at, path_collection.")
+      )
+      presetRoles = List(new resources.Role { name = "user"; permissions = List("Read"); description = "Search Box content." })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Folder"
+    activeVersion = "v1"
+    doc = "A Box folder. The user's root folder has id 0."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Get", "getFolder", "A folder's details: name, path_collection, owner, item_collection summary, shared_link."),
+        reader("ListItems", "listFolderItems", "List the files, folders and web links in a folder (0 = root); page with offset/limit."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a folder named name inside parent.id (0 = root). Fails with 409 when the name is taken."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createFolder" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Browse and create folders through the Box connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "File"
+    activeVersion = "v1"
+    doc = "A Box file."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Get", "getFile", "A file's details: name, size, path_collection, modified_at/by, version, shared_link, description."),
+        reader("Download", "downloadFile", "Download a file's content. Text comes back inline (up to 32KB); larger or binary files come back as a saved file reference."),
+        new resources.Action {
+          name = "Update"
+          privilege = "Update"
+          // Moving changes who can see it (folder collaborators).
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Rename (name), move (parent.id), or set the description of a file. Moving can change who has access. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "updateFile" }
+        },
+        new resources.Action {
+          name = "Share"
+          privilege = "Update"
+          // A link already opened can't be un-seen.
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Create or change the file's shared link: access open (anyone with the link), company, or collaborators; optional unshared_at expiry. Returns shared_link.url. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "shareFile" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          // Trash; restorable until the enterprise's trash retention ends.
+          effect = "Reversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Move a file to the trash (restorable from Box's trash until the retention period ends). Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteFile" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Update", "Delete")
+        description = "Read and manage files through the Box connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Comment"
+    activeVersion = "v1"
+    doc = "A comment on a Box file."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listFileComments", "List a file's comments (message, created_by, created_at)."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Collaborators are notified; @mentions email people.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Comment on a file as the connected user (collaborators are notified). Use message for plain text, or tagged_message with @[userId:name] to mention (and email) someone. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createComment" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and post file comments."
+      })
+    })
+  }
+)

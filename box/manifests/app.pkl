@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.box"
+name = "box"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.box.com/reference/"
+category = "productivity"
+tags = List("box", "files", "folders", "documents", "storage", "content", "oauth")
+description = "Box connector: search files and folders, browse folders, read and download files, comment, create folders, rename, move, trash, and create shared links."
+readme      = read("README.md").text

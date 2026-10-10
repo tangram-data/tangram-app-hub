@@ -1,0 +1,6 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+logo = "static/box.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}

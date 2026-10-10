@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: Box Platform API
+  version: "2.0"
+  description: Subset of the Box Platform API 2.0, acting as the connected user.
+servers:
+  - url: https://api.box.com
+
+paths:
+  /2.0/users/me:
+    get:
+      operationId: getCurrentUser
+      summary: The connected user
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /2.0/search:
+    get:
+      operationId: searchContent
+      summary: Search files, folders and web links
+      x-tangram-search:
+        hits: {items: entries, id: id, title: name, modified: modified_at, type: type}
+        read: {file: File.Download, folder: Folder.ListItems}
+      parameters:
+        - {name: query, in: query, required: true, description: "Words to find; quote a phrase (\"q3 plan\"); AND, OR, NOT operators.", schema: {type: string}}
+        - {name: type, in: query, required: false, schema: {type: string, enum: [file, folder, web_link]}}
+        - {name: file_extensions, in: query, required: false, description: "Comma-separated, e.g. pdf,docx.", schema: {type: string}}
+        - {name: ancestor_folder_ids, in: query, required: false, description: Comma-separated folder ids to search within., schema: {type: string}}
+        - {name: content_types, in: query, required: false, description: "Comma-separated: name, description, file_content, comments, tag.", schema: {type: string}}
+        - {name: updated_at_range, in: query, required: false, description: "from,to as RFC 3339; either side may be empty (2026-01-01T00:00:00Z,).", schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /2.0/folders/{folder_id}:
+    get:
+      operationId: getFolder
+      summary: Get a folder
+      parameters:
+        - $ref: "#/components/parameters/folderId"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+
+  /2.0/folders/{folder_id}/items:
+    get:
+      operationId: listFolderItems
+      summary: List a folder's items
+      parameters:
+        - $ref: "#/components/parameters/folderId"
+        - {name: fields, in: query, required: false, description: "Comma-separated fields, e.g. id,type,name,size,modified_at.", schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /2.0/folders:
+    post:
+      operationId: createFolder
+      summary: Create a folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, parent]
+              properties:
+                name: {type: string}
+                parent: {$ref: "#/components/schemas/IdRef"}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+        "409": {description: An item with this name already exists.}
+
+  /2.0/files/{file_id}:
+    get:
+      operationId: getFile
+      summary: Get a file
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - {name: fields, in: query, required: false, description: "Comma-separated fields to return instead of the defaults.", schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found or not visible to the user.}
+    put:
+      operationId: updateFile
+      summary: Rename, move, or describe a file
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string, description: New name.}
+                description: {type: string}
+                parent: {$ref: "#/components/schemas/IdRef"}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "409": {description: Name conflict in the target folder.}
+    delete:
+      operationId: deleteFile
+      summary: Move a file to the trash
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "204": {description: Trashed.}
+
+  /2.0/files/{file_id}/content:
+    get:
+      operationId: downloadFile
+      summary: Download a file
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: The file bytes (Box answers 302 to dl.boxcloud.com; the platform follows it).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /shared-links/files/{file_id}:
+    put:
+      operationId: shareFile
+      summary: Create or update a file's shared link
+      x-tangram-upstream:
+        path: "/2.0/files/{file_id}"
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - {name: fields, in: query, required: false, description: Must include shared_link to get the link back., schema: {type: string, default: shared_link}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shared_link]
+              properties:
+                shared_link:
+                  type: object
+                  required: [access]
+                  properties:
+                    access: {type: string, enum: [open, company, collaborators]}
+                    unshared_at: {type: string, description: RFC 3339 expiry (paid plans).}
+                    permissions:
+                      type: object
+                      properties:
+                        can_download: {type: boolean}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "403": {description: Sharing at this access level is disabled by the enterprise.}
+
+  /2.0/files/{file_id}/comments:
+    get:
+      operationId: listFileComments
+      summary: List a file's comments
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /2.0/comments:
+    post:
+      operationId: createComment
+      summary: Comment on a file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item]
+              properties:
+                item:
+                  type: object
+                  required: [id, type]
+                  properties:
+                    id: {type: string, description: File id.}
+                    type: {type: string, enum: [file]}
+                message: {type: string, description: Plain-text comment.}
+                tagged_message: {type: string, description: "Comment with mentions, e.g. @[12345:Ana] please review."}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+
+components:
+  parameters:
+    fileId:
+      {name: file_id, in: path, required: true, schema: {type: string}}
+    folderId:
+      {name: folder_id, in: path, required: true, description: Folder id (0 = the user's root)., schema: {type: string}}
+  responses:
+    Ok:
+      description: Box JSON response.
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    IdRef:
+      type: object
+      required: [id]
+      properties:
+        id: {type: string, description: Folder id (0 = root).}

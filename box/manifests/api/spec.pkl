@@ -1,0 +1,41 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Box Platform API 2.0. Downloads answer 302 to dl.boxcloud.com; the
+// platform follows it (https, public hosts, auth dropped off-host).
+endpoint = "https://api.box.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.box.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://account.box.com/api/oauth2/authorize"
+  tokenUrl = "https://api.box.com/oauth2/token"
+  // Read and write everything the user can reach; finer scopes are set on
+  // the Box app itself.
+  scopes = List("root_readwrite")
+  clientIdSecret = "boxClientId"
+  clientSecretSecret = "boxClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.box/box"
+  tokenAuthMethod = "ClientSecretPost"
+  // No PKCE. Box's revoke endpoint wants client credentials in the form
+  // body (the platform sends Basic), so no revocationUrl: users revoke under
+  // Box Account Settings → Apps. Access tokens live 60 min; refresh tokens
+  // are single-use and rotate (60-day life).
+  pkce = false
+  refreshWindowSeconds = 600
+  // Box tokens act as the connecting user: each sees their own files.
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "PerUser"
+    allowedAtInstall = List("PerUser", "WorkspaceShared")
+  }
+}
