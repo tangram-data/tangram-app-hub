@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/pagerduty.css";
 import "../../shared/tangram-buttons.css";
-import { call, errText, relative, Ref, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
+import { call, errText, relative, Ref, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
 
 type Incident = {
   id: string;
@@ -26,8 +26,11 @@ type Incident = {
 type LogEntry = { id: string; type?: string; created_at?: string; summary?: string; agent?: Ref | null };
 type Note = { id: string; content?: string; created_at?: string; user?: Ref | null };
 type Section<T> = { items: T[]; error: string };
+type Timeline = Section<LogEntry> & { more: boolean; offset: number; loadingMore: boolean };
 
 const EMPTY = { items: [], error: "" };
+const EMPTY_TIMELINE: Timeline = { items: [], error: "", more: false, offset: 0, loadingMore: false };
+const LOG_PAGE = 50;
 
 // "acknowledge_log_entry" → "acknowledge"
 function entryKind(type?: string): string {
@@ -37,7 +40,7 @@ function entryKind(type?: string): string {
 export default function IncidentViewer() {
   const [incidentId, setIncidentId] = useState("");
   const [incident, setIncident] = useState<Incident | null>(null);
-  const [logs, setLogs] = useState<Section<LogEntry>>(EMPTY);
+  const [logs, setLogs] = useState<Timeline>(EMPTY_TIMELINE);
   const [notes, setNotes] = useState<Section<Note>>(EMPTY);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
@@ -45,10 +48,11 @@ export default function IncidentViewer() {
   const [writeError, setWriteError] = useState("");
   const [noteText, setNoteText] = useState("");
   const seq = useRef(0);
-  // provideState and write callbacks read the latest values, not a stale render's.
-  const incidentIdRef = useRef("");
+  // Bumped on every new input: write callbacks from an earlier input are ignored. The input may be an incident
+  // NUMBER; reads and writes use the canonical id the API returned.
+  const generation = useRef(0);
+  const canonicalId = useRef("");
   const statusRef = useRef("");
-  incidentIdRef.current = incidentId;
   statusRef.current = incident?.status ?? "";
 
   const load = useCallback((id: string, quiet = false) => {
@@ -63,8 +67,8 @@ export default function IncidentViewer() {
     const params = { parameters: { id } };
     Promise.allSettled([
       call<{ incident?: Incident }>("Incident", "Get", params),
-      call<{ log_entries?: LogEntry[] }>("Incident", "ListLogEntries", {
-        parameters: { id, is_overview: true, limit: 50 },
+      call<{ log_entries?: LogEntry[]; more?: boolean }>("Incident", "ListLogEntries", {
+        parameters: { id, is_overview: true, limit: LOG_PAGE, offset: 0 },
       }),
       call<{ notes?: Note[] }>("Incident", "ListNotes", params),
     ]).then(([inc, lg, nt]) => {
@@ -76,10 +80,17 @@ export default function IncidentViewer() {
         return;
       }
       setIncident(inc.value.incident);
+      canonicalId.current = inc.value.incident.id;
       setLogs(
         lg.status === "fulfilled"
-          ? { items: [...(lg.value?.log_entries ?? [])].sort(byTimeDesc), error: "" }
-          : { items: [], error: errText(lg.reason) },
+          ? {
+              items: [...(lg.value?.log_entries ?? [])].sort(byTimeDesc),
+              error: "",
+              more: Boolean(lg.value?.more),
+              offset: (lg.value?.log_entries ?? []).length,
+              loadingMore: false,
+            }
+          : { ...EMPTY_TIMELINE, error: errText(lg.reason) },
       );
       setNotes(
         nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
@@ -91,6 +102,8 @@ export default function IncidentViewer() {
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => {
       const id = String(inputs?.incidentId ?? "").trim();
+      generation.current += 1;
+      canonicalId.current = "";
       setIncidentId(id);
       setWriteError("");
       setNoteText("");
@@ -98,12 +111,13 @@ export default function IncidentViewer() {
     };
     apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
-    tangram.provideState?.(() => ({ incidentId: incidentIdRef.current, status: statusRef.current }));
+    tangram.provideState?.(() => ({ incidentId: canonicalId.current, status: statusRef.current }));
   }, [load]);
 
   function setStatus(status: "acknowledged" | "resolved") {
     if (!incident || writing) return;
     const id = incident.id;
+    const gen = generation.current;
     setWriting(status);
     setWriteError("");
     call("Incident", "Update", {
@@ -112,30 +126,61 @@ export default function IncidentViewer() {
     })
       .then(() => {
         tangram.emit("updated", { incidentId: id, status });
-        if (incidentIdRef.current === id) load(id, true);
+        if (gen === generation.current) load(id, true);
       })
       .catch((e: unknown) => {
-        if (incidentIdRef.current === id) setWriteError(errText(e));
+        if (gen === generation.current) setWriteError(errText(e));
       })
-      .finally(() => setWriting(""));
+      .finally(() => {
+        if (gen === generation.current) setWriting("");
+      });
   }
 
   function addNote() {
     const content = noteText.trim();
     if (!incident || !content || writing) return;
     const id = incident.id;
+    const gen = generation.current;
     setWriting("note");
     setWriteError("");
     call("Incident", "AddNote", { parameters: { id }, requestBody: { note: { content } } })
       .then(() => {
-        if (incidentIdRef.current !== id) return;
+        if (gen !== generation.current) return;
         setNoteText("");
         load(id, true);
       })
       .catch((e: unknown) => {
-        if (incidentIdRef.current === id) setWriteError(errText(e));
+        if (gen === generation.current) setWriteError(errText(e));
       })
-      .finally(() => setWriting(""));
+      .finally(() => {
+        if (gen === generation.current) setWriting("");
+      });
+  }
+
+  function loadOlder() {
+    const id = canonicalId.current;
+    if (!id || logs.loadingMore || !logs.more) return;
+    const gen = generation.current;
+    const mine = seq.current;
+    setLogs((l) => ({ ...l, loadingMore: true }));
+    call<{ log_entries?: LogEntry[]; more?: boolean }>("Incident", "ListLogEntries", {
+      parameters: { id, is_overview: true, limit: LOG_PAGE, offset: logs.offset },
+    })
+      .then((r) => {
+        if (gen !== generation.current || mine !== seq.current) return;
+        const page = r?.log_entries ?? [];
+        setLogs((l) => ({
+          items: [...l.items, ...page.filter((e) => !l.items.some((x) => x.id === e.id))].sort(byTimeDesc),
+          error: "",
+          more: Boolean(r?.more),
+          offset: l.offset + page.length,
+          loadingMore: false,
+        }));
+      })
+      .catch((e: unknown) => {
+        if (gen !== generation.current || mine !== seq.current) return;
+        setLogs((l) => ({ ...l, loadingMore: false, error: errText(e) }));
+      });
   }
 
   if (state === "loading") {
@@ -179,10 +224,10 @@ export default function IncidentViewer() {
           <div className="main">
             <div className="pd-num">
               #{incident.incident_number ?? incident.id}
-              {incident.html_url ? (
+              {safeUrl(incident.html_url) ? (
                 <>
                   {" · "}
-                  <a href={incident.html_url} target="_blank" rel="noopener noreferrer">
+                  <a href={safeUrl(incident.html_url)} target="_blank" rel="noopener noreferrer">
                     Open in PagerDuty <ExportOutlined aria-hidden="true" />
                   </a>
                 </>
@@ -281,7 +326,7 @@ export default function IncidentViewer() {
         <section className="pd-section" aria-label="Timeline">
           <h2 className="pd-h">Timeline</h2>
           <div className="pd-card">
-            {logs.error ? (
+            {logs.error && logs.items.length === 0 ? (
               <div className="pd-empty">Couldn't load the timeline: {logs.error}</div>
             ) : logs.items.length === 0 ? (
               <div className="pd-empty">No timeline entries</div>
@@ -315,6 +360,14 @@ export default function IncidentViewer() {
               </table>
             )}
           </div>
+          {logs.items.length > 0 && logs.error ? <div className="pd-faint">Couldn't load older entries: {logs.error}</div> : null}
+          {logs.more ? (
+            <div style={{ marginTop: 8 }}>
+              <Button size="small" loading={logs.loadingMore} onClick={loadOlder}>
+                Load older
+              </Button>
+            </div>
+          ) : null}
         </section>
       </div>
     </div>

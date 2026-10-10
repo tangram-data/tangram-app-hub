@@ -49,3 +49,14 @@ export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
 }
+
+// Only absolute http(s) URLs from API responses become links; anything else renders as text.
+export function safeUrl(u?: string | null): string | undefined {
+  if (!u) return undefined;
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}

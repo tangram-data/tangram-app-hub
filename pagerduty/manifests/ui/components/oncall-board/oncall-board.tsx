@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/pagerduty.css";
 import "../../shared/tangram-buttons.css";
-import { avatarColor, call, errText, initials, Ref, relative, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
+import { avatarColor, call, errText, initials, Ref, relative, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
 
 type OnCall = {
   escalation_policy?: Ref;
@@ -22,6 +22,7 @@ type Person = { user: Ref; schedule?: string; end?: string | null };
 type Policy = { id: string; name: string; levels: { level: number; people: Person[] }[] };
 
 const PAGE = 100;
+const INCIDENTS = 10;
 
 function strings(v: unknown): string[] {
   return Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
@@ -68,6 +69,7 @@ export default function OncallBoard() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [capped, setCapped] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [moreIncidents, setMoreIncidents] = useState(false);
   const [incidentError, setIncidentError] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
@@ -83,12 +85,13 @@ export default function OncallBoard() {
     if (scheduleIds.length) onCallParams["schedule_ids[]"] = scheduleIds;
     Promise.allSettled([
       call<{ oncalls?: OnCall[]; more?: boolean }>("OnCall", "List", { parameters: onCallParams }),
-      call<{ incidents?: Incident[] }>("Incident", "List", {
+      call<{ incidents?: Incident[]; more?: boolean }>("Incident", "List", {
         parameters: {
           "statuses[]": ["triggered", "acknowledged"],
+          // open incidents of any age, not just PagerDuty's default 30 days
+          date_range: "all",
           sort_by: "created_at:desc",
-          time_zone: tz,
-          limit: 10,
+          limit: INCIDENTS,
         },
       }),
     ]).then(([oc, inc]) => {
@@ -103,9 +106,11 @@ export default function OncallBoard() {
       setCapped(Boolean(oc.value?.more));
       if (inc.status === "fulfilled") {
         setIncidents(inc.value?.incidents ?? []);
+        setMoreIncidents(Boolean(inc.value?.more));
         setIncidentError("");
       } else {
         setIncidents([]);
+        setMoreIncidents(false);
         setIncidentError(errText(inc.reason));
       }
       setState("ready");
@@ -163,7 +168,9 @@ export default function OncallBoard() {
         <>
           {incidents.length || incidentError ? (
             <section className="pd-strip" aria-label="Open incidents">
-              <h2 className="pd-h">Open incidents</h2>
+              <h2 className="pd-h">
+                {moreIncidents ? `Open incidents · ${INCIDENTS} newest shown` : "Open incidents"}
+              </h2>
               <div className="pd-card">
                 {incidentError ? (
                   <div className="pd-empty">Couldn't load incidents: {incidentError}</div>
@@ -235,8 +242,8 @@ export default function OncallBoard() {
                                 {initials(name)}
                               </span>
                               <span className="nm" title={name}>
-                                {person.user.html_url ? (
-                                  <a href={person.user.html_url} target="_blank" rel="noopener noreferrer">
+                                {safeUrl(person.user.html_url) ? (
+                                  <a href={safeUrl(person.user.html_url)} target="_blank" rel="noopener noreferrer">
                                     {name}
                                   </a>
                                 ) : (
