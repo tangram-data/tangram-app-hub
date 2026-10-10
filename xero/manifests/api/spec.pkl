@@ -26,12 +26,17 @@ oauth = new oauthTypes.OAuth2AuthCode {
   authorizationUrl = "https://login.xero.com/identity/connect/authorize"
   tokenUrl = "https://identity.xero.com/connect/token"
   revocationUrl = "https://identity.xero.com/connect/revocation"
+  // Granular scopes (required for Xero apps created from March 2026).
   scopes = List(
     "offline_access",
-    "accounting.transactions",
+    "accounting.invoices",
+    "accounting.payments.read",
+    "accounting.banktransactions.read",
     "accounting.contacts",
     "accounting.settings.read",
-    "accounting.reports.read"
+    "accounting.reports.profitandloss.read",
+    "accounting.reports.balancesheet.read",
+    "accounting.reports.trialbalance.read"
   )
   clientIdSecret = "xeroClientId"
   clientSecretSecret = "xeroClientSecret"
@@ -39,7 +44,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   tokenAuthMethod = "ClientSecretBasic"
   pkce = true
   // /connections lists every organisation the user authorised (grants
-  // accumulate); pick the install's, never an arbitrary first one.
+  // accumulate); pick the install's by name — connecting fails unless
+  // exactly one authorised organisation has it.
   tenant = new oauthTypes.UserInfo {
     url = "https://api.xero.com/connections"
     jsonPath = "$[?(@.tenantName=='{{settings.organisationName}}')].tenantId"
