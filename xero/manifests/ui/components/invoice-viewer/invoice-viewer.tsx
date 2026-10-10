@@ -209,8 +209,8 @@ export default function InvoiceViewer() {
           </div>
         ) : (
           <div className="x-card" style={{ overflowX: "auto" }}>
-            {/* description keeps >= 180px next to the 280px of numbers; narrower panels scroll */}
-            <table className="x-table" style={{ minWidth: 460 }}>
+            {/* description keeps >= 180px beside the fixed columns (476px, or 280px once Account/Tax hide); narrower panels scroll */}
+            <table className="x-table x-lines" style={{ minWidth: 656 }}>
               <colgroup>
                 <col />
                 <col style={{ width: 64 }} />

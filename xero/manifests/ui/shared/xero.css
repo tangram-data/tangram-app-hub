@@ -42,11 +42,11 @@
 .x-h2 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
 .x-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--x-line); }
 .x-bar .sum { flex: 1; min-width: 0; color: var(--x-faint); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.x-bar .ctl { display: flex; gap: 8px; align-items: center; flex: none; flex-wrap: wrap; }
+.x-bar .ctl { display: flex; gap: 8px; align-items: center; flex: 0 1 auto; flex-wrap: wrap; max-width: 100%; min-width: 0; }
 .x-scroll { overflow: auto; max-height: calc(100vh - 140px); }
 .x-empty { padding: 40px 24px; text-align: center; color: var(--x-muted); }
 .x-error { margin: 16px 24px; padding: 12px 16px; border-radius: 8px; background: #fef3f2; color: #b42318; }
 .x-faint { color: var(--x-faint); font-size: 12px; }
 .x-accent { height: 4px; background: var(--x-blue); }
-@container (max-width: 560px) { .x-hide-sm { display: none; } }
+@container (max-width: 560px) { .x-hide-sm { display: none; } .x-lines { min-width: 460px !important; } }
 .x-root { container-type: inline-size; }
