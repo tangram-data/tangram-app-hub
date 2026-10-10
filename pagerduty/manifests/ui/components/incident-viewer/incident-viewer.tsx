@@ -49,8 +49,12 @@ export default function IncidentViewer() {
   const [pending, setPending] = useState<Record<string, WriteKind>>({});
   const [writeError, setWriteError] = useState("");
   // A note whose write outcome is unknown and couldn't be checked: no resubmission until a reload settles it.
-  const unverified = useRef<{ id: string; content: string; since: number } | null>(null);
-  const [noteCheck, setNoteCheck] = useState("");
+  // Per incident: note attempts whose outcome couldn't be checked (no resubmission until a reload settles each),
+  // and the latest status-write result (wins over any snapshot fetched before it landed).
+  const [unverified, setUnverified] = useState<Record<string, { content: string; since: number }>>({});
+  const unverifiedRef = useRef(unverified);
+  unverifiedRef.current = unverified;
+  const written = useRef(new Map<string, { incident: Partial<Incident>; at: number }>());
   const [noteText, setNoteText] = useState("");
   const seq = useRef(0);
   // Bumped on every new input: write callbacks from an earlier input are ignored. The input may be an incident
@@ -63,6 +67,7 @@ export default function IncidentViewer() {
 
   const load = useCallback((id: string, quiet = false) => {
     const mine = ++seq.current;
+    const startedAt = Date.now();
     if (!id) {
       setState("error");
       setError("No incident id given.");
@@ -85,8 +90,13 @@ export default function IncidentViewer() {
       })
       .then(({ incident, lg, nt }) => {
         if (mine !== seq.current) return;
-        setIncident(incident);
+        // A write that finished after this fetch began is newer than the snapshot: show it, then refetch.
+        const w = written.current.get(incident.id);
+        const newer = w !== undefined && w.at >= startedAt;
+        if (w && !newer) written.current.delete(incident.id);
+        setIncident(newer ? { ...incident, ...w.incident } : incident);
         canonicalId.current = incident.id;
+        if (newer) setTimeout(() => load(incident.id, true), 0);
         setLogs(
           lg.status === "fulfilled"
             ? {
@@ -101,10 +111,9 @@ export default function IncidentViewer() {
         setNotes(
           nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
         );
-        const u = unverified.current;
-        if (u && u.id === incident.id && nt.status === "fulfilled") {
-          unverified.current = null;
-          setNoteCheck("");
+        const u = unverifiedRef.current[incident.id];
+        if (u && nt.status === "fulfilled") {
+          setUnverified(({ [incident.id]: _, ...rest }) => rest);
           if (hasNote(nt.value?.notes ?? [], u.content, u.since)) setNoteText((t) => (t.trim() === u.content ? "" : t));
         }
         setState("ready");
@@ -128,7 +137,6 @@ export default function IncidentViewer() {
       setIncidentId(id);
       setWriteError("");
       setNoteText("");
-      setNoteCheck("");
       load(id);
     };
     // getInputs() is a promise in the sandbox shell; onInput fires once initialised and on every change.
@@ -146,10 +154,13 @@ export default function IncidentViewer() {
       requestBody: { incident: { type: "incident_reference", status } },
     })
       .then((r) => {
-        tangram.emit("updated", { incidentId: id, status: r?.incident?.status ?? status });
+        const result = { ...(r?.incident ?? {}), status: r?.incident?.status ?? status };
+        tangram.emit("updated", { incidentId: id, status: result.status });
+        // Kept per incident: a load of this incident still in flight (e.g. after A → B → A) prefers it.
+        written.current.set(id, { incident: result, at: Date.now() });
         if (canonicalId.current !== id) return;
         // Show the new state before the controls unlock, so a stale Acknowledge can't reopen a resolved incident.
-        setIncident((prev) => (prev && prev.id === id ? { ...prev, ...(r?.incident ?? {}), status: r?.incident?.status ?? status } : prev));
+        setIncident((prev) => (prev && prev.id === id ? { ...prev, ...result } : prev));
         load(id, true);
       })
       .catch((e: unknown) => {
@@ -167,7 +178,7 @@ export default function IncidentViewer() {
 
   function addNote() {
     const content = noteText.trim();
-    if (!incident || !content || pending[incident.id] || unverified.current?.id === incident.id) return;
+    if (!incident || !content || pending[incident.id] || unverified[incident.id]) return;
     const id = incident.id;
     const statusAtWrite = incident.status ?? "";
     const since = Date.now();
@@ -193,10 +204,7 @@ export default function IncidentViewer() {
             else shown(`${errText(e)} — the note isn't on the incident; you can retry.`);
           })
           .catch(() => {
-            unverified.current = { id, content, since };
-            if (canonicalId.current === id) {
-              setNoteCheck("Couldn't confirm whether the note was saved. Refresh to check before adding it again.");
-            }
+            setUnverified((u) => ({ ...u, [id]: { content, since } }));
           });
       })
       .finally(() => done(id));
@@ -261,7 +269,7 @@ export default function IncidentViewer() {
   const assignees = (incident.assignments ?? []).map((a) => a.assignee?.summary).filter(Boolean) as string[];
   const writing: WriteKind | "" = pending[incident.id] ?? "";
   const busy = writing !== "";
-  const noteBlocked = unverified.current?.id === incident.id;
+  const noteBlocked = Boolean(unverified[incident.id]);
 
   return (
     <div className="pd-root">
@@ -359,7 +367,11 @@ export default function IncidentViewer() {
               ))
             )}
           </div>
-          {noteCheck && noteBlocked ? <div className="pd-faint" role="status">{noteCheck}</div> : null}
+          {noteBlocked ? (
+            <div className="pd-faint" role="status">
+              Couldn't confirm whether the last note was saved. Refresh to check before adding it again.
+            </div>
+          ) : null}
           <div className="pd-addnote">
             <Input.TextArea
               aria-label="New note"
