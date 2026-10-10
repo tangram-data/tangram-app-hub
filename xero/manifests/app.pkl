@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.xero"
+name = "xero"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.xero.com/documentation/api/accounting/overview"
+category = "finance"
+tags = List("xero", "accounting", "invoices", "bills", "payments", "bookkeeping", "oauth")
+description = "Xero connector: look up contacts, invoices, bills, payments, bank transactions and accounts, run profit and loss, balance sheet and trial balance reports, and create contacts and draft invoices."
+readme      = read("README.md").text

@@ -1,0 +1,104 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = acts
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) data through the Xero connector."
+    })
+  })
+}
+
+local whereDoc = "where filters with Xero's expression syntax, e.g. Status==\"AUTHORISED\" AND Date>=DateTime(2026,07,01); order e.g. Date DESC; page is 1-based (100 per page)."
+
+types: List<resources.ResourceTypeDefinition> = List(
+  readOnly("Organisation", "The connected Xero organisation.", List(
+    reader("Get", "getOrganisation", "The organisation: name, base currency, financial year end, tax settings, timezone. Cheapest connection check.")
+  )),
+  new resources.ResourceTypeDefinition {
+    name = "Contact"
+    activeVersion = "v1"
+    doc = "A customer or supplier."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("Search", "searchContacts", "Find contacts whose name, email, account number or contact number contains searchTerm (case-insensitive); also filter with where (e.g. IsCustomer==true) and page."),
+        reader("Get", "getContact", "One contact by ContactID: addresses, phones, balances, default accounts."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = false
+          doc = "Create a contact (Name required and unique; EmailAddress, FirstName, LastName, AccountNumber optional). Search first to avoid duplicates; contacts can be archived."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createContacts" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Find and create contacts through the Xero connector."
+      })
+    })
+  },
+  new resources.ResourceTypeDefinition {
+    name = "Invoice"
+    activeVersion = "v1"
+    doc = "A sales invoice (Type ACCREC) or a supplier bill (Type ACCPAY)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listInvoices", "List invoices and bills. Filter by Statuses (comma list: DRAFT, SUBMITTED, AUTHORISED, PAID, VOIDED), ContactIDs, or \(whereDoc) Overdue: where=Type==\"ACCREC\" AND Status==\"AUTHORISED\" AND DueDate<DateTime(today)."),
+        reader("Get", "getInvoice", "One invoice or bill by InvoiceID (or invoice number): line items, totals, AmountDue/Paid, payments, status."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // An AUTHORISED invoice posts to the ledger and may be emailed by Xero automation.
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Create invoices or bills: Type (ACCREC sales / ACCPAY bill), Contact.ContactID, Date, DueDate, LineItems (Description, Quantity, UnitAmount, AccountCode, TaxType). Status DRAFT (default, safest), SUBMITTED, or AUTHORISED (posts to the ledger). Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createInvoices" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create")
+        description = "Read and draft invoices and bills through the Xero connector."
+      })
+    })
+  },
+  readOnly("Payment", "A payment applied to an invoice, bill or credit note.", List(
+    reader("List", "listPayments", "List payments; \(whereDoc)")
+  )),
+  readOnly("BankTransaction", "A spend or receive money transaction on a bank account.", List(
+    reader("List", "listBankTransactions", "List bank transactions (SPEND, RECEIVE, transfers); \(whereDoc) e.g. where=BankAccount.Code==\"090\" AND IsReconciled==false.")
+  )),
+  readOnly("Account", "A chart-of-accounts account.", List(
+    reader("List", "listAccounts", "The chart of accounts: Code, Name, Type (BANK, REVENUE, EXPENSE, ...), TaxType, Status — AccountCode values for invoice lines. where e.g. Type==\"BANK\".")
+  )),
+  readOnly("Report", "A Xero financial report (Rows of Cells) for the organisation.", List(
+    reader("ProfitAndLoss", "getProfitAndLoss", "Profit and loss between fromDate and toDate (YYYY-MM-DD); periods + timeframe (MONTH, QUARTER, YEAR) add comparison columns."),
+    reader("BalanceSheet", "getBalanceSheet", "Balance sheet as of date (YYYY-MM-DD); periods + timeframe for comparisons."),
+    reader("TrialBalance", "getTrialBalance", "Trial balance as of date (YYYY-MM-DD).")
+  ))
+)

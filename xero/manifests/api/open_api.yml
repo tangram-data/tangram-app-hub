@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Xero Accounting API
+  version: "2.0"
+  description: >
+    Subset of the Xero Accounting API for the organisation selected by the xero-tenant-id
+    header. Responses wrap lists by type ({"Invoices":[...]}); dates come as "/Date(ms+0000)/"
+    plus ISO DateString fields. Rate limits: 60 calls/minute and 5,000/day per organisation.
+servers:
+  - url: https://api.xero.com
+
+paths:
+  /api.xro/2.0/Organisation:
+    get:
+      operationId: getOrganisation
+      summary: The connected organisation
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/Contacts:
+    get:
+      operationId: searchContacts
+      summary: Find contacts
+      x-tangram-search:
+        queryParam: searchTerm
+        hits: {items: Contacts, id: ContactID, title: Name}
+      parameters:
+        - {name: searchTerm, in: query, required: false, description: "Case-insensitive text matched against Name, FirstName, LastName, ContactNumber, AccountNumber, EmailAddress.", schema: {type: string}}
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/order"
+        - $ref: "#/components/parameters/page"
+        - {name: includeArchived, in: query, required: false, schema: {type: boolean}}
+        - {name: summaryOnly, in: query, required: false, description: "true = lightweight records (no addresses/phones), faster.", schema: {type: boolean}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    put:
+      operationId: createContacts
+      summary: Create contacts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [Contacts]
+              properties:
+                Contacts:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [Name]
+                    properties:
+                      Name: {type: string, description: Unique contact name.}
+                      FirstName: {type: string}
+                      LastName: {type: string}
+                      EmailAddress: {type: string}
+                      AccountNumber: {type: string}
+                      TaxNumber: {type: string}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Validation error (e.g. duplicate Name) in Elements[].ValidationErrors."}
+
+  /api.xro/2.0/Contacts/{ContactID}:
+    get:
+      operationId: getContact
+      summary: Get a contact
+      parameters:
+        - {name: ContactID, in: path, required: true, description: Contact id (GUID)., schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /api.xro/2.0/Invoices:
+    get:
+      operationId: listInvoices
+      summary: List invoices and bills
+      parameters:
+        - {name: Statuses, in: query, required: false, description: "Comma-separated, e.g. AUTHORISED,PAID.", schema: {type: string}}
+        - {name: ContactIDs, in: query, required: false, description: Comma-separated contact ids., schema: {type: string}}
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/order"
+        - $ref: "#/components/parameters/page"
+        - {name: summaryOnly, in: query, required: false, description: "true = without line items, faster.", schema: {type: boolean}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    put:
+      operationId: createInvoices
+      summary: Create invoices or bills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [Invoices]
+              properties:
+                Invoices:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [Type, Contact, LineItems]
+                    properties:
+                      Type: {type: string, enum: [ACCREC, ACCPAY]}
+                      Contact:
+                        type: object
+                        additionalProperties: false
+                        required: [ContactID]
+                        properties:
+                          ContactID: {type: string}
+                      Date: {type: string, description: YYYY-MM-DD.}
+                      DueDate: {type: string, description: YYYY-MM-DD.}
+                      Reference: {type: string}
+                      InvoiceNumber: {type: string, description: Bills only; sales invoices are numbered by Xero.}
+                      CurrencyCode: {type: string}
+                      LineAmountTypes: {type: string, enum: [Exclusive, Inclusive, NoTax]}
+                      Status: {type: string, enum: [DRAFT, SUBMITTED, AUTHORISED], description: Defaults to DRAFT.}
+                      LineItems:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            Description: {type: string}
+                            Quantity: {type: number}
+                            UnitAmount: {type: number}
+                            AccountCode: {type: string}
+                            TaxType: {type: string}
+                            ItemCode: {type: string}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Validation error in Elements[].ValidationErrors."}
+
+  /api.xro/2.0/Invoices/{InvoiceID}:
+    get:
+      operationId: getInvoice
+      summary: Get an invoice or bill
+      parameters:
+        - {name: InvoiceID, in: path, required: true, description: Invoice id (GUID) or invoice number., schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+  /api.xro/2.0/Payments:
+    get:
+      operationId: listPayments
+      summary: List payments
+      parameters:
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/order"
+        - $ref: "#/components/parameters/page"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/BankTransactions:
+    get:
+      operationId: listBankTransactions
+      summary: List bank transactions
+      parameters:
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/order"
+        - $ref: "#/components/parameters/page"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/Accounts:
+    get:
+      operationId: listAccounts
+      summary: The chart of accounts
+      parameters:
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/order"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/Reports/ProfitAndLoss:
+    get:
+      operationId: getProfitAndLoss
+      summary: Profit and loss report
+      parameters:
+        - {name: fromDate, in: query, required: false, schema: {type: string, format: date}}
+        - {name: toDate, in: query, required: false, schema: {type: string, format: date}}
+        - $ref: "#/components/parameters/periods"
+        - $ref: "#/components/parameters/timeframe"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/Reports/BalanceSheet:
+    get:
+      operationId: getBalanceSheet
+      summary: Balance sheet report
+      parameters:
+        - {name: date, in: query, required: false, schema: {type: string, format: date}}
+        - $ref: "#/components/parameters/periods"
+        - $ref: "#/components/parameters/timeframe"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api.xro/2.0/Reports/TrialBalance:
+    get:
+      operationId: getTrialBalance
+      summary: Trial balance report
+      parameters:
+        - {name: date, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+components:
+  parameters:
+    where:
+      {name: where, in: query, required: false, description: "Filter expression, e.g. Status==\"AUTHORISED\" AND Date>=DateTime(2026,07,01).", schema: {type: string}}
+    order:
+      {name: order, in: query, required: false, description: "e.g. Date DESC.", schema: {type: string}}
+    page:
+      {name: page, in: query, required: false, description: 1-based page of 100., schema: {type: integer, minimum: 1}}
+    periods:
+      {name: periods, in: query, required: false, description: Number of comparison periods (1-11)., schema: {type: integer, minimum: 1, maximum: 11}}
+    timeframe:
+      {name: timeframe, in: query, required: false, schema: {type: string, enum: [MONTH, QUARTER, YEAR]}}
+  responses:
+    Ok:
+      description: Xero JSON response.
+      content:
+        application/json:
+          schema:
+            type: object

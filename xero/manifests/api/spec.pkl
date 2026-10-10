@@ -1,0 +1,54 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+import "@tangram-app-manifest/oauth.pkl" as oauthTypes
+
+// Xero Accounting API. One host for every organisation: the
+// xero-tenant-id header selects it. Each connection captures the tenant id
+// of the install's organisationName from GET /connections at connect time.
+endpoint = "https://api.xero.com"
+endpointOverridable = false
+endpointRequired = false
+endpointHostAllowlist = List("api.xero.com")
+
+apiSpecFile = "open_api.yml"
+
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate { template = "Bearer {{oauth.accessToken}}" },
+    "xero-tenant-id",
+    new connector.HeaderTemplate { template = "{{oauth.tenantId}}" },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}
+
+oauth = new oauthTypes.OAuth2AuthCode {
+  authorizationUrl = "https://login.xero.com/identity/connect/authorize"
+  tokenUrl = "https://identity.xero.com/connect/token"
+  revocationUrl = "https://identity.xero.com/connect/revocation"
+  scopes = List(
+    "offline_access",
+    "accounting.transactions",
+    "accounting.contacts",
+    "accounting.settings.read",
+    "accounting.reports.read"
+  )
+  clientIdSecret = "xeroClientId"
+  clientSecretSecret = "xeroClientSecret"
+  callbackPath = "/api/core/v1/connector-oauth/callback/com.xero/xero"
+  tokenAuthMethod = "ClientSecretBasic"
+  pkce = true
+  // /connections lists every organisation the user authorised (grants
+  // accumulate); pick the install's, never an arbitrary first one.
+  tenant = new oauthTypes.UserInfo {
+    url = "https://api.xero.com/connections"
+    jsonPath = "$[?(@.tenantName=='{{settings.organisationName}}')].tenantId"
+  }
+  // Access tokens live 30 min; refresh tokens rotate on use (60-day life).
+  refreshWindowSeconds = 600
+  // Bookkeeping is a workspace concern: one shared connection by default.
+  connectionScope = new oauthTypes.SelectableScope {
+    default = "WorkspaceShared"
+    allowedAtInstall = List("WorkspaceShared", "PerUser")
+  }
+}

@@ -1,0 +1,10 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "organisationName"
+    required    = true
+    description = "The Xero organisation this install works with, exactly as named in Xero (case-insensitive). Connecting fails for accounts without access to it."
+    example     = "Acme Ltd"
+  }
+)
