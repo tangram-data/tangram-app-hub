@@ -149,7 +149,6 @@ export default function ReportViewer() {
       setParams(p);
       run(p);
     };
-    apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [run]);
 

@@ -107,7 +107,6 @@ export default function InvoiceViewer() {
       setInvoiceId(id);
       load(id);
     };
-    apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
