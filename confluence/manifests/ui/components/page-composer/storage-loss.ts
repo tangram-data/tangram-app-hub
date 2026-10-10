@@ -46,6 +46,10 @@ export function lossReasons(body: Element): string[] {
       }
       attrs(el);
       if (depth > 0) out.add("nested formatting");
+      // The draft markers need text that hugs them: **x**, *x*, `x` — one line, no edge spaces, no backticks in code.
+      const t = el.textContent ?? "";
+      if (!t.trim() || /^\s|\s$/.test(t)) out.add("formatting with leading or trailing spaces");
+      if (tag(el) === "code" && /[\n\r]/.test(t)) out.add("inline code spanning lines");
       inline(el, depth + 1);
     }
   };
@@ -80,7 +84,9 @@ export function lossReasons(body: Element): string[] {
     }
     const el = n as Element;
     const t = tag(el);
-    if (t === "p" || t === "h1" || t === "h2" || t === "h3") (attrs(el), inline(el, 0));
+    if ((t === "p" || /^h[1-3]$/.test(t)) && !(el.textContent ?? "").trim() && !el.children.length)
+      out.add("empty paragraphs (extra spacing)");
+    else if (t === "p" || t === "h1" || t === "h2" || t === "h3") (attrs(el), inline(el, 0));
     else if (t === "hr") attrs(el);
     else if (t === "ul" || t === "ol") list(el);
     else if (t === "blockquote") {
@@ -97,4 +103,28 @@ export function lossReasons(body: Element): string[] {
     else other(el);
   }
   return Array.from(out);
+}
+
+const BLOCKS = "p|h[1-6]|ul|ol|li|blockquote|hr|pre|table|thead|tbody|tr|th|td|div|ac:[\\w-]+|body";
+const SYNONYM: Record<string, string> = { b: "strong", i: "em" };
+
+// A storage body reduced to what it shows: tags (b/i as strong/em), meaningful attributes (local ids dropped,
+// ol start="1" dropped, macro names and parameters kept), code text exact, other whitespace collapsed and trimmed
+// at block edges. Two bodies with the same canonical form read the same.
+export function canonical(body: Element): string {
+  const walk = (n: Node, raw: boolean): string => {
+    if (n.nodeType === Node.TEXT_NODE) return raw ? n.textContent ?? "" : (n.textContent ?? "").replace(/\s+/g, " ");
+    if (n.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = n as Element;
+    const t = SYNONYM[tag(el)] ?? tag(el);
+    const keep = Array.from(el.attributes)
+      .filter((a) => !BENIGN.has(a.name) && !/^ac:(macro-id|schema-version|local-id)$/.test(a.name))
+      .filter((a) => !(t === "ol" && a.name === "start" && a.value === "1"))
+      .map((a) => ` ${a.name}="${a.value}"`)
+      .sort()
+      .join("");
+    const isRaw = raw || t === "pre" || t === "ac:plain-text-body";
+    return `<${t}${keep}>${Array.from(el.childNodes).map((c) => walk(c, isRaw)).join("")}</${t}>`;
+  };
+  return walk(body, false).replace(new RegExp(`\\s*(</?(?:${BLOCKS})(?:\\s[^>]*)?>)\\s*`, "g"), "$1");
 }

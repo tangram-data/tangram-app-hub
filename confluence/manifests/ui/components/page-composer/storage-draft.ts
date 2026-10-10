@@ -1,4 +1,4 @@
-import { lossReasons } from "./storage-loss";
+import { canonical, lossReasons } from "./storage-loss";
 
 // Plain-text draft ⇄ Confluence storage format for the page composer.
 // Draft syntax: #/##/### headings, - or * bullets, "1." numbered items,
@@ -80,11 +80,16 @@ export function draftToStorage(draft: string): string {
 // it survives a round trip; `lossy` lists everything the draft can't carry
 // (tables, macros, images, links, nested lists, other formatting) so the
 // composer can warn before an edited draft replaces the body.
-export function storageToDraft(xhtml: string): { draft: string; lossy: string[] } {
+// Storage parsed in HTML mode: CDATA becomes escaped text, self-closing ac:/ri: tags get a close tag.
+function parseStorage(xhtml: string): Document {
   const src = xhtml
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))
     .replace(/<((?:ac|ri):[\w-]+)((?:\s[^<>]*?)?)\s*\/>/g, "<$1$2></$1>");
-  const doc = new DOMParser().parseFromString(`<body>${src}</body>`, "text/html");
+  return new DOMParser().parseFromString(`<body>${src}</body>`, "text/html");
+}
+
+export function storageToDraft(xhtml: string): { draft: string; lossy: string[] } {
+  const doc = parseStorage(xhtml);
   const lossy = lossReasons(doc.body);
 
   const text = (n: Node): string => {
@@ -138,5 +143,9 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
   };
   Array.from(doc.body.children).forEach(block);
   while (lines.length && lines[lines.length - 1] === "") lines.pop();
-  return { draft: lines.join("\n"), lossy };
+  const draft = lines.join("\n");
+  // Self-check: whatever the allowlist missed shows up as a difference after draft → storage.
+  if (!lossy.length && canonical(parseStorage(draftToStorage(draft)).body) !== canonical(doc.body))
+    lossy.push("formatting that doesn't round-trip");
+  return { draft, lossy };
 }
