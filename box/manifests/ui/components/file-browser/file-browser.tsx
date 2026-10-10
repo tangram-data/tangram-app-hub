@@ -14,7 +14,7 @@ import { BoxItem, badgeFor, errorText, formatSize, modifiedLabel, openItem } fro
 const tangram = (window as any).tangram;
 
 const PAGE_SIZE = 50;
-// Box search can't page past offset 10,000 (GET /search returns 400); narrow the query instead.
+// Box search rejects offsets above 10,000 (GET /search returns 400); narrow the query instead.
 const MAX_SEARCH_OFFSET = 10000;
 const LIST_FIELDS = "id,type,name,size,modified_at,modified_by,extension,url";
 
@@ -103,7 +103,7 @@ export default function FileBrowser() {
       setTrail([]);
       load(src);
     };
-    apply(tangram.getInputs() ?? {});
+    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous apply)
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
@@ -202,6 +202,11 @@ export default function FileBrowser() {
         <div className="bx-error" role="alert">
           <b>Couldn't load {current.kind === "search" ? "search results" : "this folder"}</b>
           {error}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => load(current)}>
+              Retry
+            </Button>
+          </div>
         </div>
       ) : state === "loading" ? (
         <div style={{ padding: "8px 16px" }}>
@@ -293,13 +298,13 @@ export default function FileBrowser() {
         </table>
       )}
       {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
-      active.current.kind === "search" && nextOffset >= MAX_SEARCH_OFFSET ? (
+      active.current.kind === "search" && nextOffset > MAX_SEARCH_OFFSET ? (
         <div className="bx-toolbar bx-faint">
           Showing the first {items.length} of {total} results — Box search stops here. Narrow the query to see more.
         </div>
       ) : null}
       {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
-      !(active.current.kind === "search" && nextOffset >= MAX_SEARCH_OFFSET) ? (
+      !(active.current.kind === "search" && nextOffset > MAX_SEARCH_OFFSET) ? (
         <div className="bx-toolbar">
           <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, nextOffset)}>
             Load more

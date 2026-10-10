@@ -86,7 +86,10 @@ export default function FileViewer() {
           setFile(meta);
           setState("ready");
           const ext = extensionOf(meta);
-          if (isTextLike(ext)) return download(meta.id, ext, mine, "preview");
+          if (isTextLike(ext)) {
+            setPreviewing(true);
+            return download(meta.id, ext, mine, "preview", () => setPreviewing(false));
+          }
         })
         .catch((e: unknown) => {
           if (mine !== seq.current) return;
@@ -97,7 +100,7 @@ export default function FileViewer() {
 
   useEffect(() => {
     const load = (inputs: Record<string, unknown>) => loadFile(String(inputs?.fileId ?? "").trim());
-    load(tangram.getInputs() ?? {});
+    // onInput fires as soon as the frame has its inputs (getInputs() returns a promise, so no synchronous load)
     tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
   }, []);
 
@@ -191,7 +194,8 @@ export default function FileViewer() {
           </Button>
         ) : null}
       </div>
-      {content.kind !== "none" || note ? <hr className="bx-divider" /> : null}
+      {content.kind !== "none" || note || previewing ? <hr className="bx-divider" /> : null}
+      {previewing && content.kind === "none" && !note ? <Skeleton active title={false} paragraph={{ rows: 4 }} /> : null}
       {(content.kind === "text" || content.kind === "table") && content.truncated ? (
         <div className="bx-note warn">Preview truncated — the file exceeds the inline limit. Open it in Box for the rest.</div>
       ) : null}
