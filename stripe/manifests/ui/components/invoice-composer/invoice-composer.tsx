@@ -7,7 +7,8 @@ import { Button, Input, InputNumber, Select, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/stripe.css";
 import "../../shared/tangram-buttons.css";
-import { dashboardUrl, day, errorText, invoiceStatus, money, safeUrl } from "../../shared/stripe-format";
+import ExtLink from "../../shared/ext-link";
+import { dashboardUrl, day, errorText, invoiceStatus, isNotFound, money, safeUrl } from "../../shared/stripe-format";
 import { IdempotencyKeys } from "./idempotency";
 import LineForm, { LineBody } from "./line-form";
 
@@ -47,7 +48,12 @@ export default function InvoiceComposer() {
   const [loading, setLoading] = useState(true);
   // the shown invoice may be out of date (a refresh after a write failed): writes stay blocked until it reloads
   const [stale, setStale] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Writes in flight, by invoice id ("create" for a new draft). Kept across input changes so returning to an
+  // invoice can't start a second write on it before the first settles; the tick re-renders on release.
+  const inFlight = useRef(new Set<string>());
+  const [, setLockTick] = useState(0);
+  // invoice ids whose Delete got no clear answer: a not-found on reconcile means it was deleted
+  const pendingDelete = useRef(new Set<string>());
   const [error, setError] = useState("");
   const [method, setMethod] = useState<Method>("send_invoice");
   const [daysUntilDue, setDaysUntilDue] = useState<number>(30);
@@ -71,6 +77,7 @@ export default function InvoiceComposer() {
     setLoading(true);
     try {
       const inv: Invoice = await act("Invoice", "Get", { id });
+      pendingDelete.current.delete(id);
       if (g !== gen.current || mine !== seq.current) return false;
       setInvoice(inv);
       setCustomerId(inv.customer);
@@ -78,6 +85,18 @@ export default function InvoiceComposer() {
       setError("");
       return true;
     } catch (e) {
+      if (pendingDelete.current.has(id) && isNotFound(e)) {
+        // the earlier Delete did go through
+        pendingDelete.current.delete(id);
+        if (g === gen.current && mine === seq.current) {
+          tangram.emit("saved", { invoiceId: id, status: "deleted" });
+          setDeleted(id);
+          setInvoice(null);
+          setStale(false);
+          setError("");
+        }
+        return false;
+      }
       if (g === gen.current && mine === seq.current) {
         setStale(true);
         setError(`Couldn't refresh the invoice: ${errorText(e)}`);
@@ -97,7 +116,6 @@ export default function InvoiceComposer() {
       setDeleted("");
       setError("");
       setStale(false);
-      setBusy(false);
       setSent(new Set());
       setCustomerId(String(inputs?.customerId ?? "").trim());
       if (invoiceId) reload(invoiceId, g);
@@ -125,13 +143,18 @@ export default function InvoiceComposer() {
     tangram.provideState?.(() => ({ ...stateRef.current }));
   }, []);
 
+  const lockKey = invoice?.id ?? (target || "create");
+  const busy = inFlight.current.has(lockKey);
+
   // Runs one gated write for the current inputs; a result arriving after the inputs changed touches nothing.
   // Failures (including the user declining the host confirmation) show inline.
   async function run(step: (g: number, live: () => boolean) => Promise<unknown>): Promise<boolean> {
-    if (busy) return false;
+    const lock = lockKey;
+    if (inFlight.current.has(lock)) return false;
     const g = gen.current;
     const live = () => g === gen.current;
-    setBusy(true);
+    inFlight.current.add(lock);
+    setLockTick((t) => t + 1);
     setError("");
     try {
       await step(g, live);
@@ -145,7 +168,8 @@ export default function InvoiceComposer() {
       }
       return false;
     } finally {
-      if (live()) setBusy(false);
+      inFlight.current.delete(lock);
+      setLockTick((t) => t + 1);
     }
   }
 
@@ -228,7 +252,9 @@ export default function InvoiceComposer() {
   const remove = () =>
     run(async (_g, live) => {
       if (!invoice) return;
+      pendingDelete.current.add(invoice.id);
       await act("Invoice", "Delete", { id: invoice.id });
+      pendingDelete.current.delete(invoice.id);
       if (!live()) return;
       tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
       seq.current++;
@@ -339,9 +365,9 @@ export default function InvoiceComposer() {
           {st.word}
         </span>
         <span className="sp" />
-        <a href={dashboardUrl("invoices", invoice.id, invoice.livemode)} target="_blank" rel="noopener noreferrer">
+        <ExtLink href={dashboardUrl("invoices", invoice.id, invoice.livemode)}>
           Open in Stripe <ExportOutlined aria-hidden="true" />
-        </a>
+        </ExtLink>
       </div>
       <div className="s-sub" style={{ marginBottom: 12 }}>
         {invoice.customer_name || invoice.customer_email || invoice.customer} ·{" "}
@@ -401,9 +427,7 @@ export default function InvoiceComposer() {
       {invoice.status === "open" && !charges && safeUrl(invoice.hosted_invoice_url) ? (
         <div className="s-faint" style={{ margin: "8px 0" }}>
           Payment page:{" "}
-          <a href={safeUrl(invoice.hosted_invoice_url)} target="_blank" rel="noopener noreferrer">
-            hosted invoice
-          </a>
+          <ExtLink href={invoice.hosted_invoice_url}>hosted invoice</ExtLink>
         </div>
       ) : null}
       {errorBox}

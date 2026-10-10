@@ -1,7 +1,8 @@
 // One Stripe customer at a glance: profile facts, then recent payments, invoices and subscriptions as quiet
 // tables, all through the connector's read actions. An invoice row emits `open` {invoiceId} for the host/agent.
-import { ExportOutlined, UserOutlined } from "@ant-design/icons";
-import { Skeleton } from "antd";
+import { ExportOutlined, ReloadOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Skeleton, Tooltip } from "antd";
+import ExtLink from "../../shared/ext-link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/stripe.css";
 import "../../shared/tangram-buttons.css";
@@ -12,7 +13,6 @@ import {
   invoiceStatus,
   money,
   paymentStatus,
-  safeUrl,
   Status,
   subscriptionStatus,
   when,
@@ -70,11 +70,13 @@ function SectionBody<T>({
   title,
   section,
   empty,
+  onRetry,
   children,
 }: {
   title: string;
   section: Section<T>;
   empty: string;
+  onRetry: () => void;
   children: (rows: T[]) => React.ReactNode;
 }) {
   return (
@@ -91,7 +93,12 @@ function SectionBody<T>({
       {section.state === "loading" ? (
         <Skeleton active title={false} paragraph={{ rows: 2 }} />
       ) : section.state === "error" ? (
-        <div className="s-error inline">{section.error}</div>
+        <div className="s-error inline">
+          {section.error}{" "}
+          <Button size="small" icon={<ReloadOutlined aria-hidden="true" />} onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
       ) : section.rows.length === 0 ? (
         <div className="s-empty">{empty}</div>
       ) : (
@@ -111,6 +118,21 @@ export default function CustomerViewer() {
   const [subs, setSubs] = useState<Section<Subscription>>(loading());
   const seq = useRef(0);
 
+  // One section's read; a retry runs under the current customer load and is dropped if that load moved on.
+  const sectionSeq = useRef<Record<string, number>>({});
+  const loadSection = useCallback((name: "payments" | "invoices" | "subs", id: string, loadId: number) => {
+    const mine = (sectionSeq.current[name] = (sectionSeq.current[name] ?? 0) + 1);
+    const live = () => loadId === seq.current && mine === sectionSeq.current[name];
+    const run = <T,>(p: Promise<{ data?: T[]; has_more?: boolean }>, set: (s: Section<T>) => void) => {
+      set(loading());
+      p.then((r) => live() && set({ state: "ready", rows: r?.data ?? [], more: !!r?.has_more })).catch(
+        (e: unknown) => live() && set({ state: "error", rows: [], error: errorText(e) }),
+      );
+    };
+    if (name === "payments") run(read("PaymentIntent", "List", { customer: id, limit: 10 }), setPayments);
+    else if (name === "invoices") run(read("Invoice", "List", { customer: id, limit: 10 }), setInvoices);
+    else run(read("Subscription", "List", { customer: id, status: "all", limit: 10 }), setSubs);
+  }, []);
   const load = useCallback((id: string) => {
     const mine = ++seq.current;
     const live = () => mine === seq.current;
@@ -141,14 +163,12 @@ export default function CustomerViewer() {
         setError(errorText(e));
         setState("error");
       });
-    const section = <T,>(p: Promise<{ data?: T[]; has_more?: boolean }>, set: (s: Section<T>) => void) =>
-      p
-        .then((r) => live() && set({ state: "ready", rows: r?.data ?? [], more: !!r?.has_more }))
-        .catch((e: unknown) => live() && set({ state: "error", rows: [], error: errorText(e) }));
-    section(read("PaymentIntent", "List", { customer: id, limit: 10 }), setPayments);
-    section(read("Invoice", "List", { customer: id, limit: 10 }), setInvoices);
-    section(read("Subscription", "List", { customer: id, status: "all", limit: 10 }), setSubs);
+    loadSection("payments", id, mine);
+    loadSection("invoices", id, mine);
+    loadSection("subs", id, mine);
   }, []);
+
+  const retrySection = (name: "payments" | "invoices" | "subs") => loadSection(name, customerId, seq.current);
 
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => load(String(inputs?.customerId ?? "").trim());
@@ -167,6 +187,9 @@ export default function CustomerViewer() {
         <div className="s-error">
           <b>Couldn't load customer {customerId}</b>
           {error ? <div>{error}</div> : null}
+          <Button size="small" icon={<ReloadOutlined aria-hidden="true" />} style={{ marginTop: 8 }} onClick={() => load(customerId)}>
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -196,9 +219,14 @@ export default function CustomerViewer() {
           )}
         </div>
         {c ? (
-          <a href={dashboardUrl("customers", c.id, c.livemode)} target="_blank" rel="noopener noreferrer">
-            Open in Stripe <ExportOutlined aria-hidden="true" />
-          </a>
+          <>
+            <Tooltip title="Refresh">
+              <Button size="small" aria-label="Refresh" icon={<ReloadOutlined aria-hidden="true" />} onClick={() => load(customerId)} />
+            </Tooltip>
+            <ExtLink href={dashboardUrl("customers", c.id, c.livemode)}>
+              Open in Stripe <ExportOutlined aria-hidden="true" />
+            </ExtLink>
+          </>
         ) : null}
       </header>
       {c ? (
@@ -241,7 +269,7 @@ export default function CustomerViewer() {
         </div>
       ) : null}
 
-      <SectionBody title="Payments" section={payments} empty="No payments yet.">
+      <SectionBody title="Payments" section={payments} empty="No payments yet." onRetry={() => retrySection("payments")}>
         {(rows) => (
           <table className="s-table">
             <colgroup>
@@ -276,7 +304,7 @@ export default function CustomerViewer() {
         )}
       </SectionBody>
 
-      <SectionBody title="Invoices" section={invoices} empty="No invoices yet.">
+      <SectionBody title="Invoices" section={invoices} empty="No invoices yet." onRetry={() => retrySection("invoices")}>
         {(rows) => (
           <table className="s-table">
             <colgroup>
@@ -315,16 +343,7 @@ export default function CustomerViewer() {
                   </td>
                   <td className="s-muted">{day(inv.due_date)}</td>
                   <td>
-                    {safeUrl(inv.hosted_invoice_url) ? (
-                      <a
-                        href={safeUrl(inv.hosted_invoice_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View
-                      </a>
-                    ) : null}
+                    {inv.hosted_invoice_url ? <ExtLink href={inv.hosted_invoice_url}>View</ExtLink> : null}
                   </td>
                 </tr>
               ))}
@@ -333,7 +352,7 @@ export default function CustomerViewer() {
         )}
       </SectionBody>
 
-      <SectionBody title="Subscriptions" section={subs} empty="No subscriptions.">
+      <SectionBody title="Subscriptions" section={subs} empty="No subscriptions." onRetry={() => retrySection("subs")}>
         {(rows) => (
           <table className="s-table">
             <colgroup>

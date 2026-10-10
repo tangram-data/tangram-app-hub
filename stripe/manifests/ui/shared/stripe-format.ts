@@ -139,17 +139,22 @@ export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** Stripe errors the connector relays (resource_missing / 404) meaning the object no longer exists. */
+export function isNotFound(e: unknown): boolean {
+  return /resource_missing|No such (invoice|customer)|\b404\b/i.test(errorText(e));
+}
+
 /** Dashboard deep link; test-mode objects live under /test/. */
 export function dashboardUrl(kind: "customers" | "invoices", id: string, livemode: boolean | undefined): string {
   return `https://dashboard.stripe.com/${livemode === false ? "test/" : ""}${kind}/${encodeURIComponent(id)}`;
 }
 
-/** The URL when it is http(s), else undefined — never render other schemes as links. */
+/** The URL when it is https (all the host's open-url relay accepts), else undefined — never a link otherwise. */
 export function safeUrl(raw: string | null | undefined): string | undefined {
   if (!raw) return undefined;
   try {
     const u = new URL(raw);
-    return u.protocol === "https:" || u.protocol === "http:" ? u.href : undefined;
+    return u.protocol === "https:" ? u.href : undefined;
   } catch {
     return undefined;
   }
