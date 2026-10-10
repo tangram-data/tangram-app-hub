@@ -68,3 +68,16 @@ export async function storedPage(p: Page): Promise<Page> {
   if (p.body?.storage?.value != null) return p;
   return getPage(p.id);
 }
+
+export type CreateAttempt = { spaceId: string; parentId: string; title: string; value: string; before: Set<string> };
+
+// Uncertain create, judged only by what was submitted: exactly one page with that title in that space and parent,
+// absent from the pre-create snapshot, whose body reads as submitted, is ours. Otherwise a reason to stay uncertain.
+export async function findCreatedPage(a: CreateAttempt, sameBody: (x: string, y: string) => boolean): Promise<Page | string> {
+  const fresh = (await titledPages(a.spaceId, a.title)).filter(
+    (x) => !a.before.has(x.id) && (!a.parentId || x.parentId === a.parentId),
+  );
+  const ours = (await Promise.all(fresh.map((x) => getPage(x.id)))).filter((p) => sameBody(p.body?.storage?.value ?? "", a.value));
+  if (ours.length === 1) return ours[0];
+  return ours.length ? "More than one matching page was found." : "Not visible yet — Confluence may still have created it.";
+}

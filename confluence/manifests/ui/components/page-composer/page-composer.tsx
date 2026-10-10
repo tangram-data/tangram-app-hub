@@ -12,12 +12,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
 import { definiteFailure, sameText, stableJson } from "../../shared/write-outcome";
-import { Page, errText, getPage, openExternal, pageUrl, storedPage, titledPages } from "./composer-io";
+import { CreateAttempt, Page, errText, findCreatedPage, getPage, openExternal, pageUrl, storedPage, titledPages } from "./composer-io";
 import { SpacePicker } from "./space-picker";
-import { ModeBar, Status, StatusBanners } from "./composer-banners";
+import { ModeBar, Status, StatusBanners, reloadedNotice } from "./composer-banners";
 import { DraftPreview } from "./draft-preview";
 import { draftToStorage, sameStorage, storageToDraft } from "./storage-draft";
-import { UpdateAttempt, reconcile, retryBody } from "./update-attempt";
+import { UpdateAttempt, isOurSave, reconcile, retryBody } from "./update-attempt";
 
 const tangram = (window as any).tangram;
 
@@ -49,7 +49,9 @@ export default function PageComposer() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const seq = useRef(0);
   const inputsRef = useRef<Record<string, unknown>>({});
-  const createAttempt = useRef({ spaceId: "", parentId: "", title: "", value: "", before: new Set<string>() });
+  const createAttempt = useRef<CreateAttempt>({ spaceId: "", parentId: "", title: "", value: "", before: new Set<string>() });
+  // Set when a save landed but its page couldn't be re-read: Retry then only re-reads the stored page.
+  const rereadOnly = useRef(false);
   const stateRef = useRef({});
   stateRef.current = { mode, spaceId, parentId, pageId, title, body, section };
 
@@ -98,6 +100,7 @@ export default function PageComposer() {
       gen.current++;
       attempt.current = null;
       latest.current = null;
+      rereadOnly.current = false;
       const id = String(inputs?.pageId ?? "");
       setPageId(id);
       setMode(id ? "append" : "create");
@@ -144,7 +147,7 @@ export default function PageComposer() {
 
   // A write that is known to have landed (directly, or found by reconciliation) becomes the new baseline.
   // `draft` is the markdown that produced `value` (the baseline for further whole-page edits).
-  function landed(p: Page, value: string, link: string, draft: string) {
+  function landed(p: Page, value: string, link: string, draft: string, notice?: string) {
     const saved = { ...p, body: { storage: { value } }, title: p.title ?? title.trim() };
     adopt(saved);
     if (mode !== "append") {
@@ -158,7 +161,7 @@ export default function PageComposer() {
     }
     if (mode === "append") setSection("");
     setLoaded(true);
-    setStatus({ kind: "saved", title: saved.title, url: link });
+    setStatus(notice ? { kind: "error", message: notice } : { kind: "saved", title: saved.title, url: link });
     tangram.emit("saved", { pageId: p.id, title: saved.title, url: link });
   }
 
@@ -243,9 +246,21 @@ export default function PageComposer() {
         // Confluence's stored body (with any markup it added) is the new baseline, never the submitted one.
         const [stored, link] = await Promise.all([storedPage(p).catch(() => null), pageUrl(p)]);
         if (s !== seq.current) return;
-        if (stored) return landed(stored, stored.body?.storage?.value ?? "", link, sentDraft);
-        // Saved, but the stored body is unknown: no further saves until the page is re-read (Retry reloads it).
+        if (stored) {
+          const storedBody = stored.body?.storage?.value ?? "";
+          if (isOurSave(stored, p, value, editing ? original.current.version : null))
+            return landed(stored, storedBody, link, sentDraft);
+          // Someone saved after us: the editor follows the newer page, so nothing of theirs gets overwritten.
+          const latestDraft = storageToDraft(storedBody).draft;
+          landed(stored, storedBody, link, latestDraft, `Saved — but the page changed since your save (now v${stored.version?.number ?? "?"}); the editor shows the latest.`);
+          if (mode !== "append") setBody(latestDraft);
+          return;
+        }
+        // Saved, but the stored body is unknown: no further saves until the stored page is re-read. The committed
+        // section is cleared, and Retry only re-reads (never re-applies the initial inputs).
         if (mode === "create" && p.id) (setPageId(p.id), setMode("whole"));
+        if (mode === "append") setSection("");
+        rereadOnly.current = true;
         setLoaded(false);
         setStatus({ kind: "error", message: "Saved — but couldn't re-read the page. Retry before saving again." });
         tangram.emit("saved", { pageId: p.id, title: p.title ?? title.trim(), url: link });
@@ -282,24 +297,31 @@ export default function PageComposer() {
   function findCreated(s: number) {
     const a = createAttempt.current;
     setStatus({ kind: "busy" });
-    titledPages(a.spaceId, a.title)
-      .then(async (results) => {
-        const fresh = results.filter((x) => !a.before.has(x.id) && (!a.parentId || x.parentId === a.parentId));
-        const full = await Promise.all(fresh.map((x) => getPage(x.id)));
+    findCreatedPage(a, sameText)
+      .then((found) => {
         if (s !== seq.current) return;
-        const ours = full.filter((p) => sameText(p.body?.storage?.value ?? "", a.value));
-        if (ours.length !== 1) {
-          setStatus({
-            kind: "uncertain",
-            message: ours.length ? "More than one matching page was found." : "Not visible yet — Confluence may still have created it.",
-          });
-          return;
-        }
-        setPageId(ours[0].id);
-        loadPage(ours[0].id, { title, body, append: false });
-        tangram.emit("saved", { pageId: ours[0].id, title: ours[0].title ?? a.title, url: "" });
+        if (typeof found === "string") return setStatus({ kind: "uncertain", message: found });
+        setPageId(found.id);
+        loadPage(found.id, { title, body, append: false });
+        tangram.emit("saved", { pageId: found.id, title: found.title ?? a.title, url: "" });
       })
       .catch((err: unknown) => s === seq.current && setStatus({ kind: "uncertain", message: `Couldn't check: ${errText(err)}` }));
+  }
+
+  // After a save whose follow-up read failed: the stored page becomes the baseline; drafts follow it (whole page).
+  function refreshBaseline() {
+    const s = ++seq.current;
+    setStatus({ kind: "loading" });
+    getPage(pageId)
+      .then((p) => {
+        if (s !== seq.current) return;
+        const conv = adopt(p);
+        if (mode !== "append") (setBody(conv.draft), (bodyBase.current = original.current.storage));
+        rereadOnly.current = false;
+        setLoaded(true);
+        setStatus({ kind: "idle" });
+      })
+      .catch((e: unknown) => s === seq.current && setStatus({ kind: "error", message: errText(e) }));
   }
 
   // Conflict recovery: the latest version becomes the baseline. Append re-applies the section on top of it; whole-page
@@ -315,8 +337,7 @@ export default function PageComposer() {
         const base = original.current.storage;
         const conv = adopt(p);
         if (!titleWasEdited) setTitle(p.title ?? "");
-        if (mode === "whole" && !bodyWasEdited) setBody(conv.draft);
-        if (mode === "whole" && !bodyWasEdited) bodyBase.current = original.current.storage;
+        if (mode === "whole" && !bodyWasEdited) (setBody(conv.draft), (bodyBase.current = original.current.storage));
         setLoaded(true);
         // The conflicting version may be our own append that lost its answer.
         // Exact (canonical) comparison: the latest body is the old baseline plus this section.
@@ -325,13 +346,7 @@ export default function PageComposer() {
           setStatus({ kind: "error", message: `Your section is already at the end of v${p.version?.number ?? "?"} — nothing to append.` });
           return;
         }
-        const kept =
-          mode === "append"
-            ? "Your section will be appended to that version; "
-            : titleWasEdited || bodyWasEdited
-              ? "Your edits are kept and would replace that version's; review them, then "
-              : "";
-        setStatus({ kind: "error", message: `Reloaded v${p.version?.number ?? "?"} — the page changed in Confluence. ${kept}save again.` });
+        setStatus({ kind: "error", message: reloadedNotice(p.version?.number, mode === "append", titleWasEdited || bodyWasEdited) });
       })
       .catch((e: unknown) => s === seq.current && setStatus({ kind: "conflict", message: errText(e) }));
   }
@@ -366,12 +381,6 @@ export default function PageComposer() {
           <>
             {pickSpace && !editing ? (
               <SpacePicker value={spaceId} disabled={status.kind === "uncertain" || busy} onChange={setSpaceId} />
-            ) : null}
-            {editing && !loaded && status.kind === "error" ? (
-              <div className="a-error">
-                Couldn't load the page: {status.message}{" "}
-                <Button size="small" type="text" onClick={() => loadPage(pageId, inputsRef.current)}>Retry</Button>
-              </div>
             ) : null}
             {editing && loaded ? (
               <ModeBar
@@ -429,6 +438,7 @@ export default function PageComposer() {
               onCheckCreate={() => findCreated(seq.current)}
               onCreateAgain={() => save()}
               onReloadLatest={reloadLatest}
+              onRetryLoad={editing && !loaded ? () => (rereadOnly.current ? refreshBaseline() : loadPage(pageId, inputsRef.current)) : undefined}
             />
           </>
         )}

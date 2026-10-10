@@ -23,6 +23,8 @@ type Props = {
   onCheckCreate: () => void;
   onCreateAgain: () => void;
   onReloadLatest: () => void;
+  // Set while an existing page isn't loaded: the error offers Retry.
+  onRetryLoad?: () => void;
 };
 
 export function StatusBanners({
@@ -34,9 +36,18 @@ export function StatusBanners({
   onCheckCreate,
   onCreateAgain,
   onReloadLatest,
+  onRetryLoad,
 }: Props) {
   return (
     <>
+      {status.kind === "error" && onRetryLoad ? (
+        <div className="a-error">
+          Couldn't load the page: {status.message}{" "}
+          <Button size="small" type="text" onClick={onRetryLoad}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
       {status.kind === "error" && showError ? <div className="a-error">{status.message}</div> : null}
       {status.kind === "unsure" ? (
         <div className="a-error" role="alert">
@@ -110,4 +121,14 @@ export function ModeBar(props: {
       ) : null}
     </>
   );
+}
+
+// What a conflict reload tells the user before they save again.
+export function reloadedNotice(version: number | undefined, append: boolean, edited: boolean): string {
+  const kept = append
+    ? "Your section will be appended to that version; "
+    : edited
+      ? "Your edits are kept and would replace that version's; review them, then "
+      : "";
+  return `Reloaded v${version ?? "?"} — the page changed in Confluence. ${kept}save again.`;
 }
