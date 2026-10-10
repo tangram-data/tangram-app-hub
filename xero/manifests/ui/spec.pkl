@@ -4,3 +4,84 @@ logo = "static/xero.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "invoice-viewer"
+    kind = "sandboxed"
+    entry = "components/invoice-viewer/invoice-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Xero invoice"
+      description = "Show a Xero sales invoice or bill by id the way Xero lays it out: number, status (draft, awaiting approval/payment, overdue, paid, voided), contact, dates, reference, line items, subtotal/tax/total, amount paid and due, and payments. Read-only; links to the invoice in Xero, and the contact emits `open`."
+      inputs {
+        type = "object"
+        required {
+          "invoiceId"
+        }
+        properties {
+          ["invoiceId"] = new Dynamic {
+            type = "string"
+            description = "Xero InvoiceID (GUID) or invoice number, e.g. from xero_list_invoice."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["contactId"] = new Dynamic { type = "string" }
+              ["name"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "report-viewer"
+    kind = "sandboxed"
+    entry = "components/report-viewer/report-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Xero financial report"
+      description = "Run and show a Xero profit and loss, balance sheet, or trial balance as a quiet financial table (sections, totals, comparison columns). The user can switch report, dates and comparison periods and re-run it."
+      inputs {
+        type = "object"
+        required {
+          "report"
+        }
+        properties {
+          ["report"] = new Dynamic {
+            type = "string"
+            enum = List("ProfitAndLoss", "BalanceSheet", "TrialBalance")
+            description = "Which report to run."
+          }
+          ["fromDate"] = new Dynamic {
+            type = "string"
+            description = "Profit and loss start date, YYYY-MM-DD (default: start of this month)."
+          }
+          ["toDate"] = new Dynamic {
+            type = "string"
+            description = "Profit and loss end date, YYYY-MM-DD (default: today)."
+          }
+          ["date"] = new Dynamic {
+            type = "string"
+            description = "Balance sheet / trial balance 'as at' date, YYYY-MM-DD (default: today)."
+          }
+          ["periods"] = new Dynamic {
+            type = "integer"
+            description = "Comparison periods (1-11; P&L and balance sheet only)."
+          }
+          ["timeframe"] = new Dynamic {
+            type = "string"
+            enum = List("MONTH", "QUARTER", "YEAR")
+            description = "Length of each comparison period (default MONTH)."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

@@ -36,3 +36,11 @@ created from March 2026): `offline_access`, `accounting.invoices`, `accounting.p
 `accounting.reports.trialbalance.read`. Access tokens last 30 minutes and refresh
 automatically (rotating refresh tokens, 60-day life); disconnect revokes the grant. Connection scope: **WorkspaceShared** (default — one bookkeeping
 connection) or **PerUser**.
+
+## UI components
+
+| Component | Shows | Notes |
+|-----------|-------|-------|
+| `invoice-viewer` | One invoice or bill by `invoiceId`, laid out like Xero: status, contact, dates, line items, totals, amount due, payments. | Read-only. `Invoice.Get` results render with it. "Open in Xero" deep-links; the contact emits `open` (`contactId`). |
+| `report-viewer` | Profit and loss, balance sheet, or trial balance as a financial table with sections, totals and comparison columns. | Inputs `report` + dates/`periods`/`timeframe`; the user can switch report and dates and re-run. |
+

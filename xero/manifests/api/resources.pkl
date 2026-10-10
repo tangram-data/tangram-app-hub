@@ -68,7 +68,23 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         reader("List", "listInvoices", "List invoices and bills. Filter by Statuses (comma list: DRAFT, SUBMITTED, AUTHORISED, PAID, VOIDED), ContactIDs, or \(whereDoc) Overdue: where=Type==\"ACCREC\" AND Status==\"AUTHORISED\" AND DueDate<DateTime(today)."),
-        reader("Get", "getInvoice", "One invoice or bill by InvoiceID (or invoice number): line items, totals, AmountDue/Paid, payments, status."),
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "One invoice or bill by InvoiceID (or invoice number): line items, totals, AmountDue/Paid, payments, status."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getInvoice" }
+          presentation = new resources.ComponentPresentation {
+            component = "invoice-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["invoiceId"] = new resources.FromArg {
+                path = List("parameters", "InvoiceID")
+              }
+            }
+          }
+        },
         new resources.Action {
           name = "Create"
           privilege = "Create"

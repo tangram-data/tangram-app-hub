@@ -1,0 +1,52 @@
+/* Xero look for the Xero connector components (invoice viewer, report viewer).
+   Source of truth: design/kits/xero.css — run scripts/sync-ui-kits.sh after editing. */
+.x-root {
+  --x-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --x-mono: "SFMono-Regular", Menlo, Consolas, monospace;
+  --x-text: #0f1e2d; --x-muted: #59606b; --x-faint: #7c8590; --x-line: #e2e5e9; --x-line2: #f0f2f4;
+  --x-blue: #13b5ea; --x-link: #0078c8; --x-hover: #f6f8fa; --x-surface2: #f8f9fa;
+  --x-green: #16a34a; --x-amber: #f59e0b; --x-red: #d92d20; --x-grey: #9ca3af; --x-bluedot: #2563eb;
+  font-family: var(--x-font); color: var(--x-text); background: #fff; font-size: 14px; line-height: 20px;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+}
+.x-root *, .x-root *::before, .x-root *::after { box-sizing: border-box; }
+.x-root .ant-btn, .x-root .ant-input, .x-root .ant-select, .x-root .ant-picker { font-family: var(--x-font); }
+.x-root a { color: var(--x-link); text-decoration: none; } .x-root a:hover { text-decoration: underline; }
+.x-pad { padding: 20px 24px; }
+.x-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.x-head .sp { flex: 1; }
+.x-kind { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--x-muted); }
+.x-title { font-size: 24px; font-weight: 600; line-height: 30px; margin: 2px 0 0; }
+.x-status { display: inline-flex; align-items: center; gap: 6px; color: var(--x-muted); font-size: 13px; white-space: nowrap; }
+.x-status .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.x-status.bad b { color: var(--x-red); font-weight: 600; }
+.x-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 20px; margin: 18px 0 20px; padding: 14px 16px; background: var(--x-surface2); border-radius: 8px; }
+.x-fact .k { font-size: 12px; color: var(--x-faint); } .x-fact .v { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.x-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--x-link); cursor: pointer; text-align: left; }
+.x-linkbtn:hover { text-decoration: underline; }
+.x-card { border: 1px solid var(--x-line); border-radius: 10px; overflow: hidden; background: #fff; }
+.x-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.x-table th { text-align: left; font-weight: 500; font-size: 12px; color: var(--x-muted); padding: 8px 12px; border-bottom: 1px solid var(--x-line); background: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; top: 0; }
+.x-table td { padding: 7px 12px; border-bottom: 1px solid var(--x-line2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.x-table tr:last-child td { border-bottom: 0; }
+.x-table tbody tr:hover td { background: var(--x-hover); }
+.x-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.x-table .muted { color: var(--x-muted); }
+.x-table tr.sec td { font-weight: 600; padding-top: 14px; background: #fff; border-bottom: 1px solid var(--x-line); }
+.x-table tr.sum td { font-weight: 600; border-top: 1px solid var(--x-line); }
+.x-table tr.sec:hover td, .x-table tr.sum:hover td { background: #fff; }
+.x-totals { margin: 12px 0 0 auto; width: min(320px, 100%); font-size: 14px; }
+.x-totals .r { display: flex; justify-content: space-between; padding: 4px 12px; font-variant-numeric: tabular-nums; }
+.x-totals .r.big { font-weight: 600; font-size: 16px; border-top: 1px solid var(--x-line); margin-top: 4px; padding-top: 8px; }
+.x-totals .r.due { color: var(--x-text); font-weight: 600; }
+.x-h2 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
+.x-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--x-line); }
+.x-bar .sum { flex: 1; min-width: 0; color: var(--x-faint); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.x-bar .ctl { display: flex; gap: 8px; align-items: center; flex: none; flex-wrap: wrap; }
+.x-scroll { overflow: auto; max-height: calc(100vh - 140px); }
+.x-empty { padding: 40px 24px; text-align: center; color: var(--x-muted); }
+.x-error { margin: 16px 24px; padding: 12px 16px; border-radius: 8px; background: #fef3f2; color: #b42318; }
+.x-faint { color: var(--x-faint); font-size: 12px; }
+.x-accent { height: 4px; background: var(--x-blue); }
+@container (max-width: 560px) { .x-hide-sm { display: none; } }
+.x-root { container-type: inline-size; }

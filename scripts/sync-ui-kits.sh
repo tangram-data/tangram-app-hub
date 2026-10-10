@@ -9,5 +9,9 @@ NOTION=(notion)
 sync google.css "${GOOGLE[@]}"
 sync microsoft.css "${MICROSOFT[@]}"
 sync notion.css "${NOTION[@]}"
-sync tangram-buttons.css "${GOOGLE[@]}" "${MICROSOFT[@]}" "${NOTION[@]}"
+# One kit per vendor, same name as the app dir unless noted.
+VENDOR=(box datadog hubspot pagerduty salesforce stripe xero)
+for app in "${VENDOR[@]}"; do sync "$app.css" "$app"; done
+sync atlassian.css confluence
+sync tangram-buttons.css "${GOOGLE[@]}" "${MICROSOFT[@]}" "${NOTION[@]}" "${VENDOR[@]}" confluence
 echo "synced ui kits"
