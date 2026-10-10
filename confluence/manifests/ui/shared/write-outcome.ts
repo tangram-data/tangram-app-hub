@@ -18,12 +18,6 @@ export function sameText(a: string, b: string): boolean {
   return plainText(a) === plainText(b);
 }
 
-// Whether a storage body ends with `part`, compared as visible text (an append that landed).
-export function endsWithText(body: string, part: string): boolean {
-  const tail = plainText(part);
-  return tail !== "" && plainText(body).endsWith(tail);
-}
-
 export function plainText(s: string): string {
   return (
     s

@@ -88,6 +88,11 @@ function parseStorage(xhtml: string): Document {
   return new DOMParser().parseFromString(`<body>${src}</body>`, "text/html");
 }
 
+// Two storage bodies that read the same (canonical form: local/macro ids ignored, code exact).
+export function sameStorage(a: string, b: string): boolean {
+  return canonical(parseStorage(a).body) === canonical(parseStorage(b).body);
+}
+
 export function storageToDraft(xhtml: string): { draft: string; lossy: string[] } {
   const doc = parseStorage(xhtml);
   const lossy = lossReasons(doc.body);

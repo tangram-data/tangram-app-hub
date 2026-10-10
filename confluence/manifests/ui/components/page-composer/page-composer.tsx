@@ -7,15 +7,17 @@
 // Writes are confirmation-gated by the host. Uncertain creates are reconciled (composer-io titledPages snapshot),
 // version conflicts reload the latest page and need an explicit re-save, identical inputs are ignored. The draft
 // (with mode) is readable via provideState; a successful save emits `saved` {pageId, title, url}.
-import { Button, Segmented, Select, Skeleton } from "antd";
+import { Button, Segmented, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
-import { definiteFailure, endsWithText, sameText, stableJson } from "../../shared/write-outcome";
-import { Page, Space, allSpaces, errText, getPage, openExternal, pageUrl, titledPages } from "./composer-io";
+import { definiteFailure, sameText, stableJson } from "../../shared/write-outcome";
+import { Page, errText, getPage, openExternal, pageUrl, titledPages } from "./composer-io";
+import { SpacePicker } from "./space-picker";
 import { Status, StatusBanners } from "./composer-banners";
 import { DraftPreview } from "./draft-preview";
-import { draftToStorage, storageToDraft } from "./storage-draft";
+import { draftToStorage, sameStorage, storageToDraft } from "./storage-draft";
+import { UpdateAttempt, reconcile, retryBody } from "./update-attempt";
 
 const tangram = (window as any).tangram;
 
@@ -35,15 +37,15 @@ export default function PageComposer() {
   const [url, setUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
   // The page as loaded: storage is what gets sent back untouched (append, or an unedited whole body).
-  const original = useRef({ storage: "", draft: "", title: "", version: 0 });
+  const original = useRef({ storage: "", draft: "", title: "", version: 0, lossy: [] as string[] });
   // The baseline storage the whole-page draft (`body`) was derived from; a newer baseline makes it stale.
   const bodyBase = useRef("");
-  // An update whose response was lost: what was sent, on top of which version.
-  const updateAttempt = useRef({ mode: "append" as Mode, value: "", part: "", prev: 0 });
+  // Input generation: recovery state belongs to one generation and is dropped when the inputs change.
+  const gen = useRef(0);
+  // An update whose response was lost (immutable, update-attempt.ts) and the latest page read while reconciling it.
+  const attempt = useRef<UpdateAttempt | null>(null);
   const latest = useRef<Page | null>(null);
   const [pickSpace, setPickSpace] = useState(false);
-  const [spaces, setSpaces] = useState<Space[] | null>(null);
-  const [spaceError, setSpaceError] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const seq = useRef(0);
   const inputsRef = useRef<Record<string, unknown>>({});
@@ -54,7 +56,7 @@ export default function PageComposer() {
   const adopt = (p: Page) => {
     const storage = p.body?.storage?.value ?? "";
     const conv = storageToDraft(storage);
-    original.current = { storage, draft: conv.draft, title: p.title ?? "", version: p.version?.number ?? 0 };
+    original.current = { storage, draft: conv.draft, title: p.title ?? "", version: p.version?.number ?? 0, lossy: conv.lossy };
     setVersion(p.version?.number ?? 0);
     setLossy(conv.lossy);
     pageUrl(p).then(setUrl, () => setUrl(""));
@@ -88,6 +90,9 @@ export default function PageComposer() {
     tangram.provideState?.(() => ({ ...stateRef.current }));
     const apply = (inputs: Record<string, unknown>) => {
       inputsRef.current = inputs;
+      gen.current++;
+      attempt.current = null;
+      latest.current = null;
       const id = String(inputs?.pageId ?? "");
       setPageId(id);
       setMode(id ? "append" : "create");
@@ -100,7 +105,7 @@ export default function PageComposer() {
       setLossy([]);
       setVersion(0);
       setUrl("");
-      original.current = { storage: "", draft: "", title: "", version: 0 };
+      original.current = { storage: "", draft: "", title: "", version: 0, lossy: [] };
       if (id) loadPage(id, inputs);
       else {
         ++seq.current;
@@ -117,19 +122,6 @@ export default function PageComposer() {
       apply(inputs ?? {});
     });
   }, [loadPage]);
-
-  const loadSpaces = useCallback(() => {
-    setSpaces(null);
-    setSpaceError("");
-    allSpaces().then(setSpaces, (e: unknown) => setSpaceError(errText(e)));
-  }, []);
-  const spacesRequested = useRef(false);
-  useEffect(() => {
-    if (pickSpace && !spacesRequested.current) {
-      spacesRequested.current = true;
-      loadSpaces();
-    }
-  }, [pickSpace, loadSpaces]);
 
   const editing = mode !== "create";
   const busy = status.kind === "busy" || status.kind === "loading";
@@ -164,29 +156,52 @@ export default function PageComposer() {
     tangram.emit("saved", { pageId: p.id, title: saved.title, url: link });
   }
 
-  // After an update with no answer: re-read the page. Our write is there (version advanced, body ends with the section /
-  // equals what was sent) → saved; nothing changed → safe to retry; anything else stays unsure.
+  // After an update with no answer: judge the re-read page against the captured attempt only (update-attempt.ts).
+  // Every await is followed by a generation/attempt check before any state is touched.
   function checkUpdate(s: number) {
-    const a = updateAttempt.current;
+    const a = attempt.current;
+    if (!a) return;
+    const current = () => s === seq.current && a === attempt.current && a.gen === gen.current;
     setStatus({ kind: "busy" });
-    getPage(pageId)
-      .then(async (p) => {
-        const now = p.version?.number ?? 0;
-        const body = p.body?.storage?.value ?? "";
-        latest.current = p;
-        if (s !== seq.current) return;
-        if (now > a.prev && (a.mode === "append" ? endsWithText(body, a.part) : sameText(body, a.value)))
-          landed(p, body, await pageUrl(p));
-        else if (now === a.prev) setStatus({ kind: "error", message: "The page wasn't changed — it's safe to save again." });
-        else setStatus({ kind: "unsure", message: `The page is now v${now} but doesn't show your change.` });
+    reconcile(a)
+      .then(async ({ outcome, page }) => {
+        if (!current()) return;
+        latest.current = page;
+        if (outcome === "unchanged") {
+          attempt.current = null;
+          setStatus({ kind: "error", message: "The page wasn't changed — it's safe to save again." });
+        } else if (outcome === "unknown") {
+          setStatus({ kind: "unsure", message: `The page is now v${page.version?.number ?? "?"} but doesn't show your change.` });
+        } else {
+          const link = await pageUrl(page);
+          if (!current()) return;
+          attempt.current = null;
+          landed(page, page.body?.storage?.value ?? "", link);
+        }
       })
-      .catch((e: unknown) => s === seq.current && setStatus({ kind: "unsure", message: `Couldn't check: ${errText(e)}` }));
+      .catch((e: unknown) => current() && setStatus({ kind: "unsure", message: `Couldn't check: ${errText(e)}` }));
   }
 
-  async function save() {
+  // "Again anyway": the latest page becomes the baseline first (lossy recomputed from it right away); a whole-page
+  // retry onto a page markdown can't keep is refused; then the attempt's intent is re-sent on top of it.
+  function updateAgain() {
+    const a = attempt.current;
+    const p = latest.current;
+    if (!a || !p || a.gen !== gen.current || p.id !== a.pageId) return checkUpdate(seq.current);
+    const conv = adopt(p);
+    attempt.current = null;
+    if (a.mode === "whole" && conv.lossy.length) {
+      setStatus({ kind: "error", message: `The page now has ${conv.lossy.join(", ")} that markdown can't keep — append instead, or edit in Confluence.` });
+      return;
+    }
+    save(retryBody(a, original.current.storage, draftToStorage(section), draftToStorage(body)));
+  }
+
+  async function save(override?: string) {
     const s = seq.current;
-    if (wholeBlocked) return;
-    const value = outgoing();
+    // Checked against the baseline ref, so it holds even right after a baseline change.
+    if (mode === "whole" && original.current.lossy.length) return;
+    const value = override ?? outgoing();
     setStatus({ kind: "busy" });
     let before = new Set<string>();
     if (!editing) {
@@ -222,8 +237,15 @@ export default function PageComposer() {
           findCreated(s);
         } else if (editing && !definiteFailure(e)) {
           // An update that may have landed: look before ever offering it again.
-          const part = mode === "append" ? draftToStorage(section) : "";
-          updateAttempt.current = { mode, value, part, prev: original.current.version };
+          attempt.current = {
+            pageId,
+            gen: gen.current,
+            mode: mode === "whole" ? "whole" : "append",
+            title: title.trim(),
+            sentBody: value,
+            baseVersion: original.current.version,
+            bodyEdited: wholeEdited,
+          };
           checkUpdate(s);
         } else setStatus({ kind: "error", message });
       });
@@ -265,13 +287,15 @@ export default function PageComposer() {
     getPage(pageId)
       .then((p) => {
         if (s !== seq.current) return;
+        const base = original.current.storage;
         const conv = adopt(p);
         if (!titleWasEdited) setTitle(p.title ?? "");
         if (mode === "whole" && !bodyWasEdited) setBody(conv.draft);
         if (mode === "whole" && !bodyWasEdited) bodyBase.current = original.current.storage;
         setLoaded(true);
         // The conflicting version may be our own append that lost its answer.
-        if (mode === "append" && section.trim() && endsWithText(original.current.storage, draftToStorage(section))) {
+        // Exact (canonical) comparison: the latest body is the old baseline plus this section.
+        if (mode === "append" && section.trim() && sameStorage(original.current.storage, base + draftToStorage(section))) {
           setSection("");
           setStatus({ kind: "error", message: `Your section is already at the end of v${p.version?.number ?? "?"} — nothing to append.` });
           return;
@@ -292,6 +316,8 @@ export default function PageComposer() {
     !busy && status.kind !== "conflict" && status.kind !== "uncertain" && status.kind !== "unsure" && !wholeBlocked &&
     title.trim() !== "" && changed &&
     (editing ? loaded : spaceId !== "");
+  // While an update's outcome is unknown, the draft, title and mode stay read-only so nothing typed can be lost.
+  const locked = attempt.current !== null;
   const draft = mode === "append" ? section : body;
   const setDraft = mode === "append" ? setSection : setBody;
 
@@ -304,7 +330,7 @@ export default function PageComposer() {
         {editing && url ? (
           <Button onClick={() => openExternal(url)}>Open in Confluence</Button>
         ) : null}
-        <Button type="primary" disabled={!canSave} loading={status.kind === "busy"} onClick={save}>
+        <Button type="primary" disabled={!canSave} loading={status.kind === "busy"} onClick={() => save()}>
           {!editing ? "Publish" : mode === "append" ? "Append" : "Update"}
         </Button>
       </div>
@@ -314,27 +340,7 @@ export default function PageComposer() {
         ) : (
           <>
             {pickSpace && !editing ? (
-              <div className="a-field">
-                <label htmlFor="cf-space">Space</label>
-                <Select
-                  id="cf-space"
-                  style={{ minWidth: 260 }}
-                  placeholder={spaceError ? "Couldn't load spaces" : "Choose a space"}
-                  loading={!spaces && !spaceError}
-                  showSearch
-                  optionFilterProp="label"
-                  value={spaceId || undefined}
-                  disabled={status.kind === "uncertain" || busy}
-                  onChange={(v: string) => setSpaceId(v)}
-                  options={(spaces ?? []).map((sp) => ({ value: sp.id, label: `${sp.name ?? sp.key} (${sp.key})` }))}
-                />
-              </div>
-            ) : null}
-            {spaceError ? (
-              <div className="a-error">
-                Couldn't load spaces: {spaceError}{" "}
-                <Button size="small" type="text" onClick={loadSpaces}>Retry</Button>
-              </div>
+              <SpacePicker value={spaceId} disabled={status.kind === "uncertain" || busy} onChange={setSpaceId} />
             ) : null}
             {editing && !loaded && status.kind === "error" ? (
               <div className="a-error">
@@ -348,7 +354,7 @@ export default function PageComposer() {
                   <Segmented
                     size="small"
                     value={mode}
-                    disabled={busy}
+                    disabled={busy || locked}
                     onChange={(v) => {
                       setMode(v as Mode);
                       // A whole-page draft derived from an older baseline (e.g. before an append) is stale.
@@ -378,7 +384,7 @@ export default function PageComposer() {
               aria-label="Title"
               placeholder="Give this page a title"
               value={title}
-              disabled={busy}
+              disabled={busy || locked}
               onChange={(e) => setTitle(e.target.value)}
             />
             <div className="a-split">
@@ -387,7 +393,7 @@ export default function PageComposer() {
                 aria-label={mode === "append" ? "Section to append" : "Page content"}
                 placeholder={`${mode === "append" ? "Write the section to add at the end…" : "Start writing…"}  ${SYNTAX}`}
                 value={draft}
-                disabled={busy}
+                disabled={busy || locked}
                 onChange={(e) => setDraft(e.target.value)}
               />
               <DraftPreview
@@ -409,12 +415,9 @@ export default function PageComposer() {
               showError={!editing || loaded}
               againLabel={mode === "append" ? "Append again anyway" : "Save again anyway"}
               onCheckUpdate={() => checkUpdate(seq.current)}
-              onUpdateAgain={() => {
-                if (latest.current) adopt(latest.current);
-                save();
-              }}
+              onUpdateAgain={updateAgain}
               onCheckCreate={() => findCreated(seq.current)}
-              onCreateAgain={save}
+              onCreateAgain={() => save()}
               onReloadLatest={reloadLatest}
             />
           </>
