@@ -9,7 +9,7 @@ scope: Stripe takes form-encoded write bodies, which the connector gateway does 
 | Tool | Action | Notes |
 |------|--------|-------|
 | `stripe_get_balance` | `Balance.Get` | Available/pending balance per currency. Connection check. |
-| `stripe_search_customer` | `Customer.Search` | Stripe search syntax (`email:'jo@acme.com'`, `name~'acme'`). Also feeds Tangram's cross-app search (name or email contains the words). |
+| `stripe_search_customer` | `Customer.Search` | Stripe search syntax (`email:'jo@acme.com'`, `name~'acme'`). Also feeds Tangram's cross-app search (name or email contains the words; queries under 3 characters skip Stripe). |
 | `stripe_find_<object>` | `<Object>.Find` | Search payment intents, charges, invoices, subscriptions, products (e.g. `status:'open' AND total>5000`). |
 | `stripe_list_<object>` | `<Object>.List` | Customers, payment intents, charges, invoices, subscriptions, refunds, disputes, payouts, products, prices, balance transactions — filters + `created[gte]`/`created[lte]`, cursor paging with `starting_after`. |
 | `stripe_get_<object>` | `<Object>.Get` | One object by id; `expand[]` inlines related objects. |

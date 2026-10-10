@@ -38,6 +38,7 @@ paths:
       x-tangram-search:
         queryTemplate: "name~'{query}' OR email~'{query}'"
         hits: {items: data, id: id, title: "name, email"}
+        minQueryChars: 3
       parameters:
         - {name: query, in: query, required: true, description: "Stripe search query, e.g. email:'jo@acme.com', name~'acme', metadata['crm_id']:'123'.", schema: {type: string}}
         - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100}}
