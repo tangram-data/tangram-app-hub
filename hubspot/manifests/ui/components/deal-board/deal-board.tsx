@@ -101,7 +101,7 @@ export default function DealBoard() {
       setInputs(next);
       load(next.pipelineId, next.ownerId);
     };
-    apply(tangram.getInputs() ?? {});
+    // onInput fires as soon as the frame is initialised and on every new input; getInputs() is async, so no eager apply.
     tangram.onInput((i: Record<string, unknown>) => apply(i ?? {}));
   }, [load]);
 

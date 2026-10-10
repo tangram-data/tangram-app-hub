@@ -125,9 +125,8 @@ export default function RecordViewer() {
   }, []);
 
   useEffect(() => {
-    const apply = (inputs: Record<string, unknown>) => open(inputs?.objectType, inputs?.id);
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // onInput fires as soon as the frame is initialised and on every new input; getInputs() is async, so no eager apply.
+    tangram.onInput((inputs: Record<string, unknown>) => open(inputs?.objectType, inputs?.id));
   }, [open]);
 
   if (state.kind === "loading")
