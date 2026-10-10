@@ -40,12 +40,15 @@ export default function IncidentViewer() {
   const inputId = useRef<string | null>(null);
   const statusRef = useRef("");
   statusRef.current = incident?.status ?? "";
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
   const loadRef = useRef<(id: string, quiet?: boolean) => void>(() => undefined);
   const writes = useIncidentWrites({
     shownId: () => canonicalId.current,
     reload: (id) => loadRef.current(id, true),
     showIncident: (id, patch) => setIncident((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev)),
     clearDraft: (content) => setNoteText((t) => (t.trim() === content ? "" : t)),
+    noteIds: (id) => (canonicalId.current === id && !notesRef.current.error ? notesRef.current.items.map((n) => n.id) : null),
   });
   const { pending, statusCheck, noteDoubt, writeError, setWriteError } = writes;
   const onLoaded = useRef(writes.onLoaded);
@@ -79,7 +82,14 @@ export default function IncidentViewer() {
         const { show, refetch } = onLoaded.current(incident, nt.status === "fulfilled" ? nt.value?.notes ?? [] : null, startedAt);
         setIncident(show);
         canonicalId.current = incident.id;
-        if (refetch) setTimeout(() => load(incident.id, true), 0);
+        if (refetch) {
+          // only if no newer input or load has started meanwhile
+          const gen = generation.current;
+          const at = seq.current;
+          setTimeout(() => {
+            if (gen === generation.current && at === seq.current) load(incident.id, true);
+          }, 0);
+        }
         setLogs(
           lg.status === "fulfilled"
             ? {
