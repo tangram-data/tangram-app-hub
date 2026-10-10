@@ -7,7 +7,7 @@
   --dd-purple: #632ca6; --dd-purple-soft: #f2ecfa; --dd-sel: #f4effb;
   --dd-red: #e0312c; --dd-amber: #f2a32c; --dd-green: #28a745; --dd-grey: #9aa4ab;
   font-family: var(--dd-font); color: var(--dd-text); background: #fff; font-size: 13px; line-height: 18px;
-  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box; container-type: inline-size;
 }
 .dd-root *, .dd-root *::before, .dd-root *::after { box-sizing: border-box; }
 .dd-root .ant-btn, .dd-root .ant-input, .dd-root .ant-select { font-family: var(--dd-font); }
@@ -66,3 +66,7 @@
 .dd-legend .it .sw { width: 10px; height: 3px; border-radius: 2px; flex: none; }
 .dd-legend .it .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--dd-mono); }
 .dd-note { padding: 0 14px 10px; color: var(--dd-faint); font-size: 12px; }
+/* Narrow surfaces: secondary columns (type, tags, triggered) give way so the monitor name keeps room. */
+@container (max-width: 640px) {
+  .dd-table .dd-col2 { display: none; }
+}

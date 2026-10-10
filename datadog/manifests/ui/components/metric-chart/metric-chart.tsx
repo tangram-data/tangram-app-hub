@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CartesianGrid, Line as ChartLine, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "../../shared/datadog.css";
 import "../../shared/tangram-buttons.css";
-import { compact, fullTime, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toRows, unitOf } from "./metric-series";
+import { axisUnit, compact, fullTime, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toRows } from "./metric-series";
 
 const tangram = (window as any).tangram;
 
@@ -73,6 +73,8 @@ export default function MetricChart() {
       const w = windowFromInputs(inputs ?? {});
       setQuery(q);
       setWin(w);
+      // a new query never shows the previous query's chart under its heading
+      setSeries([]);
       load(q, w);
     };
     apply(tangram.getInputs() ?? {});
@@ -80,7 +82,7 @@ export default function MetricChart() {
   }, [load]);
 
   const { rows, lines } = useMemo(() => toRows(series.slice(0, MAX_SERIES)), [series]);
-  const unit = unitOf(series.slice(0, MAX_SERIES));
+  const unit = axisUnit(series.slice(0, MAX_SERIES));
   const spanSeconds = span.to - span.from;
   const busy = state === "loading";
 
@@ -172,10 +174,10 @@ export default function MetricChart() {
                 />
                 <Tooltip
                   labelFormatter={(ms: number) => fullTime(ms)}
-                  formatter={(v: number, key: string) => [
-                    `${compact(v)}${unit ? ` ${unit}` : ""}`,
-                    lines.find((l) => l.key === key)?.label ?? key,
-                  ]}
+                  formatter={(v: number, key: string) => {
+                    const line = lines.find((l) => l.key === key);
+                    return [`${compact(v)}${line?.unit ? ` ${line.unit}` : ""}`, line?.label ?? key];
+                  }}
                   contentStyle={{ fontSize: 12, borderRadius: 4, borderColor: "#e3e7ea" }}
                 />
                 {lines.map((l) => (

@@ -40,9 +40,12 @@ export default function MonitorList() {
   const seq = useRef(0);
   // The query the shown results came from; paging and refresh reuse it, not the edited box.
   const active = useRef(DEFAULT_QUERY);
+  // The last query/page tried (success or not): Refresh retries it.
+  const attempted = useRef({ query: DEFAULT_QUERY, page: 0 });
 
   const load = useCallback((query: string, p: number) => {
     const mine = ++seq.current;
+    attempted.current = { query, page: p };
     setState("loading");
     setError("");
     tangram
@@ -72,7 +75,9 @@ export default function MonitorList() {
 
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => {
-      const q = typeof inputs?.query === "string" && inputs.query.trim() ? inputs.query : DEFAULT_QUERY;
+      // The alert-only default applies only to a bare render; a presentation's absent/empty query means all monitors.
+      const bare = !inputs || Object.keys(inputs).length === 0;
+      const q = typeof inputs?.query === "string" ? inputs.query : bare ? DEFAULT_QUERY : "";
       setText(q);
       load(q, 0);
     };
@@ -110,7 +115,7 @@ export default function MonitorList() {
             icon={<ReloadOutlined />}
             aria-label="Refresh"
             disabled={busy}
-            onClick={() => load(active.current, page)}
+            onClick={() => load(attempted.current.query, attempted.current.page)}
           />
         </Tooltip>
       </div>
@@ -134,20 +139,19 @@ export default function MonitorList() {
         <div className="dd-empty">No monitors match</div>
       ) : (
         <table className="dd-table" aria-busy={busy}>
-          <colgroup>
-            <col style={{ width: 96 }} />
-            <col />
-            <col style={{ width: 92 }} />
-            <col style={{ width: "24%" }} />
-            <col style={{ width: 120 }} />
-          </colgroup>
           <thead>
             <tr>
-              <th>Status</th>
+              <th style={{ width: 96 }}>Status</th>
               <th>Monitor</th>
-              <th>Type</th>
-              <th>Tags</th>
-              <th>Triggered</th>
+              <th className="dd-col2" style={{ width: 92 }}>
+                Type
+              </th>
+              <th className="dd-col2" style={{ width: "24%" }}>
+                Tags
+              </th>
+              <th className="dd-col2" style={{ width: 120 }}>
+                Triggered
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -176,17 +180,17 @@ export default function MonitorList() {
                       </span>
                     </td>
                     <td title={m.name}>{m.name || `Monitor ${m.id}`}</td>
-                    <td className="dd-muted" title={m.type}>
+                    <td className="dd-muted dd-col2" title={m.type}>
                       {m.type ?? ""}
                     </td>
-                    <td className="dd-muted" title={tags.join(", ")}>
+                    <td className="dd-muted dd-col2" title={tags.join(", ")}>
                       {tags.slice(0, 4).map((t) => (
                         <span className="dd-tag" key={t}>
                           {t}
                         </span>
                       ))}
                     </td>
-                    <td className="dd-mono dd-muted" title={fullTime(m.last_triggered_ts)}>
+                    <td className="dd-mono dd-muted dd-col2" title={fullTime(m.last_triggered_ts)}>
                       {timeLabel(m.last_triggered_ts) || "—"}
                     </td>
                   </tr>

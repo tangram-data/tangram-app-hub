@@ -22,7 +22,7 @@ export type Series = {
 };
 export type QueryResult = { status?: string; error?: string; series?: Series[]; from_date?: number; to_date?: number };
 
-export type Line = { key: string; label: string; color: string };
+export type Line = { key: string; label: string; color: string; unit: string };
 export type Row = { t: number } & Record<string, number | null>;
 
 export function seriesLabel(s: Series, i: number): string {
@@ -30,17 +30,27 @@ export function seriesLabel(s: Series, i: number): string {
   return scope || s.display_name || s.expression || s.metric || `series ${i + 1}`;
 }
 
-export function unitOf(series: Series[]): string {
-  for (const s of series) {
-    const u = s.unit?.[0];
-    if (u?.short_name) return u.short_name;
-  }
-  return "";
+// Datadog sends unit = [unit, per_unit]: bytes + second → "B/s".
+export function unitOf(s: Series): string {
+  const name = (u: { short_name?: string; name?: string } | null | undefined) => u?.short_name || u?.name || "";
+  const [base, per] = [name(s.unit?.[0]), name(s.unit?.[1])];
+  return base && per ? `${base}/${per}` : base || (per ? `/${per}` : "");
+}
+
+// A shared y-axis unit only when every series agrees.
+export function axisUnit(series: Series[]): string {
+  const units = new Set(series.map(unitOf));
+  return units.size === 1 ? Array.from(units)[0] : "";
 }
 
 // Merge every series' points onto one timestamp axis; missing points stay null (line gaps).
 export function toRows(series: Series[]): { rows: Row[]; lines: Line[] } {
-  const lines = series.map((s, i) => ({ key: `s${i}`, label: seriesLabel(s, i), color: COLORS[i % COLORS.length] }));
+  const lines = series.map((s, i) => ({
+    key: `s${i}`,
+    label: seriesLabel(s, i),
+    color: COLORS[i % COLORS.length],
+    unit: unitOf(s),
+  }));
   const byTime = new Map<number, Row>();
   series.forEach((s, i) => {
     for (const [t, v] of s.pointlist ?? []) {
