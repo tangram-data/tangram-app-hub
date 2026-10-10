@@ -12,6 +12,7 @@ import {
   invoiceStatus,
   money,
   paymentStatus,
+  safeUrl,
   Status,
   subscriptionStatus,
   when,
@@ -314,9 +315,9 @@ export default function CustomerViewer() {
                   </td>
                   <td className="s-muted">{day(inv.due_date)}</td>
                   <td>
-                    {inv.hosted_invoice_url ? (
+                    {safeUrl(inv.hosted_invoice_url) ? (
                       <a
-                        href={inv.hosted_invoice_url}
+                        href={safeUrl(inv.hosted_invoice_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}

@@ -3,7 +3,7 @@
 import { PlusOutlined } from "@ant-design/icons";
 import { Button, Input, InputNumber, Radio } from "antd";
 import React, { useState } from "react";
-import { minorDigits, toMinor } from "../../shared/stripe-format";
+import { inputDigits, toMinor } from "../../shared/stripe-format";
 
 export type LineBody =
   | { description: string; amount: number; currency: string }
@@ -45,7 +45,7 @@ export default function LineForm({
     }
   }
 
-  const step = minorDigits(currency) === 0 ? "1" : minorDigits(currency) === 3 ? "0.001" : "0.01";
+  const step = inputDigits(currency) === 0 ? "1" : inputDigits(currency) === 3 ? "0.001" : "0.01";
   return (
     <div className="s-card soft">
       <div className="s-bar" style={{ marginBottom: 10 }}>

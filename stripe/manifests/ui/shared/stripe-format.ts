@@ -1,12 +1,17 @@
 // Shared Stripe formatting: money from the smallest currency unit, timestamps, status dots.
 import dayjs from "dayjs";
 
-// Currencies Stripe charges in whole units (no minor unit) and in thousandths.
+// Stripe's API scale per currency (https://docs.stripe.com/currencies#zero-decimal): zero-decimal currencies are
+// whole units; three-decimal ones are thousandths; everything else — including the special cases ISK and UGX,
+// which Stripe still takes ×100 — is hundredths.
 const ZERO_DECIMAL = new Set([
-  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "vnd", "vuv", "xaf", "xof", "xpf",
 ]);
 const THREE_DECIMAL = new Set(["bhd", "jod", "kwd", "omr", "tnd"]);
+// ×100 on the API but charged in whole units: amounts typed for them may not have fractions.
+const WHOLE_UNIT_INPUT = new Set(["isk", "ugx"]);
 
+/** Digits between the API amount and the currency unit. */
 export function minorDigits(currency: string | undefined): number {
   const c = (currency ?? "").toLowerCase();
   if (ZERO_DECIMAL.has(c)) return 0;
@@ -14,20 +19,25 @@ export function minorDigits(currency: string | undefined): number {
   return 2;
 }
 
+/** Fraction digits a person may type (and that are shown). */
+export function inputDigits(currency: string | undefined): number {
+  return WHOLE_UNIT_INPUT.has((currency ?? "").toLowerCase()) ? 0 : minorDigits(currency);
+}
+
 export function money(amount: number | null | undefined, currency: string | undefined): string {
   if (amount == null || !Number.isFinite(amount)) return "—";
-  const digits = minorDigits(currency);
-  const value = amount / 10 ** digits;
+  const value = amount / 10 ** minorDigits(currency);
+  const shown = inputDigits(currency);
   const code = (currency ?? "usd").toUpperCase();
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: code,
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
+      minimumFractionDigits: shown,
+      maximumFractionDigits: Math.max(shown, minorDigits(currency)),
     }).format(value);
   } catch {
-    return `${value.toFixed(digits)} ${code}`;
+    return `${value.toFixed(minorDigits(currency))} ${code}`;
   }
 }
 
@@ -37,7 +47,7 @@ export function toMinor(text: string, currency: string): number | null {
   if (!/^\d+(\.\d+)?$/.test(t)) return null;
   const digits = minorDigits(currency);
   const [whole, frac = ""] = t.split(".");
-  if (frac.length > digits) return null;
+  if (frac.length > inputDigits(currency)) return null;
   const n = Number(whole) * 10 ** digits + Number((frac + "000").slice(0, digits) || "0");
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
@@ -132,4 +142,15 @@ export function errorText(e: unknown): string {
 /** Dashboard deep link; test-mode objects live under /test/. */
 export function dashboardUrl(kind: "customers" | "invoices", id: string, livemode: boolean | undefined): string {
   return `https://dashboard.stripe.com/${livemode === false ? "test/" : ""}${kind}/${encodeURIComponent(id)}`;
+}
+
+/** The URL when it is http(s), else undefined — never render other schemes as links. */
+export function safeUrl(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
 }

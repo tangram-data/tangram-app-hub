@@ -2,12 +2,12 @@
 // New invoices are created with auto_advance:false so nothing finalizes, emails or charges on its own until the
 // user finalizes (charge-automatically invoices are then collected by Stripe; emailed ones wait for Send); every
 // create carries an Idempotency-Key that is reused on retry. Emits `saved` {invoiceId, status} after each step.
-import { DeleteOutlined, ExportOutlined, FileTextOutlined, SendOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExportOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { Button, Input, InputNumber, Select, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/stripe.css";
 import "../../shared/tangram-buttons.css";
-import { dashboardUrl, day, errorText, invoiceStatus, money } from "../../shared/stripe-format";
+import { dashboardUrl, day, errorText, invoiceStatus, money, safeUrl } from "../../shared/stripe-format";
 import { IdempotencyKeys } from "./idempotency";
 import LineForm, { LineBody } from "./line-form";
 
@@ -39,47 +39,62 @@ function act(resourceType: string, action: string, parameters: Record<string, un
 
 export default function InvoiceComposer() {
   const [customerId, setCustomerId] = useState("");
+  // the invoice the inputs asked for ("" = compose a new one)
+  const [target, setTarget] = useState("");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [deleted, setDeleted] = useState("");
   const [loading, setLoading] = useState(false);
+  // the shown invoice may be out of date (a refresh after a write failed): writes stay blocked until it reloads
+  const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [method, setMethod] = useState<Method>("send_invoice");
   const [daysUntilDue, setDaysUntilDue] = useState<number>(30);
   const [description, setDescription] = useState("");
   const keys = useRef(new IdempotencyKeys());
+  // bumped on every input change: results of reads/writes started earlier are dropped
+  const gen = useRef(0);
   const seq = useRef(0);
   const stateRef = useRef<Record<string, unknown>>({});
 
-  const reload = useCallback((id: string) => {
+  // Re-reads the invoice; true when it now matches Stripe. Ignored once the inputs moved on.
+  const reload = useCallback(async (id: string, g: number): Promise<boolean> => {
     const mine = ++seq.current;
     setLoading(true);
-    return act("Invoice", "Get", { id })
-      .then((inv: Invoice) => {
-        if (mine !== seq.current) return;
-        setInvoice(inv);
-        setCustomerId(inv.customer);
-        setError("");
-      })
-      .catch((e: unknown) => {
-        if (mine === seq.current) setError(errorText(e));
-      })
-      .finally(() => {
-        if (mine === seq.current) setLoading(false);
-      });
+    try {
+      const inv: Invoice = await act("Invoice", "Get", { id });
+      if (g !== gen.current || mine !== seq.current) return false;
+      setInvoice(inv);
+      setCustomerId(inv.customer);
+      setStale(false);
+      setError("");
+      return true;
+    } catch (e) {
+      if (g === gen.current && mine === seq.current) {
+        setStale(true);
+        setError(`Couldn't refresh the invoice: ${errorText(e)}`);
+      }
+      return false;
+    } finally {
+      if (g === gen.current && mine === seq.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => {
+      const g = ++gen.current;
       const invoiceId = String(inputs?.invoiceId ?? "").trim();
+      setTarget(invoiceId);
+      setInvoice(null);
       setDeleted("");
       setError("");
-      if (invoiceId) reload(invoiceId);
+      setStale(false);
+      setBusy(false);
+      setCustomerId(String(inputs?.customerId ?? "").trim());
+      if (invoiceId) reload(invoiceId, g);
       else {
         seq.current++;
-        setInvoice(null);
         setLoading(false);
-        setCustomerId(String(inputs?.customerId ?? "").trim());
       }
     };
     apply(tangram.getInputs() ?? {});
@@ -94,77 +109,97 @@ export default function InvoiceComposer() {
     currency: invoice?.currency ?? null,
     total: invoice?.total ?? null,
     lines: (invoice?.lines?.data ?? []).map((l) => ({ description: l.description, amount: l.amount, quantity: l.quantity })),
+    outOfDate: stale,
   };
   useEffect(() => {
     tangram.provideState?.(() => ({ ...stateRef.current }));
   }, []);
 
-  // Runs one gated write; reports failures inline (including the user declining the host confirmation).
-  async function run(step: () => Promise<unknown>): Promise<boolean> {
+  // Runs one gated write for the current inputs; a result arriving after the inputs changed touches nothing.
+  // Failures (including the user declining the host confirmation) show inline.
+  async function run(step: (g: number, live: () => boolean) => Promise<unknown>): Promise<boolean> {
     if (busy) return false;
+    const g = gen.current;
+    const live = () => g === gen.current;
     setBusy(true);
     setError("");
     try {
-      await step();
-      return true;
+      await step(g, live);
+      return live();
     } catch (e) {
-      setError(errorText(e));
+      if (live()) setError(errorText(e));
       return false;
     } finally {
-      setBusy(false);
+      if (live()) setBusy(false);
     }
   }
 
+  // Applies a write's returned invoice at once, then reconciles with a fresh read.
+  async function applied(inv: Invoice, g: number, live: () => boolean) {
+    if (!live()) return;
+    setInvoice(inv);
+    setTarget(inv.id);
+    tangram.emit("saved", { invoiceId: inv.id, status: inv.status });
+    await reload(inv.id, g);
+  }
+
   const createDraft = () =>
-    run(async () => {
+    run(async (g, live) => {
       const body: Record<string, unknown> = { customer: customerId, auto_advance: false, collection_method: method };
       if (method === "send_invoice") body.days_until_due = daysUntilDue;
       if (description.trim()) body.description = description.trim();
       const key = keys.current.keyFor("create", body);
       const inv: Invoice = await act("Invoice", "Create", { "Idempotency-Key": key }, body);
       keys.current.done("create");
-      setInvoice(inv);
-      tangram.emit("saved", { invoiceId: inv.id, status: inv.status });
-      await reload(inv.id);
+      await applied(inv, g, live);
     });
 
   const addLine = (line: LineBody) =>
-    run(async () => {
+    run(async (g, live) => {
       if (!invoice) return;
       const body = { customer: invoice.customer, invoice: invoice.id, ...line };
       const key = keys.current.keyFor("line", body);
       await act("InvoiceItem", "Create", { "Idempotency-Key": key }, body);
       keys.current.done("line");
-      await reload(invoice.id);
+      if (!live()) return;
+      // the line exists; totals are unknown until the invoice reloads
+      setStale(true);
+      await reload(invoice.id, g);
     });
 
   const finalize = () =>
-    run(async () => {
+    run(async (g, live) => {
       if (!invoice) return;
       // Emailed invoices stay put until Send; charge-automatically ones need auto_advance for Stripe to collect.
       const autoAdvance = invoice.collection_method === "charge_automatically";
       const inv: Invoice = await act("Invoice", "Finalize", { id: invoice.id }, { auto_advance: autoAdvance });
-      tangram.emit("saved", { invoiceId: inv.id, status: inv.status });
-      await reload(invoice.id);
+      await applied(inv, g, live);
     });
 
   const send = () =>
-    run(async () => {
+    run(async (g, live) => {
       if (!invoice) return;
       const inv: Invoice = await act("Invoice", "Send", { id: invoice.id });
-      tangram.emit("saved", { invoiceId: inv.id, status: inv.status });
-      await reload(invoice.id);
+      await applied(inv, g, live);
     });
 
   const remove = () =>
-    run(async () => {
+    run(async (_g, live) => {
       if (!invoice) return;
       await act("Invoice", "Delete", { id: invoice.id });
+      tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
+      if (!live()) return;
       seq.current++;
       setDeleted(invoice.id);
-      tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
       setInvoice(null);
     });
+
+  const retry = () => {
+    const id = invoice?.id ?? target;
+    if (id) reload(id, gen.current);
+  };
+  // writes need the requested invoice loaded and in sync with Stripe
+  const locked = busy || loading || stale;
 
   const errorBox = error ? <div className="s-error inline">{error}</div> : null;
 
@@ -175,11 +210,16 @@ export default function InvoiceComposer() {
       </div>
     );
 
-  if (loading && !invoice)
+  if (!invoice && (loading || target))
     return (
       <div className="s-root s-pad">
-        <Skeleton active paragraph={{ rows: 4 }} />
-        {errorBox}
+        {loading ? <Skeleton active paragraph={{ rows: 4 }} /> : null}
+        {!loading ? <div className="s-error inline">{error || `Couldn't load invoice ${target}.`}</div> : null}
+        {!loading ? (
+          <Button icon={<ReloadOutlined aria-hidden="true" />} onClick={retry}>
+            Retry
+          </Button>
+        ) : null}
       </div>
     );
 
@@ -292,17 +332,25 @@ export default function InvoiceComposer() {
         <span className="s-muted">Total</span>
         <span>{money(invoice.total, invoice.currency)}</span>
       </div>
-      {draft ? <LineForm currency={invoice.currency} busy={busy || loading} onAdd={addLine} /> : null}
+      {stale ? (
+        <div className="s-warn" role="status">
+          This invoice may be out of date, so changes are paused until it reloads.{" "}
+          <Button size="small" icon={<ReloadOutlined aria-hidden="true" />} loading={loading} onClick={retry}>
+            Refresh
+          </Button>
+        </div>
+      ) : null}
+      {draft ? <LineForm currency={invoice.currency} busy={locked} onAdd={addLine} /> : null}
       {draft && charges ? (
         <div className="s-warn" role="note">
           Finalizing charges the customer's saved payment method {money(invoice.amount_due, invoice.currency)} — Stripe collects it
           automatically right after. It can't be undone, only refunded.
         </div>
       ) : null}
-      {invoice.status === "open" && !charges && invoice.hosted_invoice_url ? (
+      {invoice.status === "open" && !charges && safeUrl(invoice.hosted_invoice_url) ? (
         <div className="s-faint" style={{ margin: "8px 0" }}>
           Payment page:{" "}
-          <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
+          <a href={safeUrl(invoice.hosted_invoice_url)} target="_blank" rel="noopener noreferrer">
             hosted invoice
           </a>
         </div>
@@ -310,18 +358,18 @@ export default function InvoiceComposer() {
       {errorBox}
       <div className="s-bar" style={{ marginTop: 12 }}>
         {draft ? (
-          <Button danger icon={<DeleteOutlined aria-hidden="true" />} disabled={busy} onClick={remove}>
+          <Button danger icon={<DeleteOutlined aria-hidden="true" />} disabled={locked} onClick={remove}>
             Delete draft
           </Button>
         ) : null}
         <span className="sp" />
         {draft ? (
-          <Button type="primary" loading={busy} disabled={lines.length === 0 || loading} onClick={finalize}>
+          <Button type="primary" loading={busy} disabled={lines.length === 0 || locked} onClick={finalize}>
             {charges ? "Finalize and charge" : "Finalize"}
           </Button>
         ) : null}
         {invoice.status === "open" && !charges ? (
-          <Button type="primary" icon={<SendOutlined aria-hidden="true" />} loading={busy} disabled={loading} onClick={send}>
+          <Button type="primary" icon={<SendOutlined aria-hidden="true" />} loading={busy} disabled={locked} onClick={send}>
             Send invoice
           </Button>
         ) : null}
