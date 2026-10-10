@@ -69,3 +69,12 @@ export function openExternal(e: { preventDefault(): void }, url?: string | null)
   if (tangram?.openUrl) tangram.openUrl(u);
   else window.open(u, "_blank", "noopener,noreferrer");
 }
+
+// A failed write whose outcome is known: the user declined, the platform refused, or the vendor answered 4xx
+// (other than 408). Anything else — network loss, timeout, 5xx, no answer — may have landed upstream.
+export function definiteFailure(e: unknown): boolean {
+  const m = errText(e);
+  if (/\b(408|5\d\d)\b|time(d)?\s?out|failed to fetch|load failed|network\s?error|abort/i.test(m)) return false;
+  if (/declin|unauthori[sz]ed|forbidden|denied|not allowed|invalid|required|\b4\d\d\b/i.test(m)) return true;
+  return false;
+}

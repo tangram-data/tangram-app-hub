@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/pagerduty.css";
 import "../../shared/tangram-buttons.css";
-import { call, errText, openExternal, relative, Ref, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
+import { call, definiteFailure, errText, openExternal, relative, Ref, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
 
 type Incident = {
   id: string;
@@ -26,6 +26,7 @@ type Incident = {
 type LogEntry = { id: string; type?: string; created_at?: string; summary?: string; agent?: Ref | null };
 type Note = { id: string; content?: string; created_at?: string; user?: Ref | null };
 type Section<T> = { items: T[]; error: string };
+type WriteKind = "acknowledged" | "resolved" | "note";
 type Timeline = Section<LogEntry> & { more: boolean; offset: number; loadingMore: boolean };
 
 const EMPTY = { items: [], error: "" };
@@ -44,14 +45,19 @@ export default function IncidentViewer() {
   const [notes, setNotes] = useState<Section<Note>>(EMPTY);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
-  const [writing, setWriting] = useState<"" | "acknowledged" | "resolved" | "note">("");
+  // Pending writes by canonical incident id: the lock follows the incident, not the input notification.
+  const [pending, setPending] = useState<Record<string, WriteKind>>({});
   const [writeError, setWriteError] = useState("");
+  // A note whose write outcome is unknown and couldn't be checked: no resubmission until a reload settles it.
+  const unverified = useRef<{ id: string; content: string; since: number } | null>(null);
+  const [noteCheck, setNoteCheck] = useState("");
   const [noteText, setNoteText] = useState("");
   const seq = useRef(0);
   // Bumped on every new input: write callbacks from an earlier input are ignored. The input may be an incident
   // NUMBER; reads and writes use the canonical id the API returned.
   const generation = useRef(0);
   const canonicalId = useRef("");
+  const inputId = useRef<string | null>(null);
   const statusRef = useRef("");
   statusRef.current = incident?.status ?? "";
 
@@ -95,6 +101,12 @@ export default function IncidentViewer() {
       setNotes(
         nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
       );
+      const u = unverified.current;
+      if (u && u.id === inc.value.incident.id && nt.status === "fulfilled") {
+        unverified.current = null;
+        setNoteCheck("");
+        if (hasNote(nt.value?.notes ?? [], u.content, u.since)) setNoteText((t) => (t.trim() === u.content ? "" : t));
+      }
       setState("ready");
     });
   }, []);
@@ -102,13 +114,15 @@ export default function IncidentViewer() {
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => {
       const id = String(inputs?.incidentId ?? "").trim();
+      // re-sent inputs for the same incident keep the draft, errors and pending writes
+      if (id === inputId.current) return;
+      inputId.current = id;
       generation.current += 1;
       canonicalId.current = "";
-      // an earlier input's pending write no longer owns the controls
-      setWriting("");
       setIncidentId(id);
       setWriteError("");
       setNoteText("");
+      setNoteCheck("");
       load(id);
     };
     // getInputs() is a promise in the sandbox shell; onInput fires once initialised and on every change.
@@ -117,10 +131,9 @@ export default function IncidentViewer() {
   }, [load]);
 
   function setStatus(status: "acknowledged" | "resolved") {
-    if (!incident || writing) return;
+    if (!incident || pending[incident.id]) return;
     const id = incident.id;
-    const gen = generation.current;
-    setWriting(status);
+    setPending((p) => ({ ...p, [id]: status }));
     setWriteError("");
     call<{ incident?: Incident }>("Incident", "Update", {
       parameters: { id },
@@ -128,40 +141,59 @@ export default function IncidentViewer() {
     })
       .then((r) => {
         tangram.emit("updated", { incidentId: id, status: r?.incident?.status ?? status });
-        if (gen !== generation.current) return;
+        if (canonicalId.current !== id) return;
         // Show the new state before the controls unlock, so a stale Acknowledge can't reopen a resolved incident.
         setIncident((prev) => (prev && prev.id === id ? { ...prev, ...(r?.incident ?? {}), status: r?.incident?.status ?? status } : prev));
         load(id, true);
       })
       .catch((e: unknown) => {
-        if (gen === generation.current) setWriteError(errText(e));
+        if (canonicalId.current === id) setWriteError(errText(e));
       })
-      .finally(() => {
-        if (gen === generation.current) setWriting("");
-      });
+      .finally(() => done(id));
+  }
+
+  function done(id: string) {
+    setPending((p) => {
+      const { [id]: _, ...rest } = p;
+      return rest;
+    });
   }
 
   function addNote() {
     const content = noteText.trim();
-    if (!incident || !content || writing) return;
+    if (!incident || !content || pending[incident.id] || unverified.current?.id === incident.id) return;
     const id = incident.id;
-    const gen = generation.current;
     const statusAtWrite = incident.status ?? "";
-    setWriting("note");
+    const since = Date.now();
+    setPending((p) => ({ ...p, [id]: "note" }));
     setWriteError("");
+    const saved = () => {
+      tangram.emit("updated", { incidentId: id, status: statusAtWrite });
+      if (canonicalId.current !== id) return;
+      setNoteText((t) => (t.trim() === content ? "" : t));
+      load(id, true);
+    };
+    const shown = (msg: string) => {
+      if (canonicalId.current === id) setWriteError(msg);
+    };
     call("Incident", "AddNote", { parameters: { id }, requestBody: { note: { content } } })
-      .then(() => {
-        tangram.emit("updated", { incidentId: id, status: statusAtWrite });
-        if (gen !== generation.current) return;
-        setNoteText("");
-        load(id, true);
-      })
+      .then(saved)
       .catch((e: unknown) => {
-        if (gen === generation.current) setWriteError(errText(e));
+        if (definiteFailure(e)) return shown(errText(e));
+        // The note may have landed (notes can't be deleted): look before offering a retry.
+        return call<{ notes?: Note[] }>("Incident", "ListNotes", { parameters: { id } })
+          .then((r) => {
+            if (hasNote(r?.notes ?? [], content, since)) saved();
+            else shown(`${errText(e)} — the note isn't on the incident; you can retry.`);
+          })
+          .catch(() => {
+            unverified.current = { id, content, since };
+            if (canonicalId.current === id) {
+              setNoteCheck("Couldn't confirm whether the note was saved. Refresh to check before adding it again.");
+            }
+          });
       })
-      .finally(() => {
-        if (gen === generation.current) setWriting("");
-      });
+      .finally(() => done(id));
   }
 
   function loadOlder() {
@@ -221,7 +253,9 @@ export default function IncidentViewer() {
 
   const status = incident.status ?? "";
   const assignees = (incident.assignments ?? []).map((a) => a.assignee?.summary).filter(Boolean) as string[];
+  const writing: WriteKind | "" = pending[incident.id] ?? "";
   const busy = writing !== "";
+  const noteBlocked = unverified.current?.id === incident.id;
 
   return (
     <div className="pd-root">
@@ -319,6 +353,7 @@ export default function IncidentViewer() {
               ))
             )}
           </div>
+          {noteCheck && noteBlocked ? <div className="pd-faint" role="status">{noteCheck}</div> : null}
           <div className="pd-addnote">
             <Input.TextArea
               aria-label="New note"
@@ -328,7 +363,12 @@ export default function IncidentViewer() {
               disabled={busy}
               onChange={(e) => setNoteText(e.target.value)}
             />
-            <Button type="primary" disabled={busy || !noteText.trim()} loading={writing === "note"} onClick={addNote}>
+            <Button
+              type="primary"
+              disabled={busy || noteBlocked || !noteText.trim()}
+              loading={writing === "note"}
+              onClick={addNote}
+            >
               Add note
             </Button>
           </div>
@@ -387,4 +427,11 @@ export default function IncidentViewer() {
 
 function byTimeDesc(a: { created_at?: string }, b: { created_at?: string }): number {
   return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+}
+
+// A note with this text written since the attempt started (a minute of clock slack).
+function hasNote(notes: Note[], content: string, since: number): boolean {
+  return notes.some(
+    (n) => (n.content ?? "").trim() === content && (!n.created_at || Date.parse(n.created_at) >= since - 60_000),
+  );
 }
