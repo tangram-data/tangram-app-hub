@@ -24,7 +24,7 @@ type Status =
   | { kind: "saved"; created: boolean; note?: string }
   | { kind: "error"; message: string; fatal?: boolean }
   // the write may or may not have happened; a create needs an explicit retry
-  | { kind: "unknown"; message: string; created: boolean };
+  | { kind: "unknown"; message: string; created: boolean; retryError?: string };
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
 
@@ -70,6 +70,7 @@ export default function RecordEditor() {
   // inputs that arrive mid-save wait here, so the save's result is never dropped
   const saving = useRef(false);
   const queued = useRef<Record<string, unknown> | null>(null);
+  const lastInputs = useRef<Record<string, unknown>>({});
   // writes with an unknown outcome, by "sobject|id" ("sobject|" = a create): they survive input updates and stay
   // unresolved until a save of the same target settles definitively or the user retries anyway
   const unresolved = useRef(new Map<string, { created: boolean; message: string }>());
@@ -122,6 +123,7 @@ export default function RecordEditor() {
         queued.current = inputs;
         return;
       }
+      lastInputs.current = inputs;
       const fields = inputs?.fields && typeof inputs.fields === "object" && !Array.isArray(inputs.fields) ? (inputs.fields as Values) : {};
       load(String(inputs?.sobject ?? "").trim(), String(inputs?.id ?? "").trim(), fields);
     },
@@ -174,9 +176,11 @@ export default function RecordEditor() {
       unresolved.current.set(key, { created, message });
       setStatus({ kind: "unknown", created, message });
     };
+    // a declined or rejected retry proves nothing about the earlier attempt: its unknown outcome stays
     const fail = (message: string) => {
-      unresolved.current.delete(key);
-      setStatus({ kind: "error", message });
+      const prior = unresolved.current.get(key);
+      if (prior) setStatus({ kind: "unknown", ...prior, retryError: message });
+      else setStatus({ kind: "error", message });
     };
     const fields = editable;
     saving.current = true;
@@ -260,6 +264,12 @@ export default function RecordEditor() {
             <div className="sf-error" role="alert">
               <b>Couldn't open the form</b>
               {status.message}
+              <div style={{ marginTop: 8 }}>
+                {/* reloads the same target with the same prefill */}
+                <Button size="small" onClick={() => apply(lastInputs.current)}>
+                  Retry
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="sf-pad">
@@ -293,6 +303,19 @@ export default function RecordEditor() {
               ? `The ${desc.label} may have been created anyway; retrying could create a duplicate.`
               : "It isn't confirmed whether the change landed; retrying may repeat its automation."}{" "}
             ({status.message})
+            {status.retryError ? <div>Retry not completed: {status.retryError}</div> : null}
+            <div style={{ marginTop: 8 }}>
+              <Button
+                size="small"
+                onClick={() => {
+                  // the user checked Salesforce: the earlier attempt is settled either way
+                  unresolved.current.delete(`${sobject}|${id}`);
+                  setStatus({ kind: "ready" });
+                }}
+              >
+                I checked Salesforce — dismiss
+              </Button>
+            </div>
           </div>
         ) : null}
         {ignored.length ? (
