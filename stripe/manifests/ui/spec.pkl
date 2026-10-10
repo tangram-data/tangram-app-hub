@@ -4,3 +4,77 @@ logo = "static/stripe.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "customer-viewer"
+    kind = "sandboxed"
+    entry = "components/customer-viewer/customer-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Stripe customer"
+      description = "One Stripe customer at a glance: profile, balance and metadata, then recent payments, invoices and subscriptions with their status. Read-only; selecting an invoice emits open."
+      inputs {
+        type = "object"
+        required {
+          "customerId"
+        }
+        properties {
+          ["customerId"] = new Dynamic {
+            type = "string"
+            description = "Stripe customer id (cus_...), e.g. from stripe_search_customer."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["invoiceId"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "invoice-composer"
+    kind = "sandboxed"
+    entry = "components/invoice-composer/invoice-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Stripe invoice composer"
+      description = "Create a draft invoice for a customer (kept a draft: auto_advance false), add one-off or catalog-price lines, then finalize and send it, or delete the draft. Every write is confirmed by the user; creates carry an Idempotency-Key reused on retry. Finalizing a charge-automatically invoice charges the customer's saved payment method. Draft state is readable via component state."
+      inputs {
+        type = "object"
+        properties {
+          ["customerId"] = new Dynamic {
+            type = "string"
+            description = "Customer to invoice (cus_...). Editable in the form when omitted."
+          }
+          ["invoiceId"] = new Dynamic {
+            type = "string"
+            description = "Resume an existing invoice (in_...) — usually a draft — instead of creating one."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["invoiceId"] = new Dynamic { type = "string" }
+              ["status"] = new Dynamic {
+                type = "string"
+                description = "draft, open, paid, … or deleted."
+              }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

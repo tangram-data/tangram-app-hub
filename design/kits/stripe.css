@@ -1,0 +1,52 @@
+/* Stripe dashboard look for the Stripe connector components.
+   Source of truth: design/kits/stripe.css — run scripts/sync-ui-kits.sh after editing. */
+.s-root {
+  --s-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif;
+  --s-mono: "SFMono-Regular", Menlo, Consolas, monospace;
+  --s-text: #30313d; --s-muted: #6a7383; --s-faint: #87909f; --s-line: #ebeef1; --s-surface: #f6f8fa;
+  --s-accent: #635bff; --s-accent-soft: #f2f1ff; --s-hover: #f8f9fb; --s-red: #df1b41;
+  font-family: var(--s-font); color: var(--s-text); background: #fff; font-size: 14px; line-height: 20px;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+}
+.s-root *, .s-root *::before, .s-root *::after { box-sizing: border-box; }
+.s-root .ant-btn, .s-root .ant-input, .s-root .ant-select, .s-root .ant-input-number { font-family: var(--s-font); }
+.s-root a { color: var(--s-accent); text-decoration: none; } .s-root a:hover { text-decoration: underline; }
+.s-pad { padding: 20px 24px; }
+.s-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 16px; border-bottom: 1px solid var(--s-line); }
+.s-head .sp { flex: 1; min-width: 0; }
+.s-kind { font-size: 12px; color: var(--s-muted); display: flex; align-items: center; gap: 6px; }
+.s-title { font-size: 22px; font-weight: 700; line-height: 28px; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-sub { color: var(--s-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 24px; padding: 14px 24px; border-bottom: 1px solid var(--s-line); }
+.s-fact .k { font-size: 12px; color: var(--s-muted); } .s-fact .v { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-section { padding: 16px 24px 4px; }
+.s-section h3 { font-size: 16px; font-weight: 700; margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; }
+.s-section h3 .n { font-size: 12px; font-weight: 400; color: var(--s-faint); }
+.s-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.s-table th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--s-muted); padding: 6px 8px; border-bottom: 1px solid var(--s-line); white-space: nowrap; }
+.s-table td { padding: 8px; border-bottom: 1px solid var(--s-line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-table td.num, .s-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.s-table tr.click { cursor: pointer; } .s-table tr.click:hover td { background: var(--s-hover); }
+.s-table tr.click:focus-visible td { background: var(--s-accent-soft); outline: none; }
+.s-mono { font-family: var(--s-mono); font-size: 12px; }
+.s-muted { color: var(--s-muted); } .s-faint { color: var(--s-faint); font-size: 12px; }
+.s-status { display: inline-flex; align-items: center; gap: 6px; color: var(--s-muted); }
+.s-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot, #9ca3af); flex: none; }
+.s-status.bad b { color: var(--s-red); font-weight: 500; }
+.s-empty { padding: 12px 0 16px; color: var(--s-faint); font-size: 13px; }
+.s-error { margin: 12px 24px; padding: 10px 14px; border-radius: 6px; background: #fff0f3; color: #a41c3a; font-size: 13px; }
+.s-error.inline { margin: 8px 0; }
+.s-warn { margin: 8px 0; padding: 10px 14px; border-radius: 6px; background: #fcf5e0; color: #7d4a00; font-size: 13px; }
+.s-ok { margin: 8px 0; padding: 10px 14px; border-radius: 6px; background: #e8f7ee; color: #116635; font-size: 13px; }
+.s-tag { font-size: 12px; background: var(--s-surface); color: var(--s-muted); border: 1px solid var(--s-line); border-radius: 4px; padding: 0 6px; white-space: nowrap; }
+.s-meta { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; font-size: 13px; }
+.s-meta .k { color: var(--s-muted); }
+/* Forms (invoice composer) */
+.s-form { display: grid; grid-template-columns: 160px 1fr; gap: 10px 16px; align-items: center; }
+.s-form > label { color: var(--s-muted); font-size: 13px; }
+.s-card { border: 1px solid var(--s-line); border-radius: 8px; padding: 14px 16px; background: #fff; }
+.s-card.soft { background: var(--s-surface); }
+.s-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .s-bar .sp { flex: 1; }
+.s-total { display: flex; justify-content: flex-end; gap: 24px; padding: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.s-steps { display: flex; gap: 6px; font-size: 12px; color: var(--s-faint); margin-bottom: 12px; }
+.s-steps .on { color: var(--s-accent); font-weight: 600; }

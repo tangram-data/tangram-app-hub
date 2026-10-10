@@ -47,7 +47,17 @@ types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Customer", "A customer: name, email, address, default payment method, balance.", List(
     reader("Search", "searchCustomers", "Search customers with Stripe search query syntax, e.g. email:'jo@acme.com', name~'acme', metadata['crm_id']:'123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
     reader("List", "listCustomers", "List customers, newest first. Filter by email and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
-    reader("Get", "getCustomer", "Retrieve one customer by id; expand[] inlines related objects."),
+    (reader("Get", "getCustomer", "Retrieve one customer by id; expand[] inlines related objects.")) {
+      presentation = new resources.ComponentPresentation {
+        component = "customer-viewer"
+        preferredDisplayMode = "panel"
+        inputs {
+          ["customerId"] = new resources.FromArg {
+            path = List("parameters", "id")
+          }
+        }
+      }
+    },
     writer("Create", "Create", "Reversible", "createCustomer", "Create a customer (email, name, description, phone, metadata). Search first to avoid duplicates. \(idem)"),
     writer("Update", "Update", "Reversible", "updateCustomer", "Update a customer's email, name, description, phone or metadata (an empty string unsets a field). Changing email changes where receipts and invoices go.")
   )),

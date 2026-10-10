@@ -30,6 +30,15 @@ parameter: use a unique key per logical request and reuse it on a retry, so Stri
 Requests pin `Stripe-Version: 2024-06-20`. Amounts are integers in the smallest currency unit (`4999` = $49.99). Search results can lag about a minute behind writes and are not available
 for accounts in India — use `List` filters there.
 
+## UI components
+
+| Component | What it shows / does |
+|-----------|----------------------|
+| `customer-viewer` | One customer: profile, balance, metadata, then recent payments, invoices and subscriptions with status. Opens automatically for `Customer.Get`. Selecting an invoice emits `open`. |
+| `invoice-composer` | Draft → lines → finalize → send. Creates the draft with `auto_advance: false`, adds one-off or catalog-price lines, finalizes (charge-automatically invoices are then collected from the saved payment method — a warning says so) and sends emailed invoices; can delete a draft. Every write is confirmed by the user and every create reuses its `Idempotency-Key` on retry. Emits `saved`. |
+
+Both use the Stripe dashboard look (`ui/shared/stripe.css`, source of truth `design/kits/stripe.css`).
+
 ## Setup
 
 Create a **restricted key** in the Stripe Dashboard (Developers → API keys → Create restricted key) and enter it as the install secret
