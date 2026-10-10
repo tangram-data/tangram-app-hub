@@ -11,23 +11,15 @@ import { Button, Segmented, Select, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
-import { definiteFailure, sameText, stableJson } from "../../shared/write-outcome";
+import { definiteFailure, endsWithText, sameText, stableJson } from "../../shared/write-outcome";
 import { Page, Space, allSpaces, errText, getPage, openExternal, pageUrl, titledPages } from "./composer-io";
+import { Status, StatusBanners } from "./composer-banners";
 import { DraftPreview } from "./draft-preview";
 import { draftToStorage, storageToDraft } from "./storage-draft";
 
 const tangram = (window as any).tangram;
 
 type Mode = "create" | "append" | "whole";
-type Status =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "busy" }
-  | { kind: "saved"; title: string; url: string }
-  | { kind: "error"; message: string }
-  | { kind: "conflict"; message: string }
-  | { kind: "uncertain"; message: string };
-
 const SYNTAX = "# Heading   - bullet   1. step   > quote   ``` code";
 
 export default function PageComposer() {
@@ -43,7 +35,12 @@ export default function PageComposer() {
   const [url, setUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
   // The page as loaded: storage is what gets sent back untouched (append, or an unedited whole body).
-  const original = useRef({ storage: "", draft: "", title: "" });
+  const original = useRef({ storage: "", draft: "", title: "", version: 0 });
+  // The baseline storage the whole-page draft (`body`) was derived from; a newer baseline makes it stale.
+  const bodyBase = useRef("");
+  // An update whose response was lost: what was sent, on top of which version.
+  const updateAttempt = useRef({ mode: "append" as Mode, value: "", part: "", prev: 0 });
+  const latest = useRef<Page | null>(null);
   const [pickSpace, setPickSpace] = useState(false);
   const [spaces, setSpaces] = useState<Space[] | null>(null);
   const [spaceError, setSpaceError] = useState("");
@@ -57,7 +54,7 @@ export default function PageComposer() {
   const adopt = (p: Page) => {
     const storage = p.body?.storage?.value ?? "";
     const conv = storageToDraft(storage);
-    original.current = { storage, draft: conv.draft, title: p.title ?? "" };
+    original.current = { storage, draft: conv.draft, title: p.title ?? "", version: p.version?.number ?? 0 };
     setVersion(p.version?.number ?? 0);
     setLossy(conv.lossy);
     pageUrl(p).then(setUrl, () => setUrl(""));
@@ -80,6 +77,7 @@ export default function PageComposer() {
         setMode(whole ? "whole" : "append");
         if (whole) setBody(inputs.body == null ? conv.draft : String(inputs.body));
         else setSection(inputs.body == null ? "" : String(inputs.body));
+        bodyBase.current = whole ? original.current.storage : "";
         setLoaded(true);
         setStatus({ kind: "idle" });
       })
@@ -102,7 +100,7 @@ export default function PageComposer() {
       setLossy([]);
       setVersion(0);
       setUrl("");
-      original.current = { storage: "", draft: "", title: "" };
+      original.current = { storage: "", draft: "", title: "", version: 0 };
       if (id) loadPage(id, inputs);
       else {
         ++seq.current;
@@ -144,8 +142,50 @@ export default function PageComposer() {
     return wholeEdited ? draftToStorage(body) : original.current.storage;
   }
 
+  // Whole-page saves are refused while the baseline holds formatting markdown can't keep.
+  const wholeBlocked = mode === "whole" && lossy.length > 0;
+
+  // A write that is known to have landed (directly, or found by reconciliation) becomes the new baseline.
+  function landed(p: Page, value: string, link: string) {
+    const saved = { ...p, body: { storage: { value } }, title: p.title ?? title.trim() };
+    adopt(saved);
+    if (mode !== "append") {
+      original.current.draft = body; // the markdown just saved is the baseline for further whole-page edits
+      bodyBase.current = value;
+    }
+    if (mode === "create" && p.id) {
+      // A new page was written from markdown: keep editing it as a whole.
+      setPageId(p.id);
+      setMode("whole");
+    }
+    if (mode === "append") setSection("");
+    setLoaded(true);
+    setStatus({ kind: "saved", title: saved.title, url: link });
+    tangram.emit("saved", { pageId: p.id, title: saved.title, url: link });
+  }
+
+  // After an update with no answer: re-read the page. Our write is there (version advanced, body ends with the section /
+  // equals what was sent) → saved; nothing changed → safe to retry; anything else stays unsure.
+  function checkUpdate(s: number) {
+    const a = updateAttempt.current;
+    setStatus({ kind: "busy" });
+    getPage(pageId)
+      .then(async (p) => {
+        const now = p.version?.number ?? 0;
+        const body = p.body?.storage?.value ?? "";
+        latest.current = p;
+        if (s !== seq.current) return;
+        if (now > a.prev && (a.mode === "append" ? endsWithText(body, a.part) : sameText(body, a.value)))
+          landed(p, body, await pageUrl(p));
+        else if (now === a.prev) setStatus({ kind: "error", message: "The page wasn't changed — it's safe to save again." });
+        else setStatus({ kind: "unsure", message: `The page is now v${now} but doesn't show your change.` });
+      })
+      .catch((e: unknown) => s === seq.current && setStatus({ kind: "unsure", message: `Couldn't check: ${errText(e)}` }));
+  }
+
   async function save() {
     const s = seq.current;
+    if (wholeBlocked) return;
     const value = outgoing();
     setStatus({ kind: "busy" });
     let before = new Set<string>();
@@ -161,28 +201,15 @@ export default function PageComposer() {
     const call = editing
       ? tangram.performAction({ resourceType: "Page", action: "Update" }, {
           parameters: { id: pageId },
-          requestBody: { id: pageId, status: "current", title: title.trim(), body: { representation: "storage", value }, version: { number: version + 1 } },
+          requestBody: { id: pageId, status: "current", title: title.trim(), body: { representation: "storage", value }, version: { number: original.current.version + 1 } },
         })
       : tangram.performAction({ resourceType: "Page", action: "Create" }, {
           requestBody: { spaceId, status: "current", title: title.trim(), ...(parentId ? { parentId } : {}), body: { representation: "storage", value } },
         });
     call
       .then(async (p: Page) => {
-        const saved = { ...p, body: { storage: { value } }, title: p.title ?? title.trim() };
         const link = await pageUrl(p);
-        if (s !== seq.current) return;
-        adopt(saved);
-        // The markdown just saved is the baseline for further whole-page edits.
-        if (mode !== "append") original.current.draft = body;
-        if (!editing && p.id) {
-          // A new page was written from markdown: keep editing it as a whole.
-          setPageId(p.id);
-          setMode("whole");
-        }
-        if (mode === "append") setSection("");
-        setLoaded(true);
-        setStatus({ kind: "saved", title: saved.title, url: link });
-        tangram.emit("saved", { pageId: p.id, title: saved.title, url: link });
+        if (s === seq.current) landed(p, value, link);
       })
       .catch((e: unknown) => {
         if (s !== seq.current) return;
@@ -193,6 +220,11 @@ export default function PageComposer() {
         else if (!editing && !definiteFailure(e)) {
           createAttempt.current = { spaceId, parentId, title: title.trim(), value, before };
           findCreated(s);
+        } else if (editing && !definiteFailure(e)) {
+          // An update that may have landed: look before ever offering it again.
+          const part = mode === "append" ? draftToStorage(section) : "";
+          updateAttempt.current = { mode, value, part, prev: original.current.version };
+          checkUpdate(s);
         } else setStatus({ kind: "error", message });
       });
   }
@@ -236,7 +268,14 @@ export default function PageComposer() {
         const conv = adopt(p);
         if (!titleWasEdited) setTitle(p.title ?? "");
         if (mode === "whole" && !bodyWasEdited) setBody(conv.draft);
+        if (mode === "whole" && !bodyWasEdited) bodyBase.current = original.current.storage;
         setLoaded(true);
+        // The conflicting version may be our own append that lost its answer.
+        if (mode === "append" && section.trim() && endsWithText(original.current.storage, draftToStorage(section))) {
+          setSection("");
+          setStatus({ kind: "error", message: `Your section is already at the end of v${p.version?.number ?? "?"} — nothing to append.` });
+          return;
+        }
         const kept =
           mode === "append"
             ? "Your section will be appended to that version; "
@@ -250,7 +289,8 @@ export default function PageComposer() {
 
   const changed = mode === "append" ? section.trim() !== "" || title.trim() !== original.current.title : true;
   const canSave =
-    !busy && status.kind !== "conflict" && status.kind !== "uncertain" && title.trim() !== "" && changed &&
+    !busy && status.kind !== "conflict" && status.kind !== "uncertain" && status.kind !== "unsure" && !wholeBlocked &&
+    title.trim() !== "" && changed &&
     (editing ? loaded : spaceId !== "");
   const draft = mode === "append" ? section : body;
   const setDraft = mode === "append" ? setSection : setBody;
@@ -311,7 +351,11 @@ export default function PageComposer() {
                     disabled={busy}
                     onChange={(v) => {
                       setMode(v as Mode);
-                      if (v === "whole" && !body) setBody(original.current.draft);
+                      // A whole-page draft derived from an older baseline (e.g. before an append) is stale.
+                      if (v === "whole" && bodyBase.current !== original.current.storage) {
+                        setBody(original.current.draft);
+                        bodyBase.current = original.current.storage;
+                      }
                     }}
                     options={[
                       { label: "Append section", value: "append" },
@@ -325,8 +369,8 @@ export default function PageComposer() {
             ) : null}
             {mode === "whole" && lossy.length ? (
               <div className="a-error" role="alert">
-                The page now has {lossy.join(", ")} that markdown can't keep.{" "}
-                {wholeEdited ? "Saving your edited body would lose them — switch to Append section, or edit in Confluence." : "They're kept as long as you only change the title."}
+                The page now has {lossy.join(", ")} that markdown can't keep, so whole-page saving is off — switch to Append
+                section, or open it in Confluence.
               </div>
             ) : null}
             <input
@@ -360,30 +404,19 @@ export default function PageComposer() {
                   : "Update replaces the page's title and body; earlier versions stay in page history."}{" "}
               You'll confirm before anything is saved.
             </p>
-            {status.kind === "error" && (!editing || loaded) ? <div className="a-error">{status.message}</div> : null}
-            {status.kind === "uncertain" ? (
-              <div className="a-error" role="alert">
-                The page may already exist: {status.message}{" "}
-                <Button size="small" onClick={() => findCreated(seq.current)}>Check again</Button>{" "}
-                <Button size="small" onClick={save}>Create again anyway</Button>
-              </div>
-            ) : null}
-            {status.kind === "conflict" ? (
-              <div className="a-error" role="alert">
-                Someone changed this page since you opened it ({status.message}).{" "}
-                <Button size="small" onClick={reloadLatest}>Reload latest</Button>
-              </div>
-            ) : null}
-            {status.kind === "saved" ? (
-              <div className="a-ok">
-                Saved “{status.title}”.{" "}
-                {status.url ? (
-                  <a href={status.url} onClick={(e) => (e.preventDefault(), openExternal(status.url))}>
-                    Open in Confluence
-                  </a>
-                ) : null}
-              </div>
-            ) : null}
+            <StatusBanners
+              status={status}
+              showError={!editing || loaded}
+              againLabel={mode === "append" ? "Append again anyway" : "Save again anyway"}
+              onCheckUpdate={() => checkUpdate(seq.current)}
+              onUpdateAgain={() => {
+                if (latest.current) adopt(latest.current);
+                save();
+              }}
+              onCheckCreate={() => findCreated(seq.current)}
+              onCreateAgain={save}
+              onReloadLatest={reloadLatest}
+            />
           </>
         )}
       </div>

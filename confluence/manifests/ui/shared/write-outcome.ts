@@ -15,7 +15,17 @@ export function definiteFailure(e: unknown): boolean {
 
 // Storage bodies compared as visible text: Confluence may normalize the markup it stores.
 export function sameText(a: string, b: string): boolean {
-  const plain = (s: string) =>
+  return plainText(a) === plainText(b);
+}
+
+// Whether a storage body ends with `part`, compared as visible text (an append that landed).
+export function endsWithText(body: string, part: string): boolean {
+  const tail = plainText(part);
+  return tail !== "" && plainText(body).endsWith(tail);
+}
+
+export function plainText(s: string): string {
+  return (
     s
       .replace(/<[^>]*>/g, " ")
       .replace(/&lt;/g, "<")
@@ -24,8 +34,8 @@ export function sameText(a: string, b: string): boolean {
       .replace(/&#39;/g, "'")
       .replace(/&amp;/g, "&")
       .replace(/\s+/g, " ")
-      .trim();
-  return plain(a) === plain(b);
+      .trim()
+  );
 }
 
 // Created at or after the attempt (with a minute of clock skew).
