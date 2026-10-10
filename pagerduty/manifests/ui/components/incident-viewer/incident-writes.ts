@@ -25,8 +25,8 @@ export type WriteKind = "acknowledged" | "resolved" | "note";
 // "checking": re-reading after an uncertain update; "failed": that read failed too (Refresh retries it).
 export type StatusCheck = "checking" | "failed";
 // "unchecked": the notes couldn't be read; "not-visible": read, and the note isn't there (yet).
-// `before`: the incident's note ids just before submitting (null if unknown — then nothing can confirm it).
-export type NoteDoubt = { content: string; before: Set<string> | null; state: "unchecked" | "not-visible" };
+// `before`: the incident's note ids, read fresh just before submitting.
+export type NoteDoubt = { content: string; before: Set<string>; state: "unchecked" | "not-visible" };
 
 type Hooks = {
   // canonical id of the incident on screen ("" while a new input loads)
@@ -34,13 +34,11 @@ type Hooks = {
   reload: (id: string) => void;
   showIncident: (id: string, patch: Partial<Incident>) => void;
   clearDraft: (content: string) => void;
-  // ids of the notes on screen for this incident, or null when they aren't loaded for it
-  noteIds: (id: string) => string[] | null;
 };
 
-// A NEW note (not in the pre-submit snapshot) with this text; without a snapshot nothing counts as confirmation.
-export function hasNote(notes: Note[], content: string, before: Set<string> | null): boolean {
-  return before !== null && notes.some((n) => !before.has(n.id) && (n.content ?? "").trim() === content);
+// A NEW note (not in the pre-submit snapshot) with this text.
+export function hasNote(notes: Note[], content: string, before: Set<string>): boolean {
+  return notes.some((n) => !before.has(n.id) && (n.content ?? "").trim() === content);
 }
 
 function without<T>(m: Record<string, T>, id: string): Record<string, T> {
@@ -58,6 +56,8 @@ export function useIncidentWrites(h: Hooks) {
   const checkRef = useRef(statusCheck);
   checkRef.current = statusCheck;
   const written = useRef(new Map<string, { incident: Partial<Incident>; at: number }>());
+  // When each incident's status became uncertain: only a read started after that may clear the lock.
+  const uncertainSince = useRef(new Map<string, number>());
 
   const done = (id: string) => setPending((p) => without(p, id));
   const showError = (id: string, msg: string) => {
@@ -89,12 +89,14 @@ export function useIncidentWrites(h: Hooks) {
       .catch((e: unknown) => {
         if (definiteFailure(e)) return showError(id, errText(e));
         // The update may have landed: lock the status buttons until a read says what the status is.
+        uncertainSince.current.set(id, Date.now());
         setStatusCheck((c) => ({ ...c, [id]: "checking" }));
         return call<{ incident?: Incident }>("Incident", "Get", { parameters: { id } })
           .then((r) => {
             const now = r?.incident;
             if (!now) throw new Error("Incident not found.");
             setStatusCheck((c) => without(c, id));
+            uncertainSince.current.delete(id);
             if (now.status === status) tangram.emit("updated", { incidentId: id, status });
             else showError(id, `${errText(e)} — the status didn't change; you can retry.`);
             settleStatus(id, now);
@@ -111,13 +113,6 @@ export function useIncidentWrites(h: Hooks) {
     if (anyway) setNoteDoubt((d) => without(d, id));
     setPending((p) => ({ ...p, [id]: "note" }));
     setWriteError("");
-    // Snapshot the existing note ids first, so an identical earlier note can't confirm this attempt.
-    const shown = h.noteIds(id);
-    const snapshot: Promise<Set<string> | null> = shown
-      ? Promise.resolve(new Set(shown))
-      : call<{ notes?: Note[] }>("Incident", "ListNotes", { parameters: { id } })
-          .then((r) => new Set((r?.notes ?? []).map((n) => n.id)))
-          .catch(() => null);
     const saved = () => {
       setNoteDoubt((d) => without(d, id));
       tangram.emit("updated", { incidentId: id, status: statusAtWrite });
@@ -125,21 +120,33 @@ export function useIncidentWrites(h: Hooks) {
       h.clearDraft(content);
       h.reload(id);
     };
-    snapshot
-      .then((before) =>
-        call("Incident", "AddNote", { parameters: { id }, requestBody: { note: { content } } })
+    const notesNow = () =>
+      call<{ notes?: Note[] }>("Incident", "ListNotes", { parameters: { id } }).then((r) => r?.notes ?? []);
+    // A fresh baseline of note ids right before submitting, so an identical earlier note can't confirm this attempt.
+    // Without one the note isn't sent: its outcome couldn't be told apart later.
+    notesNow()
+      .then(
+        (list) => new Set(list.map((n) => n.id)),
+        (e: unknown) => {
+          showError(id, `Couldn't read the notes before adding yours (${errText(e)}); nothing was sent — try again.`);
+          return null;
+        },
+      )
+      .then((before) => {
+        if (!before) return;
+        return call("Incident", "AddNote", { parameters: { id }, requestBody: { note: { content } } })
           .then(saved)
           .catch((e: unknown) => {
             if (definiteFailure(e)) return showError(id, errText(e));
             // It may have landed, or still land: stay uncertain until it shows up or the user adds it again.
-            return call<{ notes?: Note[] }>("Incident", "ListNotes", { parameters: { id } })
-              .then((r) => {
-                if (hasNote(r?.notes ?? [], content, before)) saved();
+            return notesNow()
+              .then((list) => {
+                if (hasNote(list, content, before)) saved();
                 else setNoteDoubt((d) => ({ ...d, [id]: { content, before, state: "not-visible" } }));
               })
               .catch(() => setNoteDoubt((d) => ({ ...d, [id]: { content, before, state: "unchecked" } })));
-          }),
-      )
+          });
+      })
       .finally(() => done(id));
   }
 
@@ -152,7 +159,11 @@ export function useIncidentWrites(h: Hooks) {
     const w = written.current.get(id);
     const newer = w !== undefined && w.at >= startedAt;
     if (w && !newer) written.current.delete(id);
-    if (checkRef.current[id] === "failed") setStatusCheck((c) => without(c, id));
+    const since = uncertainSince.current.get(id);
+    if (checkRef.current[id] === "failed" && since !== undefined && startedAt >= since) {
+      setStatusCheck((c) => without(c, id));
+      uncertainSince.current.delete(id);
+    }
     const doubt = doubtRef.current[id];
     if (doubt && notes) {
       if (hasNote(notes, doubt.content, doubt.before)) {

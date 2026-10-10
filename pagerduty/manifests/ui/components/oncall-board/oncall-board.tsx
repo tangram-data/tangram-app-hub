@@ -74,6 +74,7 @@ export default function OncallBoard() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const seq = useRef(0);
+  const lastInputs = useRef<string | null>(null);
 
   const load = useCallback((policyIds: string[], scheduleIds: string[], quiet = false) => {
     const mine = ++seq.current;
@@ -120,6 +121,10 @@ export default function OncallBoard() {
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => {
       const f = { policies: strings(inputs?.escalationPolicyIds), schedules: strings(inputs?.scheduleIds) };
+      // token renewal re-sends the same inputs: no reload
+      const key = JSON.stringify(f);
+      if (key === lastInputs.current) return;
+      lastInputs.current = key;
       setFilters(f);
       load(f.policies, f.schedules);
     };

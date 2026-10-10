@@ -32,6 +32,8 @@ export default function IncidentViewer() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [noteText, setNoteText] = useState("");
+  // a load (incl. the quiet reload after a write) is in flight: Add note waits for it
+  const [reloading, setReloading] = useState(false);
   const seq = useRef(0);
   // Bumped on every new input: write callbacks from an earlier input are ignored. The input may be an incident
   // NUMBER; reads and writes use the canonical id the API returned.
@@ -40,15 +42,12 @@ export default function IncidentViewer() {
   const inputId = useRef<string | null>(null);
   const statusRef = useRef("");
   statusRef.current = incident?.status ?? "";
-  const notesRef = useRef(notes);
-  notesRef.current = notes;
   const loadRef = useRef<(id: string, quiet?: boolean) => void>(() => undefined);
   const writes = useIncidentWrites({
     shownId: () => canonicalId.current,
     reload: (id) => loadRef.current(id, true),
     showIncident: (id, patch) => setIncident((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev)),
     clearDraft: (content) => setNoteText((t) => (t.trim() === content ? "" : t)),
-    noteIds: (id) => (canonicalId.current === id && !notesRef.current.error ? notesRef.current.items.map((n) => n.id) : null),
   });
   const { pending, statusCheck, noteDoubt, writeError, setWriteError } = writes;
   const onLoaded = useRef(writes.onLoaded);
@@ -63,6 +62,7 @@ export default function IncidentViewer() {
       return;
     }
     if (!quiet) setState("loading");
+    setReloading(true);
     setError("");
     // The input may be an incident NUMBER: resolve the incident first, then read its sections by resource id.
     call<{ incident?: Incident }>("Incident", "Get", { parameters: { id } })
@@ -105,12 +105,14 @@ export default function IncidentViewer() {
           nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
         );
         setState("ready");
+        setReloading(false);
       })
       .catch((e: unknown) => {
         if (mine !== seq.current) return;
         setIncident(null);
         setError(errText(e));
         setState("error");
+        setReloading(false);
       });
   }, []);
   loadRef.current = load;
@@ -312,7 +314,7 @@ export default function IncidentViewer() {
                 ? "Couldn't confirm whether the last note was saved — Refresh to check."
                 : "The last note isn't visible yet; it may still land. "}
               {doubt.state === "not-visible" ? (
-                <Button size="small" type="link" disabled={busy} onClick={() => writes.addNote(incident, doubt.content, true)}>
+                <Button size="small" type="link" disabled={busy || reloading} onClick={() => writes.addNote(incident, doubt.content, true)}>
                   Add again anyway
                 </Button>
               ) : null}
@@ -329,7 +331,7 @@ export default function IncidentViewer() {
             />
             <Button
               type="primary"
-              disabled={busy || doubt !== undefined || !noteText.trim()}
+              disabled={busy || reloading || doubt !== undefined || !noteText.trim()}
               loading={writing === "note"}
               onClick={() => addNote()}
             >
