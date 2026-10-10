@@ -104,7 +104,7 @@ function SectionBody<T>({
 export default function CustomerViewer() {
   const [customerId, setCustomerId] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [payments, setPayments] = useState<Section<PaymentIntent>>(loading());
   const [invoices, setInvoices] = useState<Section<Invoice>>(loading());

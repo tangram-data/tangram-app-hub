@@ -43,7 +43,8 @@ export default function InvoiceComposer() {
   const [target, setTarget] = useState("");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [deleted, setDeleted] = useState("");
-  const [loading, setLoading] = useState(false);
+  // true until the first onInput arrives, so no form flashes before the inputs are known
+  const [loading, setLoading] = useState(true);
   // the shown invoice may be out of date (a refresh after a write failed): writes stay blocked until it reloads
   const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
