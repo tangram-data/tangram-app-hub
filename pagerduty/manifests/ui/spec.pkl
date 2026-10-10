@@ -4,3 +4,76 @@ logo = "static/pagerduty.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "incident-viewer"
+    kind = "sandboxed"
+    entry = "components/incident-viewer/incident-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "PagerDuty incident"
+      description = "Show one PagerDuty incident: status, urgency, service, assignees, the overview timeline and responder notes. The user can acknowledge, resolve, and add notes (each confirmed by the host before it runs)."
+      inputs {
+        type = "object"
+        required {
+          "incidentId"
+        }
+        properties {
+          ["incidentId"] = new Dynamic {
+            type = "string"
+            description = "Incident id (e.g. PT4KHLK) or number, e.g. from pagerduty_list_incident."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "updated"
+          payload {
+            type = "object"
+            properties {
+              ["incidentId"] = new Dynamic { type = "string" }
+              ["status"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "oncall-board"
+    kind = "sandboxed"
+    entry = "components/oncall-board/oncall-board.tsx"
+    spec = new ui.UIComponentContract {
+      title = "PagerDuty on-call board"
+      description = "Who is on call now, grouped by escalation policy and level, with when each shift ends (in the viewer's time zone), plus the open (triggered / acknowledged) incidents. Clicking an incident emits open."
+      inputs {
+        type = "object"
+        properties {
+          ["escalationPolicyIds"] = new Dynamic {
+            type = "array"
+            items = new Dynamic { type = "string" }
+            description = "Only these escalation policies (ids from pagerduty_list_escalationpolicy). Omit for all."
+          }
+          ["scheduleIds"] = new Dynamic {
+            type = "array"
+            items = new Dynamic { type = "string" }
+            description = "Only these schedules (ids from pagerduty_list_schedule). Omit for all."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["incidentId"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

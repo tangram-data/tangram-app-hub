@@ -36,7 +36,23 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         reader("List", "listIncidents", "List incidents, newest first by default. Without since/until PagerDuty only looks back 30 days; date_range=all removes the window. Filter by statuses[] (triggered, acknowledged, resolved), service_ids[], urgencies[] (high, low), team_ids[], user_ids[] (assigned). Page with offset/limit while more=true."),
-        reader("Get", "getIncident", "Get one incident by id or number: title, status, urgency, service, assignments, escalation policy, priority, created_at, html_url."),
+        new resources.Action {
+          name = "Get"
+          privilege = "Read"
+          effect = "Stateless"
+          idempotent = true
+          doc = "Get one incident by id or number: title, status, urgency, service, assignments, escalation policy, priority, created_at, html_url."
+          openApiMapping = new resources.OpenApiMapping { operationId = "getIncident" }
+          presentation = new resources.ComponentPresentation {
+            component = "incident-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["incidentId"] = new resources.FromArg {
+                path = List("parameters", "id")
+              }
+            }
+          }
+        },
         reader("ListLogEntries", "listIncidentLogEntries", "The incident timeline: trigger, notifications, acknowledgements, escalations, reassignments, notes, resolution — with who and when."),
         reader("ListNotes", "listIncidentNotes", "Notes responders added to an incident."),
         reader("ListAlerts", "listIncidentAlerts", "Alerts grouped into the incident, with the monitoring payload (body.details) that triggered them."),

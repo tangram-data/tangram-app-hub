@@ -65,7 +65,8 @@ paths:
       operationId: getIncident
       summary: Get an incident
       parameters:
-        - $ref: "#/components/parameters/incidentId"
+        # inline (not $ref) so the incident-viewer presentation can resolve parameters.id
+        - {name: id, in: path, required: true, description: Incident id (e.g. PT4KHLK) or number., schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: Not found.}

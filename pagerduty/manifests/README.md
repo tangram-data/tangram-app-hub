@@ -24,6 +24,15 @@ US region (`api.pagerduty.com`) by default; EU accounts set the install's endpoi
 
 Array filters are sent as repeated keys (`statuses[]=triggered&statuses[]=acknowledged`). Lists page with `offset`/`limit` while `more` is true.
 
+## UI components
+
+| Component | Inputs | What it shows |
+|-----------|--------|---------------|
+| `incident-viewer` | `incidentId` | Status, urgency, service, assignees, overview timeline and notes. **Acknowledge**, **Resolve** and **Add note** run the confirmation-gated `Incident.Update` / `Incident.AddNote` (the host asks first), then the view refreshes and emits `updated`. Shown automatically for `Incident.Get` results. |
+| `oncall-board` | `escalationPolicyIds`, `scheduleIds` (optional) | Who is on call now per escalation policy and level, with shift end in the viewer's time zone, plus open (triggered / acknowledged) incidents; clicking one emits `open`. Read-only. |
+
+Look and feel: `design/kits/pagerduty.css` (synced to `ui/shared/` by `scripts/sync-ui-kits.sh`).
+
 ## OAuth setup
 
 In PagerDuty, **Integrations → App Registration → New App → OAuth 2.0 (Scoped OAuth)**, add the redirect URL:
