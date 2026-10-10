@@ -13,6 +13,7 @@ import {
   errorText,
   formatMoney,
   initials,
+  inputsKey,
   OBJECT_TYPES,
   ObjectType,
   Owner,
@@ -131,7 +132,13 @@ export default function RecordViewer() {
 
   useEffect(() => {
     // onInput fires as soon as the frame is initialised and on every new input; getInputs() is async, so no eager apply.
-    tangram.onInput((inputs: Record<string, unknown>) => open(inputs?.objectType, inputs?.id));
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown>) => {
+      const key = inputsKey(inputs);
+      if (key === last) return;
+      last = key;
+      open(inputs?.objectType, inputs?.id);
+    });
   }, [open]);
 
   if (state.kind === "loading")

@@ -14,6 +14,7 @@ import {
   formatDate,
   formatMoney,
   initials,
+  inputsKey,
   Owner,
   ownerName,
   owners,
@@ -102,7 +103,13 @@ export default function DealBoard() {
       load(next.pipelineId, next.ownerId);
     };
     // onInput fires as soon as the frame is initialised and on every new input; getInputs() is async, so no eager apply.
-    tangram.onInput((i: Record<string, unknown>) => apply(i ?? {}));
+    let last: string | null = null;
+    tangram.onInput((i: Record<string, unknown>) => {
+      const key = inputsKey(i);
+      if (key === last) return;
+      last = key;
+      apply(i ?? {});
+    });
   }, [load]);
 
   const busy = state.kind === "loading";

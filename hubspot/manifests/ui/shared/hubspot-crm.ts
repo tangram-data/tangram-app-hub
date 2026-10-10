@@ -175,3 +175,20 @@ export function displayValue(
   if (def?.type === "bool") return raw === "true" ? "Yes" : raw === "false" ? "No" : raw;
   return raw;
 }
+
+// Stable JSON (sorted keys) of render inputs: the shell re-sends init on token renewal with the same inputs,
+// so components skip an onInput identical to the last one they applied.
+export function inputsKey(v: unknown): string {
+  const norm = (x: unknown): unknown =>
+    Array.isArray(x)
+      ? x.map(norm)
+      : x && typeof x === "object"
+        ? Object.fromEntries(
+            Object.keys(x as object)
+              .sort()
+              .map((k) => [k, norm((x as Record<string, unknown>)[k])]),
+          )
+        : x;
+  return JSON.stringify(norm(v ?? {}));
+}
+
