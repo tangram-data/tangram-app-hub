@@ -1,9 +1,10 @@
 import "@tangram-app-manifest/connector.pkl" as connector
 
-// Stripe API. Read-only by design: Stripe writes take form-encoded bodies,
-// which the connector gateway doesn't send, and money movement belongs
-// behind a dedicated, reviewed integration. The install's restricted key
-// (read permissions only) is the second fence.
+// Stripe API. Writes are form-encoded (declared application/x-www-form-urlencoded;
+// the platform encodes the JSON arguments) and carry an Idempotency-Key
+// header param. Every write is confirmation-gated; the install's restricted
+// key decides which writes Stripe accepts at all. No charge or payment
+// creation — only refunds, invoices, customers and subscription changes.
 endpoint = "https://api.stripe.com"
 endpointOverridable = false
 endpointRequired = false

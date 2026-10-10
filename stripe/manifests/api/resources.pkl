@@ -10,6 +10,18 @@ local function reader(actionName: String, op: String, text: String) = new resour
   openApiMapping = new resources.OpenApiMapping { operationId = op }
 }
 
+// A Stripe write: every one is confirmation-gated. Creates take an Idempotency-Key header.
+local function writer(actionName: String, privilegeName: String, actionEffect: String, op: String, text: String) =
+  new resources.Action {
+    name = actionName
+    privilege = privilegeName
+    effect = actionEffect
+    idempotent = false
+    requiresConfirmation = true
+    doc = text
+    openApiMapping = new resources.OpenApiMapping { operationId = op }
+  }
+
 local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
   name = typeName
   activeVersion = "v1"
@@ -20,11 +32,13 @@ local function readOnly(typeName: String, typeDoc: String, acts: List<resources.
     actions = acts
     presetRoles = List(new resources.Role {
       name = "user"
-      permissions = List("Read")
-      description = "Read \(typeName) data through the Stripe connector."
+      permissions = acts.map((a) -> a.privilege!!).distinct
+      description = "Use \(typeName) through the Stripe connector."
     })
   })
 }
+
+local idem = "Pass a unique Idempotency-Key per logical request and reuse it on retry — Stripe then returns the first result instead of acting twice."
 
 types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Balance", "The account's Stripe balance.", List(
@@ -33,7 +47,9 @@ types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Customer", "A customer: name, email, address, default payment method, balance.", List(
     reader("Search", "searchCustomers", "Search customers with Stripe search query syntax, e.g. email:'jo@acme.com', name~'acme', metadata['crm_id']:'123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
     reader("List", "listCustomers", "List customers, newest first. Filter by email and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
-    reader("Get", "getCustomer", "Retrieve one customer by id; expand[] inlines related objects.")
+    reader("Get", "getCustomer", "Retrieve one customer by id; expand[] inlines related objects."),
+    writer("Create", "Create", "Reversible", "createCustomer", "Create a customer (email, name, description, phone, metadata). Search first to avoid duplicates. \(idem)"),
+    writer("Update", "Update", "Reversible", "updateCustomer", "Update a customer's email, name, description, phone or metadata (an empty string unsets a field). Changing email changes where receipts and invoices go.")
   )),
   readOnly("PaymentIntent", "A payment attempt and its status (succeeded, requires_payment_method, canceled, ...).", List(
     reader("Find", "searchPaymentIntents", "Search payment intents with Stripe search query syntax, e.g. status:'succeeded' AND amount>10000, customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
@@ -48,16 +64,27 @@ types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Invoice", "An invoice: line items, totals, amount_due/paid, status, hosted_invoice_url.", List(
     reader("Find", "searchInvoices", "Search invoices with Stripe search query syntax, e.g. status:'open' AND total>5000, customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
     reader("List", "listInvoices", "List invoices, newest first. Filter by customer, subscription, status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
-    reader("Get", "getInvoice", "Retrieve one invoice by id; expand[] inlines related objects.")
+    reader("Get", "getInvoice", "Retrieve one invoice by id; expand[] inlines related objects."),
+    writer("Create", "Create", "Irreversible", "createInvoice", "Create a draft invoice for a customer, then add lines with InvoiceItem.Create. Set auto_advance: false to keep it a draft until Finalize — with true, Stripe finalizes it and may email it about an hour later. collection_method send_invoice needs days_until_due. \(idem)"),
+    writer("Finalize", "Update", "Irreversible", "finalizeInvoice", "Finalize a draft: it gets a number and becomes payable (open); with auto_advance it is then emailed or charged automatically. Cannot be undone — only voided."),
+    writer("Send", "Update", "Irreversible", "sendInvoice", "Email a finalized invoice to the customer (send_invoice collection only)."),
+    writer("Void", "Update", "Irreversible", "voidInvoice", "Void a finalized, unpaid invoice — permanent; it stays on record as void."),
+    writer("Delete", "Delete", "Irreversible", "deleteInvoice", "Delete a DRAFT invoice (finalized invoices can only be voided).")
   )),
   readOnly("Subscription", "A recurring subscription: items/prices, status, current period, cancel_at_period_end.", List(
     reader("Find", "searchSubscriptions", "Search subscriptions with Stripe search query syntax, e.g. status:'past_due', metadata['plan']:'pro'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
     reader("List", "listSubscriptions", "List subscriptions, newest first. Filter by customer, price, status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
-    reader("Get", "getSubscription", "Retrieve one subscription by id; expand[] inlines related objects.")
+    reader("Get", "getSubscription", "Retrieve one subscription by id; expand[] inlines related objects."),
+    writer("Update", "Update", "Irreversible", "updateSubscription", "Change a subscription: cancel_at_period_end (true = cancel when the paid period ends, false = undo that), metadata, or description. Price changes are out of scope."),
+    writer("Cancel", "Delete", "Irreversible", "cancelSubscription", "Cancel a subscription immediately — billing stops now and it cannot be reactivated. Prefer Update with cancel_at_period_end: true.")
+  )),
+  readOnly("InvoiceItem", "A line added to a draft invoice (or a customer's next invoice).", List(
+    writer("Create", "Create", "Reversible", "createInvoiceItem", "Add a line to a draft invoice (invoice id) or to the customer's next invoice: a price id with quantity, or amount + currency + description. \(idem)")
   )),
   readOnly("Refund", "A refund of a charge.", List(
     reader("List", "listRefunds", "List refunds, newest first. Filter by charge, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
-    reader("Get", "getRefund", "Retrieve one refund by id; expand[] inlines related objects.")
+    reader("Get", "getRefund", "Retrieve one refund by id; expand[] inlines related objects."),
+    writer("Create", "Create", "Irreversible", "createRefund", "Refund a charge or payment intent, fully or partially (amount in the smallest currency unit); reason duplicate, fraudulent, or requested_by_customer. Money goes back to the customer and cannot be reclaimed. \(idem)")
   )),
   readOnly("Dispute", "A chargeback dispute: reason, status, evidence due date.", List(
     reader("List", "listDisputes", "List disputes, newest first. Filter by charge, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),

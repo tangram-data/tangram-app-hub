@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Stripe API (read-only subset)
+  title: Stripe API (subset)
   version: "1"
   description: >
-    Read-only subset of the Stripe API. Lists return {object: list, data, has_more}; searches return
+    Subset of the Stripe API. Writes are form-encoded (the platform encodes the JSON arguments). Lists return {object: list, data, has_more}; searches return
     {object: search_result, data, has_more, next_page}. Amounts are integers in the smallest currency unit.
 servers:
   - url: https://api.stripe.com
@@ -31,6 +31,27 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Ok"}
 
+    post:
+      operationId: createCustomer
+      summary: Create a customer
+      parameters:
+        - $ref: "#/components/parameters/idempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                email: {type: string}
+                name: {type: string}
+                description: {type: string}
+                phone: {type: string}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/customers/search:
     get:
       operationId: searchCustomers
@@ -58,6 +79,27 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: No such object.}
 
+    post:
+      operationId: updateCustomer
+      summary: Update a customer
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                email: {type: string}
+                name: {type: string}
+                description: {type: string}
+                phone: {type: string}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/payment_intents:
     get:
       operationId: listPaymentIntents
@@ -152,6 +194,31 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Ok"}
 
+    post:
+      operationId: createInvoice
+      summary: Create a draft invoice
+      parameters:
+        - $ref: "#/components/parameters/idempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [customer, auto_advance]
+              properties:
+                customer: {type: string, description: Customer id (cus_...).}
+                auto_advance: {type: boolean, description: "false keeps it a draft until Finalize; true lets Stripe finalize (and email or charge) it in about an hour."}
+                collection_method: {type: string, enum: [charge_automatically, send_invoice]}
+                days_until_due: {type: integer, minimum: 0, description: Required with send_invoice.}
+                description: {type: string, description: Memo shown on the invoice.}
+                currency: {type: string, description: "Three-letter ISO code, e.g. usd."}
+                pending_invoice_items_behavior: {type: string, enum: [exclude, include], description: "include pulls the customer's pending invoice items in."}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/invoices/search:
     get:
       operationId: searchInvoices
@@ -175,6 +242,52 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: No such object.}
 
+    delete:
+      operationId: deleteInvoice
+      summary: Delete a draft invoice
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
+  /v1/invoices/{id}/finalize:
+    post:
+      operationId: finalizeInvoice
+      summary: Finalize a draft invoice
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                auto_advance: {type: boolean, description: "Whether Stripe then emails or charges it automatically."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
+
+  /v1/invoices/{id}/send:
+    post:
+      operationId: sendInvoice
+      summary: Email an invoice to the customer
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
+
+  /v1/invoices/{id}/void:
+    post:
+      operationId: voidInvoice
+      summary: Void an invoice
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/subscriptions:
     get:
       operationId: listSubscriptions
@@ -215,6 +328,33 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: No such object.}
 
+    post:
+      operationId: updateSubscription
+      summary: Update a subscription
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                cancel_at_period_end: {type: boolean}
+                description: {type: string}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
+    delete:
+      operationId: cancelSubscription
+      summary: Cancel a subscription now
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/refunds:
     get:
       operationId: listRefunds
@@ -231,6 +371,27 @@ paths:
       responses:
         "200": {$ref: "#/components/responses/Ok"}
 
+    post:
+      operationId: createRefund
+      summary: Refund a charge or payment intent
+      parameters:
+        - $ref: "#/components/parameters/idempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                charge: {type: string, description: Charge id (ch_...); or use payment_intent.}
+                payment_intent: {type: string, description: PaymentIntent id (pi_...).}
+                amount: {type: integer, minimum: 1, description: Smallest currency unit; omit for a full refund.}
+                reason: {type: string, enum: [duplicate, fraudulent, requested_by_customer]}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
   /v1/refunds/{id}:
     get:
       operationId: getRefund
@@ -388,8 +549,37 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "404": {description: No such object.}
 
+  /v1/invoiceitems:
+    post:
+      operationId: createInvoiceItem
+      summary: Add an invoice item
+      parameters:
+        - $ref: "#/components/parameters/idempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [customer]
+              properties:
+                customer: {type: string}
+                invoice: {type: string, description: Draft invoice id; omit to add to the customer's next invoice.}
+                price: {type: string, description: Price id (price_...); or amount + currency.}
+                quantity: {type: integer, minimum: 1}
+                amount: {type: integer, description: Smallest currency unit (when no price).}
+                currency: {type: string}
+                description: {type: string}
+                metadata: {type: object, additionalProperties: {type: string}, description: "Key-value pairs; an empty string value removes a key."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: "Invalid request (error.message, error.param)."}
+
 components:
   parameters:
+    idempotencyKey:
+      {name: Idempotency-Key, in: header, required: false, description: "Unique per logical request (e.g. a UUID); reuse on retry so Stripe doesn't act twice.", schema: {type: string, maxLength: 255}}
     limit:
       {name: limit, in: query, required: false, description: "Page size (default 10, max 100).", schema: {type: integer, minimum: 1, maximum: 100}}
     startingAfter:
