@@ -15,8 +15,8 @@ lets them see.
 | `box_download_file` | `File.Download` | Content (inline text up to 32KB, else a saved file reference). |
 | `box_update_file` | `File.Update` | **Confirmation-gated.** Rename, move, or describe. |
 | `box_share_file` | `File.Share` | **Confirmation-gated.** Create/change the shared link (`open`, `company`, `collaborators`). |
-| `box_delete_file` | `File.Delete` | **Confirmation-gated.** To the trash. |
-| `box_list_comment` / `box_create_comment` | `Comment.List` / `Comment.Create` | Create is **confirmation-gated** (notifies collaborators). |
+| `box_delete_file` | `File.Delete` | **Confirmation-gated.** Usually to the trash; enterprise settings can make it permanent. |
+| `box_list_comment` / `box_create_comment` / `box_mention_comment` | `Comment.List` / `.Create` / `.Mention` | Create and Mention are **confirmation-gated** (collaborators notified; mentioned users emailed). |
 
 Uploads are not supported yet.
 

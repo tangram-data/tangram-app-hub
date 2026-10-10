@@ -65,6 +65,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [name, parent]
               properties:
                 name: {type: string}
@@ -94,6 +95,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
                 name: {type: string, description: New name.}
                 description: {type: string}
@@ -139,10 +141,12 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [shared_link]
               properties:
                 shared_link:
                   type: object
+                  additionalProperties: false
                   required: [access]
                   properties:
                     access: {type: string, enum: [open, company, collaborators]}
@@ -161,6 +165,8 @@ paths:
       summary: List a file's comments
       parameters:
         - $ref: "#/components/parameters/fileId"
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
 
@@ -174,15 +180,30 @@ paths:
           application/json:
             schema:
               type: object
-              required: [item]
+              additionalProperties: false
+              required: [item, message]
               properties:
-                item:
-                  type: object
-                  required: [id, type]
-                  properties:
-                    id: {type: string, description: File id.}
-                    type: {type: string, enum: [file]}
+                item: {$ref: "#/components/schemas/FileItem"}
                 message: {type: string, description: Plain-text comment.}
+      responses:
+        "201": {$ref: "#/components/responses/Ok"}
+
+  /comments/mention:
+    post:
+      operationId: createMentionComment
+      summary: Comment on a file with @mentions
+      x-tangram-upstream:
+        path: "/2.0/comments"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [item, tagged_message]
+              properties:
+                item: {$ref: "#/components/schemas/FileItem"}
                 tagged_message: {type: string, description: "Comment with mentions, e.g. @[12345:Ana] please review."}
       responses:
         "201": {$ref: "#/components/responses/Ok"}
@@ -203,6 +224,14 @@ components:
   schemas:
     IdRef:
       type: object
+      additionalProperties: false
       required: [id]
       properties:
         id: {type: string, description: Folder id (0 = root).}
+    FileItem:
+      type: object
+      additionalProperties: false
+      required: [id, type]
+      properties:
+        id: {type: string, description: File id.}
+        type: {type: string, enum: [file]}

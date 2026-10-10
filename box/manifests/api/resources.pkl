@@ -95,11 +95,11 @@ types: List<resources.ResourceTypeDefinition> = List(
         new resources.Action {
           name = "Delete"
           privilege = "Delete"
-          // Trash; restorable until the enterprise's trash retention ends.
-          effect = "Reversible"
+          // Usually to the trash, but enterprise settings can make it permanent.
+          effect = "Irreversible"
           idempotent = true
           requiresConfirmation = true
-          doc = "Move a file to the trash (restorable from Box's trash until the retention period ends). Confirmation-gated."
+          doc = "Delete a file: usually to the trash (restorable until retention ends), but the enterprise's settings can delete it permanently. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "deleteFile" }
         }
       )
@@ -118,7 +118,7 @@ types: List<resources.ResourceTypeDefinition> = List(
       version = "v1"
       served = true
       actions = List(
-        reader("List", "listFileComments", "List a file's comments (message, created_by, created_at)."),
+        reader("List", "listFileComments", "List a file's comments (message, created_by, created_at); page with offset/limit."),
         new resources.Action {
           name = "Create"
           privilege = "Create"
@@ -126,8 +126,17 @@ types: List<resources.ResourceTypeDefinition> = List(
           effect = "Irreversible"
           idempotent = false
           requiresConfirmation = true
-          doc = "Comment on a file as the connected user (collaborators are notified). Use message for plain text, or tagged_message with @[userId:name] to mention (and email) someone. Confirmation-gated."
+          doc = "Comment on a file as the connected user (collaborators are notified). Plain text; to @mention someone use Mention. Confirmation-gated."
           openApiMapping = new resources.OpenApiMapping { operationId = "createComment" }
+        },
+        new resources.Action {
+          name = "Mention"
+          privilege = "Create"
+          effect = "Irreversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Comment on a file mentioning people: tagged_message with @[userId:name] (e.g. \"@[12345:Ana] please review\") — each mentioned user is emailed. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createMentionComment" }
         }
       )
       presetRoles = List(new resources.Role {
