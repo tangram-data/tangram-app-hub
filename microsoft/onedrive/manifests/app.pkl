@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.microsoft"
 name = "onedrive"
-version = "0.1.1"
+version = "0.1.2"
 appType = "Connector"
 providerWebsite = "https://learn.microsoft.com/graph/api/resources/onedrive"
 category = "productivity"

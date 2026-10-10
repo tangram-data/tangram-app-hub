@@ -1,7 +1,7 @@
 manifestSpecVersion = "v1"
 group = "com.google"
 name = "docs"
-version = "0.1.1"
+version = "0.1.2"
 appType = "Connector"
 providerWebsite = "https://developers.google.com/docs/api"
 category = "productivity"
