@@ -22,6 +22,15 @@ OAuth is limited to Marketplace partners). US1 (`api.datadoghq.com`) by default;
 | `datadog_create_downtime` | `Downtime.Create` | **Confirmation-gated.** Silences notifications for a scope; always set `schedule.end`. |
 | `datadog_cancel_downtime` | `Downtime.Cancel` | **Confirmation-gated.** |
 
+## UI components
+
+| Component | Shows | Opened by |
+|---|---|---|
+| `monitor-list` | Monitors matching a monitor query, one line each (status dot, name, type, tags, last triggered); a row expands to query, thresholds, message and non-OK groups. `Select` emits `open` {monitorId, name}. | `Monitor.Search` results; or render with `query` |
+| `metric-chart` | A metric query as a line chart, one line per series (click a legend entry to hide it), 15m–7d range selector, unit on the y-axis, at most 10 series. | `Metric.Query` results; or render with `query` + `range` (or `from`/`to`) |
+
+Both are read-only and call the connector's own actions as the viewer.
+
 ## Setup
 
 1. **API key** — Organization Settings → API Keys.

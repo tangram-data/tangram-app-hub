@@ -31,11 +31,25 @@ types: List<resources.ResourceTypeDefinition> = List(
     reader("Validate", "validateApiKey", "Check that the API key is valid ({valid: true}). Cheapest connection check.")
   )),
   readOnly("Monitor", "A Datadog monitor — an alert rule over metrics, logs, APM, synthetics, etc.", List(
-    reader("Search", "searchMonitors", "Search monitors with Datadog's monitor query syntax, e.g. 'status:alert', 'service:checkout status:(alert OR warn)', 'tag:env:prod notification:@pagerduty', or plain words matching the name. Returns id, name, status, tags, last triggered. Start here for 'what is alerting?'."),
+    (reader("Search", "searchMonitors", "Search monitors with Datadog's monitor query syntax, e.g. 'status:alert', 'service:checkout status:(alert OR warn)', 'tag:env:prod notification:@pagerduty', or plain words matching the name. Returns id, name, status, tags, last triggered. Start here for 'what is alerting?'.")) {
+      presentation = new resources.ComponentPresentation {
+        component = "monitor-list"
+        inputs { ["query"] = new resources.FromArg { path = List("parameters", "query") } }
+      }
+    },
     reader("Get", "getMonitor", "Get one monitor by id: query, message, thresholds, options, overall_state, and with group_states=all the per-group (host/service) states.")
   )),
   readOnly("Metric", "Timeseries metrics.", List(
-    reader("Query", "queryMetrics", "Query timeseries points between from and to (UNIX seconds), e.g. 'avg:system.cpu.user{env:prod} by {host}', 'sum:trace.http.request.errors{service:checkout}.as_count()'. Keep windows tight — long ranges roll up coarsely."),
+    (reader("Query", "queryMetrics", "Query timeseries points between from and to (UNIX seconds), e.g. 'avg:system.cpu.user{env:prod} by {host}', 'sum:trace.http.request.errors{service:checkout}.as_count()'. Keep windows tight — long ranges roll up coarsely.")) {
+      presentation = new resources.ComponentPresentation {
+        component = "metric-chart"
+        inputs {
+          ["query"] = new resources.FromArg { path = List("parameters", "query") }
+          ["from"] = new resources.FromArg { path = List("parameters", "from") }
+          ["to"] = new resources.FromArg { path = List("parameters", "to") }
+        }
+      }
+    },
     reader("ListActive", "listActiveMetrics", "Metric names that reported since 'from' (UNIX seconds), optionally only for a host or tag_filter — discover what to query.")
   )),
   readOnly("Log", "Indexed log events.", List(

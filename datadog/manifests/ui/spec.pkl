@@ -4,3 +4,72 @@ logo = "static/datadog.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "monitor-list"
+    kind = "sandboxed"
+    entry = "components/monitor-list/monitor-list.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Datadog monitors"
+      description = "Search Datadog monitors and see their alert state at a glance: one line per monitor (status, name, type, tags, last triggered); a row expands to its query, thresholds, message and non-OK groups. Select hands a monitor to the agent."
+      inputs {
+        type = "object"
+        properties {
+          ["query"] = new Dynamic {
+            type = "string"
+            description = "Monitor query, e.g. status:alert service:checkout or tag:env:prod. Defaults to monitors in Alert, Warn or No Data."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["monitorId"] = new Dynamic { type = "integer" }
+              ["name"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "metric-chart"
+    kind = "sandboxed"
+    entry = "components/metric-chart/metric-chart.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Datadog metric chart"
+      description = "Chart a Datadog metric query as a timeseries: one line per series (scope as legend, click to hide), a 15m/1h/4h/1d/7d range selector, the series unit on the y-axis; at most 10 series are drawn."
+      inputs {
+        type = "object"
+        required {
+          "query"
+        }
+        properties {
+          ["query"] = new Dynamic {
+            type = "string"
+            description = "Metric query, e.g. avg:system.cpu.user{env:prod} by {host}."
+          }
+          ["range"] = new Dynamic {
+            type = "string"
+            description = "Time range ending now: 15m, 1h (default), 4h, 1d or 7d."
+          }
+          ["from"] = new Dynamic {
+            type = "integer"
+            description = "Start, UNIX seconds (with to; overrides range)."
+          }
+          ["to"] = new Dynamic {
+            type = "integer"
+            description = "End, UNIX seconds (with from)."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

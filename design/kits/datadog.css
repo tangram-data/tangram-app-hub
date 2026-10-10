@@ -1,0 +1,68 @@
+/* Datadog look for the Datadog connector components: dense, light, purple accents.
+   Source of truth: design/kits/datadog.css — run scripts/sync-ui-kits.sh after editing. */
+.dd-root {
+  --dd-font: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --dd-mono: "Roboto Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --dd-text: #1c2b34; --dd-muted: #5a6872; --dd-faint: #87939c; --dd-line: #e3e7ea; --dd-hover: #f6f7f9;
+  --dd-purple: #632ca6; --dd-purple-soft: #f2ecfa; --dd-sel: #f4effb;
+  --dd-red: #e0312c; --dd-amber: #f2a32c; --dd-green: #28a745; --dd-grey: #9aa4ab;
+  font-family: var(--dd-font); color: var(--dd-text); background: #fff; font-size: 13px; line-height: 18px;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+}
+.dd-root *, .dd-root *::before, .dd-root *::after { box-sizing: border-box; }
+.dd-root .ant-btn, .dd-root .ant-input, .dd-root .ant-select { font-family: var(--dd-font); }
+.dd-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--dd-line); }
+.dd-head .ttl { font-weight: 600; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-mark { width: 4px; align-self: stretch; border-radius: 2px; background: var(--dd-purple); flex: none; }
+.dd-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid var(--dd-line); border-radius: 4px; background: #fff; color: var(--dd-muted); }
+.dd-search:focus-within { border-color: var(--dd-purple); box-shadow: 0 0 0 2px var(--dd-purple-soft); }
+.dd-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-family: var(--dd-mono); font-size: 12px; color: var(--dd-text); }
+.dd-iconbtn { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 2px; display: inline-grid; place-items: center; }
+.dd-bar { display: flex; align-items: center; gap: 8px; padding: 6px 14px; color: var(--dd-faint); font-size: 12px; border-bottom: 1px solid var(--dd-line); }
+.dd-bar .sp { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.dd-table th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--dd-faint); padding: 6px 10px; border-bottom: 1px solid var(--dd-line); position: sticky; top: 0; background: #fff; z-index: 1; white-space: nowrap; }
+.dd-table td { padding: 0 10px; height: 34px; border-bottom: 1px solid var(--dd-line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-table tr.dd-row { cursor: pointer; }
+.dd-table tr.dd-row:hover td { background: var(--dd-hover); }
+.dd-table tr.dd-row:focus-visible { outline: 2px solid var(--dd-purple); outline-offset: -2px; }
+.dd-table tr.dd-row.sel td { background: var(--dd-sel); }
+.dd-table tr.dd-row.sel td:first-child { box-shadow: inset 3px 0 0 var(--dd-purple); }
+.dd-table tr.dd-row.flag td:first-child { box-shadow: inset 3px 0 0 var(--dd-red); }
+.dd-table td.dd-detail-cell { height: auto; white-space: normal; padding: 0; background: #fbfbfc; }
+.dd-status { display: inline-flex; align-items: center; gap: 6px; color: var(--dd-muted); }
+.dd-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block; }
+.dd-status.bad b { color: var(--dd-red); font-weight: 600; }
+.dd-muted { color: var(--dd-muted); } .dd-faint { color: var(--dd-faint); }
+.dd-mono { font-family: var(--dd-mono); font-size: 12px; }
+.dd-tag { display: inline-block; margin-right: 4px; padding: 0 5px; border-radius: 3px; background: #eef1f3; color: var(--dd-muted); font-size: 11px; line-height: 17px; }
+.dd-detail { padding: 10px 14px 14px 24px; display: grid; gap: 8px; }
+.dd-kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; align-items: baseline; }
+.dd-kv > .k { color: var(--dd-faint); font-size: 12px; }
+.dd-kv > .v { min-width: 0; word-break: break-word; }
+.dd-code { font-family: var(--dd-mono); font-size: 12px; background: #f4f5f7; border-radius: 4px; padding: 6px 8px; white-space: pre-wrap; word-break: break-word; }
+.dd-msg { white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto; }
+.dd-groups { display: grid; gap: 2px; }
+.dd-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dd-group .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--dd-mono); font-size: 12px; }
+.dd-actions { display: flex; gap: 8px; margin-top: 2px; }
+.dd-empty { padding: 36px 16px; text-align: center; color: var(--dd-muted); }
+.dd-error { margin: 12px 14px; padding: 8px 12px; border-radius: 4px; background: #fdecea; color: #a61b17; }
+.dd-error.inline { margin: 0; }
+.dd-foot { display: flex; align-items: center; gap: 8px; padding: 8px 14px; color: var(--dd-faint); font-size: 12px; }
+.dd-foot .sp { flex: 1; }
+/* Metric chart */
+.dd-query { font-family: var(--dd-mono); font-size: 12px; color: var(--dd-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-ranges { display: inline-flex; border: 1px solid var(--dd-line); border-radius: 4px; overflow: hidden; flex: none; }
+.dd-ranges button { border: 0; border-right: 1px solid var(--dd-line); background: #fff; padding: 3px 9px; font: inherit; font-size: 12px; color: var(--dd-muted); cursor: pointer; }
+.dd-ranges button:last-child { border-right: 0; }
+.dd-ranges button:hover:not(:disabled) { background: var(--dd-hover); }
+.dd-ranges button.on { background: var(--dd-purple-soft); color: var(--dd-purple); font-weight: 600; }
+.dd-ranges button:disabled { cursor: default; }
+.dd-chart { padding: 12px 8px 4px 0; height: 300px; }
+.dd-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 14px 12px; font-size: 12px; }
+.dd-legend .it { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; cursor: pointer; border: 0; background: none; padding: 0; font: inherit; color: var(--dd-text); }
+.dd-legend .it.off { color: var(--dd-faint); }
+.dd-legend .it .sw { width: 10px; height: 3px; border-radius: 2px; flex: none; }
+.dd-legend .it .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--dd-mono); }
+.dd-note { padding: 0 14px 10px; color: var(--dd-faint); font-size: 12px; }
