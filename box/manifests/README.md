@@ -20,6 +20,15 @@ lets them see.
 
 Uploads are not supported yet.
 
+## UI components
+
+| Component | Shows | Calls |
+|-----------|-------|-------|
+| `file-browser` | Search box + folder browsing from All Files (breadcrumb, Load more). Clicking a file emits `open` (`fileId`, `name`, `type`); each row opens in Box. Inputs: `query`, `folderId`. | `Item.Search`, `Folder.ListItems` |
+| `file-viewer` | One file: path, type, size, updated, owner, description; text files previewed inline (CSV/TSV as a table). Other files: *Save copy to workspace files* or *Open in Box*. Input: `fileId`. `File.Get` results render with it. | `File.Get`, `File.Download` |
+
+Both are read-only. Styles: `design/kits/box.css` (synced to `ui/shared/` by `scripts/sync-ui-kits.sh`).
+
 ## OAuth setup
 
 Create a **Custom App → User Authentication (OAuth 2.0)** in the [Box Developer Console](https://app.box.com/developers/console), enable

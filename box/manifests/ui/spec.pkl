@@ -4,3 +4,65 @@ logo = "static/box.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "file-browser"
+    kind = "sandboxed"
+    entry = "components/file-browser/file-browser.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Box file browser"
+      description = "Search Box (names, contents, comments, tags) or browse folders from All Files; folders drill down with a breadcrumb, a file row emits `open` for the host/agent, and each row opens in Box."
+      inputs {
+        type = "object"
+        properties {
+          ["query"] = new Dynamic {
+            type = "string"
+            description = "Box search words, e.g. \"q3 plan\" or budget AND 2026. Empty lists the folder instead."
+          }
+          ["folderId"] = new Dynamic {
+            type = "string"
+            description = "Folder to start in when no query is given (default 0 = All Files)."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["fileId"] = new Dynamic { type = "string" }
+              ["name"] = new Dynamic { type = "string" }
+              ["type"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "file-viewer"
+    kind = "sandboxed"
+    entry = "components/file-viewer/file-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Box file viewer"
+      description = "Show a Box file's details (path, size, updated, owner) by file id and preview text files inline (CSV/TSV as a table); other files can be saved to workspace files or opened in Box."
+      inputs {
+        type = "object"
+        required {
+          "fileId"
+        }
+        properties {
+          ["fileId"] = new Dynamic {
+            type = "string"
+            description = "Box file id, e.g. from box_search_item or the file-browser component."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

@@ -79,7 +79,7 @@ paths:
       operationId: getFile
       summary: Get a file
       parameters:
-        - $ref: "#/components/parameters/fileId"
+        - {name: file_id, in: path, required: true, schema: {type: string}}
         - {name: fields, in: query, required: false, description: "Comma-separated fields to return instead of the defaults.", schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}

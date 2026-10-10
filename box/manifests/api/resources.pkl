@@ -70,7 +70,17 @@ types: List<resources.ResourceTypeDefinition> = List(
       version = "v1"
       served = true
       actions = List(
-        reader("Get", "getFile", "A file's details: name, size, path_collection, modified_at/by, version, shared_link, description."),
+        (reader("Get", "getFile", "A file's details: name, size, path_collection, modified_at/by, version, shared_link, description.")) {
+          presentation = new resources.ComponentPresentation {
+            component = "file-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["fileId"] = new resources.FromArg {
+                path = List("parameters", "file_id")
+              }
+            }
+          }
+        },
         reader("Download", "downloadFile", "Download a file's content. Text comes back inline (up to 32KB); larger or binary files come back as a saved file reference."),
         new resources.Action {
           name = "Update"
