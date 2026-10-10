@@ -40,14 +40,16 @@ function required(f: Field): boolean {
   return !f.nillable && !f.defaultedOnCreate && f.type !== "boolean";
 }
 
-// The body to send: every non-empty value on create; on edit only changed fields, a cleared one as null.
-function changes(fields: Field[], values: Values, original: Values, creating: boolean): Values {
+// The body to send: on create, every value the user set or prefilled (untouched fields, checkboxes included, keep
+// Salesforce's defaults — formula defaults too); on edit only changed fields, a cleared one as null.
+function changes(fields: Field[], values: Values, original: Values, creating: boolean, prefilled: string[]): Values {
   const out: Values = {};
   for (const f of fields) {
     const v = values[f.name];
+    const differs = (blank(v) ? null : v) !== (blank(original[f.name]) ? null : original[f.name]);
     if (creating) {
-      if (!blank(v)) out[f.name] = v;
-    } else if ((blank(v) ? null : v) !== (blank(original[f.name]) ? null : original[f.name])) {
+      if (!blank(v) && (differs || prefilled.includes(f.name))) out[f.name] = v;
+    } else if (differs) {
       out[f.name] = blank(v) ? null : v;
     }
   }
@@ -98,8 +100,11 @@ export default function RecordEditor() {
         const editable = new Map(d.fields.filter((f) => writable(f, creating)).map((f) => [f.name, f]));
         const base: Values = {};
         if (!creating) for (const name of editable.keys()) base[name] = rec?.[name] ?? null;
-        // checkboxes always save a value: start them at the field default so what's shown is what's created
-        else for (const f of editable.values()) if (f.type === "boolean") base[f.name] = f.defaultValue === true;
+        // a checkbox shows its describe default when there is one; otherwise its default is unknown (null, e.g. a
+        // defaultValueFormula) — either way an untouched checkbox is left out of the create body
+        else
+          for (const f of editable.values())
+            if (f.type === "boolean") base[f.name] = typeof f.defaultValue === "boolean" ? f.defaultValue : null;
         const pre = Object.keys(prefill).filter((k) => editable.has(k));
         setIgnored(Object.keys(prefill).filter((k) => !editable.has(k)));
         setPrefilled(pre);
@@ -147,7 +152,7 @@ export default function RecordEditor() {
   const editable = useMemo(() => (desc ? desc.fields.filter((f) => writable(f, creating)) : []), [desc, creating]);
   const nf = desc ? nameField(desc) : undefined;
   const missing = editable.filter((f) => required(f) && blank(values[f.name]) && (creating || !blank(original[f.name]) || f === nf));
-  const body = changes(editable, values, original, creating);
+  const body = changes(editable, values, original, creating, prefilled);
 
   draft.current = { sobject, id: id || null, mode: creating ? "create" : "edit", changes: body, missingRequired: missing.map((f) => f.name) };
 
@@ -160,8 +165,8 @@ export default function RecordEditor() {
   const ordered = [...visible].sort((a, b) => Number(b === nf) - Number(a === nf) || Number(required(b)) - Number(required(a)));
 
   const busy = status.kind === "saving" || status.kind === "loading";
-  // checkbox defaults ride along in a create body but aren't changes on their own
-  const changed = Object.keys(body).filter(touched);
+  // the body already holds only what the user changed or prefilled
+  const changed = Object.keys(body);
   const dirty = changed.length > 0;
   // a create may rely entirely on server defaults (auto-number objects); an update needs a change
   const canSave = !busy && missing.length === 0 && (creating || dirty);
@@ -350,6 +355,11 @@ export default function RecordEditor() {
                   {f.label}
                 </label>
                 <FieldInput f={f} value={values[f.name]} disabled={busy} onChange={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))} />
+                {creating && f.type === "boolean" && !(f.name in body) ? (
+                  <span className="help" style={{ marginLeft: 8 }}>
+                    {values[f.name] === null ? "Salesforce default" : "default"}
+                  </span>
+                ) : null}
                 {err ? <div className="err">Complete this field.</div> : f.inlineHelpText ? <div className="help">{f.inlineHelpText}</div> : null}
               </div>
             );
