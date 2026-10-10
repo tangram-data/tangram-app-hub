@@ -29,7 +29,8 @@ type Status =
   | { kind: "loading" }
   | { kind: "busy" }
   | { kind: "saved"; title: string; url: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "conflict"; message: string };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -187,14 +188,48 @@ export default function PageComposer() {
         setVersion(p.version?.number ?? version + 1);
         if (!editing && p.id) setPageId(p.id);
         original.current = { storage: value, draft: body };
+        setLoaded(true);
         if (bodyEdited) setLossy([]);
         setStatus({ kind: "saved", title: p.title ?? title, url });
         tangram.emit("saved", { pageId: p.id, title: p.title ?? title, url });
       })
-      .catch((e: unknown) => s === seq.current && setStatus({ kind: "error", message: errText(e) }));
+      .catch((e: unknown) => {
+        if (s !== seq.current) return;
+        const message = errText(e);
+        // Someone else saved meanwhile: the stored version is stale until the page is reloaded.
+        setStatus(editing && /409|conflict|version/i.test(message) ? { kind: "conflict", message } : { kind: "error", message });
+      });
   }
 
-  const canSave = !busy && title.trim() !== "" && (editing ? loaded : spaceId !== "");
+  // Conflict recovery: take the latest version and body as the new baseline, keep the user's title and body edits
+  // (an unedited body follows the latest page), and wait for an explicit Update.
+  function reloadLatest() {
+    const s = ++seq.current;
+    const bodyWasEdited = body !== original.current.draft;
+    setStatus({ kind: "busy" });
+    tangram
+      .performAction({ resourceType: "Page", action: "Get" }, { parameters: { id: pageId, "body-format": "storage" } })
+      .then((p: Page) => {
+        if (s !== seq.current) return;
+        const storage = p.body?.storage?.value ?? "";
+        const conv = storageToDraft(storage);
+        original.current = { storage, draft: conv.draft };
+        setVersion(p.version?.number ?? version);
+        if (!bodyWasEdited) setBody(conv.draft);
+        setLossy(conv.lossy);
+        setLoaded(true);
+        setStatus({
+          kind: "error",
+          message: `Reloaded v${p.version?.number ?? "?"} — the page changed in Confluence. ${
+            bodyWasEdited ? "Your edits are kept and would replace that version; review them, then " : ""
+          }Update again to save.`,
+        });
+      })
+      .catch((e: unknown) => s === seq.current && setStatus({ kind: "conflict", message: errText(e) }));
+  }
+
+  const canSave =
+    !busy && status.kind !== "conflict" && title.trim() !== "" && (editing ? loaded : spaceId !== "");
 
   return (
     <div className="a-root">
@@ -274,6 +309,14 @@ export default function PageComposer() {
               You'll confirm before anything is saved.
             </p>
             {status.kind === "error" && (!editing || loaded) ? <div className="a-error">{status.message}</div> : null}
+            {status.kind === "conflict" ? (
+              <div className="a-error" role="alert">
+                Someone changed this page since you opened it ({status.message}).{" "}
+                <Button size="small" onClick={reloadLatest}>
+                  Reload latest
+                </Button>
+              </div>
+            ) : null}
             {status.kind === "saved" ? (
               <div className="a-ok">
                 Saved “{status.title}”.{" "}

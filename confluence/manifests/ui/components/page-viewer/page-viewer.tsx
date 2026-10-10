@@ -113,7 +113,14 @@ export default function PageViewer() {
       const s = ++seq.current;
       setState("loading");
       setError("");
+      // Every load drops the previous page's secondary state and any comment request still in flight.
+      commentSeq.current++;
       setComments([]);
+      setNextCursor("");
+      setCommentState("loading");
+      setCommentError("");
+      setCrumbs([]);
+      setUrl("");
       // A different page: its draft, post error and in-flight post result don't carry over.
       if (id !== shownId.current) {
         shownId.current = id;

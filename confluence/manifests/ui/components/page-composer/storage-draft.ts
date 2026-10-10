@@ -13,13 +13,18 @@ const ESCAPABLE = /\\([\\`*#>\-+.)\d])/g;
 const hold = (c: string) => String.fromCharCode(0xe000 + c.charCodeAt(0));
 const release = (s: string) => s.replace(/[\ue000-\ue0ff]/g, (c) => esc(String.fromCharCode(c.charCodeAt(0) - 0xe000)));
 
+// Code spans are cut out first so bold/italic never apply inside them.
+function emphasis(t: string): string {
+  return t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+}
+
 function inline(text: string): string {
   const held = esc(text.replace(ESCAPABLE, (_, c: string) => hold(c)));
   return release(
     held
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>"),
+      .split(/(`[^`]+`)/)
+      .map((part) => (/^`[^`]+`$/.test(part) ? `<code>${part.slice(1, -1)}</code>` : emphasis(part)))
+      .join(""),
   );
 }
 
