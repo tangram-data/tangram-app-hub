@@ -1,12 +1,15 @@
-// Box downloads are non-JSON, so the platform wraps them in an
-// `app_action_result` envelope — inline text up to 32 KB, larger/binary content
-// saved to workspace files. This unwraps both shapes (same contract as the
-// OneDrive viewer).
+// Non-JSON downloads come back wrapped in the platform's envelope, marked
+// kind: "app_action_result" (core AppActionResultEnvelope) — inline text up to
+// 32 KB, larger/binary content saved to workspace files. A JSON file passes
+// through unwrapped, so anything without the marker is the file's own JSON
+// and is shown intact.
 export type Unwrapped = { text?: string; truncated: boolean; saved?: { where?: string }; note?: string };
+
+const ENVELOPE_KIND = "app_action_result";
 
 export function unwrapDownload(result: unknown): Unwrapped {
   if (typeof result === "string") return { text: result, truncated: false };
-  if (result && typeof result === "object") {
+  if (result && typeof result === "object" && (result as Record<string, unknown>).kind === ENVELOPE_KIND) {
     const env = result as Record<string, any>;
     const truncated = env.truncated === true;
     const note = typeof env.note === "string" ? env.note : undefined;
@@ -21,9 +24,10 @@ export function unwrapDownload(result: unknown): Unwrapped {
         typeof folder === "string" && folder && typeof name === "string" && name ? `${folder}/${name}` : undefined;
       return { truncated, saved: { where }, note };
     }
-    return { text: JSON.stringify(result, null, 2), truncated };
+    return { truncated, note: note ?? "The download returned no content." };
   }
-  return { text: String(result ?? ""), truncated: false };
+  // The file's own JSON (object, array, number…), pretty-printed as-is.
+  return { text: result === undefined ? "" : JSON.stringify(result, null, 2), truncated: false };
 }
 
 const TEXT_EXT = /^(txt|md|markdown|log|json|xml|ya?ml|csv|tsv|ini|conf|cfg|sql|py|js|ts|tsx|jsx|java|scala|go|rb|sh|css|html?)$/;
