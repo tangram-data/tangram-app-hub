@@ -51,7 +51,10 @@ export default function FileViewer() {
       .catch((e: unknown) => {
         if (mine === seq.current) setNote(`Preview unavailable: ${errorText(e)}`);
       })
-      .then(() => onDone?.());
+      .then(() => {
+        // a stale download must not clear a newer file's saving state
+        if (mine === seq.current) onDone?.();
+      });
   }
 
   useEffect(() => {

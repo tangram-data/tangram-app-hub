@@ -5,6 +5,7 @@ export type BoxItem = {
   type: "file" | "folder" | "web_link";
   id: string;
   name: string;
+  url?: string; // web_link target
   size?: number;
   modified_at?: string;
   extension?: string;
@@ -77,4 +78,14 @@ export function openExternal(url: string) {
 
 export function boxUrl(item: Pick<BoxItem, "type" | "id">): string {
   return item.type === "folder" ? `https://app.box.com/folder/${item.id}` : `https://app.box.com/file/${item.id}`;
+}
+
+// Folders and files open on app.box.com; a web link (a bookmark) opens its own target, http(s) only.
+export function openItem(item: Pick<BoxItem, "type" | "id" | "url">) {
+  if (item.type !== "web_link") return openExternal(boxUrl(item));
+  const url = (item.url ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) return;
+  const tangram = (window as any).tangram;
+  if (tangram?.openUrl) tangram.openUrl(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
 }

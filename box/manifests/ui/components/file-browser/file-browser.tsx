@@ -9,16 +9,16 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/box.css";
 import "../../shared/tangram-buttons.css";
-import { BoxItem, badgeFor, boxUrl, errorText, formatSize, modifiedLabel, openExternal } from "../../shared/box-format";
+import { BoxItem, badgeFor, errorText, formatSize, modifiedLabel, openItem } from "../../shared/box-format";
 
 const tangram = (window as any).tangram;
 
 const PAGE_SIZE = 50;
-const LIST_FIELDS = "id,type,name,size,modified_at,modified_by,extension";
+const LIST_FIELDS = "id,type,name,size,modified_at,modified_by,extension,url";
 
 // A listing source: a search, or one folder's items.
 type Source = { kind: "search"; query: string } | { kind: "folder"; id: string; name: string };
-type Page = { entries?: BoxItem[]; total_count?: number; offset?: number };
+type Page = { entries?: BoxItem[]; total_count?: number; offset?: number; limit?: number };
 
 function fetchPage(src: Source, offset: number): Promise<Page> {
   if (src.kind === "search")
@@ -41,8 +41,13 @@ export default function FileBrowser() {
   const [trail, setTrail] = useState<Extract<Source, { kind: "folder" }>[]>([]);
   const [items, setItems] = useState<BoxItem[]>([]);
   const [total, setTotal] = useState(0);
+  // Box pages by offset: the next page starts at the response's offset + limit, not at the rows we hold
+  // (search pages can come back sparse after permission filtering).
+  const [nextOffset, setNextOffset] = useState(0);
   const [state, setState] = useState<"loading" | "more" | "ready" | "error">("loading");
   const [error, setError] = useState("");
+  // A failed "Load more" keeps the rows and offers a retry of exactly that page.
+  const [failedPage, setFailedPage] = useState<{ src: Source; offset: number } | null>(null);
   const loadSeq = useRef(0);
   // The source the current rows came from; "Load more" pages it, not the search box.
   const active = useRef<Source>(ROOT);
@@ -51,22 +56,33 @@ export default function FileBrowser() {
     const seq = ++loadSeq.current;
     setState(offset ? "more" : "loading");
     setError("");
+    setFailedPage(null);
     fetchPage(src, offset)
       .then((r) => {
         if (seq !== loadSeq.current) return;
         active.current = src;
         const entries = r?.entries ?? [];
+        const start = typeof r?.offset === "number" ? r.offset : offset;
+        const limit = typeof r?.limit === "number" && r.limit > 0 ? r.limit : PAGE_SIZE;
+        const next = start + limit;
         setItems((prev) => (offset ? [...prev, ...entries] : entries));
-        setTotal(typeof r?.total_count === "number" ? r.total_count : offset + entries.length);
+        setNextOffset(next);
+        // Without a total, a short page means the end.
+        setTotal(typeof r?.total_count === "number" ? r.total_count : entries.length < limit ? start + entries.length : next + 1);
         setState("ready");
       })
       .catch((e: unknown) => {
         if (seq !== loadSeq.current) return;
-        if (!offset) {
-          setItems([]);
-          setTotal(0);
-        }
         setError(errorText(e));
+        if (offset) {
+          // keep the loaded rows; the failed page can be retried
+          setFailedPage({ src, offset });
+          setState("ready");
+          return;
+        }
+        setItems([]);
+        setTotal(0);
+        setNextOffset(0);
         setState("error");
       });
   }, []);
@@ -116,6 +132,8 @@ export default function FileBrowser() {
   function activate(item: BoxItem) {
     if (busy) return;
     if (item.type === "folder") openFolder(item);
+    // a web link is a bookmark, not a file: open its target instead of selecting it
+    else if (item.type === "web_link") openItem(item);
     else tangram.emit("open", { fileId: item.id, name: item.name, type: item.type });
   }
 
@@ -167,6 +185,17 @@ export default function FileBrowser() {
           </>
         )}
       </nav>
+      {failedPage ? (
+        <div className="bx-error" role="alert">
+          <b>Couldn't load more</b>
+          {error}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => !busy && load(failedPage.src, failedPage.offset)}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {state === "error" ? (
         <div className="bx-error" role="alert">
           <b>Couldn't load {current.kind === "search" ? "search results" : "this folder"}</b>
@@ -207,10 +236,17 @@ export default function FileBrowser() {
                   key={`${item.type}-${item.id}`}
                   className="bx-row"
                   tabIndex={0}
-                  title={item.type === "folder" ? `Open folder ${item.name}` : `Select ${item.name}`}
+                  title={
+                    item.type === "folder"
+                      ? `Open folder ${item.name}`
+                      : item.type === "web_link"
+                        ? `Open link ${item.name}`
+                        : `Select ${item.name}`
+                  }
                   onClick={() => activate(item)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") activate(item);
+                    // Enter on the row itself, not bubbled from its button
+                    if (e.key === "Enter" && e.target === e.currentTarget) activate(item);
                   }}
                 >
                   <td>
@@ -239,12 +275,12 @@ export default function FileBrowser() {
                     <Button
                       type="text"
                       size="small"
-                      aria-label={`Open ${item.name} in Box`}
-                      title="Open in Box"
+                      aria-label={item.type === "web_link" ? `Open link ${item.name}` : `Open ${item.name} in Box`}
+                      title={item.type === "web_link" ? "Open link" : "Open in Box"}
                       icon={<ExportOutlined aria-hidden="true" />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        openExternal(boxUrl(item));
+                        openItem(item);
                       }}
                     />
                   </td>
@@ -254,9 +290,9 @@ export default function FileBrowser() {
           </tbody>
         </table>
       )}
-      {state !== "error" && state !== "loading" && items.length < total ? (
+      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total ? (
         <div className="bx-toolbar">
-          <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, items.length)}>
+          <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, nextOffset)}>
             Load more
           </Button>
           <span className="bx-faint">
