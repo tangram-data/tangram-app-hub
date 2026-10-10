@@ -9,7 +9,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
-import { definiteFailure, sameText, since } from "../../shared/write-outcome";
+import { definiteFailure, sameText, since, stableJson } from "../../shared/write-outcome";
 import { StorageBody, openExternal } from "./storage-render";
 
 const tangram = (window as any).tangram;
@@ -29,6 +29,8 @@ type Comment = {
   version?: { createdAt?: string; authorId?: string };
   body?: { storage?: { value?: string } };
 };
+
+type Pending = { value: string; at: number; before: Set<string> };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -78,7 +80,8 @@ export default function PageViewer() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
   // A post whose outcome is unknown (network/timeout/5xx): never re-enabled until it is found or the user insists.
-  const [uncertain, setUncertain] = useState<{ value: string; at: number } | null>(null);
+  // `before`: the newest comment ids taken just before the post — only ids outside it can be the post.
+  const [uncertain, setUncertain] = useState<Pending | null>(null);
   const seq = useRef(0);
   // Comment loads and the comment submission are tracked apart from page loads, so a refresh mid-post never strands
   // `posting`; `shownId` is the page the draft belongs to.
@@ -181,7 +184,14 @@ export default function PageViewer() {
       setPageId(id);
       load(id);
     };
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // Token renewal re-sends init with identical inputs: only real input changes reset the component.
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown>) => {
+      const key = stableJson(inputs ?? {});
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [load]);
 
   function showPosted(c: Comment) {
@@ -190,19 +200,26 @@ export default function PageViewer() {
   }
 
   // After an uncertain post: did Confluence record it? Newest comments, same text, created since the attempt.
-  async function findPosted(pageId: string, value: string, at: number): Promise<Comment | undefined> {
+  const newestComments = async (pageId: string): Promise<Comment[]> => {
     const r = await tangram.performAction({ resourceType: "Comment", action: "List" }, {
       parameters: { id: pageId, "body-format": "storage", sort: "-created-date", limit: 25 },
     });
-    return ((r?.results as Comment[]) ?? []).find(
-      (c) => since(c.version?.createdAt, at) && sameText(c.body?.storage?.value ?? "", value),
+    return (r?.results as Comment[]) ?? [];
+  };
+
+  // After an uncertain post: exactly one comment that is new since the snapshot, created since the attempt, with the
+  // same text. Without a "who am I" action, several candidates (or none) stay uncertain.
+  async function findPosted(pageId: string, u: Pending): Promise<Comment | undefined> {
+    const hits = (await newestComments(pageId)).filter(
+      (c) => !u.before.has(c.id) && since(c.version?.createdAt, u.at) && sameText(c.body?.storage?.value ?? "", u.value),
     );
+    return hits.length === 1 ? hits[0] : undefined;
   }
 
-  async function checkUncertain(pageId: string, u: { value: string; at: number }, s: number) {
+  async function checkUncertain(pageId: string, u: Pending, s: number) {
     setPosting(true);
     try {
-      const found = await findPosted(pageId, u.value, u.at);
+      const found = await findPosted(pageId, u);
       if (s !== postSeq.current) return;
       if (found) {
         setUncertain(null);
@@ -220,14 +237,25 @@ export default function PageViewer() {
     }
   }
 
-  function postComment() {
+  async function postComment() {
     if (!page || !draft.trim()) return;
     const s = ++postSeq.current;
     const value = toStorage(draft);
-    const at = Date.now();
     setPosting(true);
     setPostError("");
     setUncertain(null);
+    // Snapshot first: a comment already there can never be mistaken for this post.
+    let before: Set<string>;
+    try {
+      before = new Set((await newestComments(page.id)).map((c) => c.id));
+    } catch (e) {
+      if (s !== postSeq.current) return;
+      setPostError(`Couldn't read the comments before posting: ${errText(e)}`);
+      setPosting(false);
+      return;
+    }
+    if (s !== postSeq.current) return;
+    const at = Date.now();
     tangram
       .performAction({ resourceType: "Comment", action: "Create" }, {
         requestBody: { pageId: page.id, body: { representation: "storage", value } },
@@ -253,7 +281,7 @@ export default function PageViewer() {
           setPosting(false);
           return;
         }
-        const u = { value, at };
+        const u = { value, at, before };
         setUncertain(u);
         checkUncertain(page.id, u, s);
       });

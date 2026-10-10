@@ -11,7 +11,7 @@ import { Button, Select, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
-import { definiteFailure, since } from "../../shared/write-outcome";
+import { definiteFailure, sameText, since, stableJson } from "../../shared/write-outcome";
 import { draftToStorage, storageToDraft } from "./storage-draft";
 
 const tangram = (window as any).tangram;
@@ -77,7 +77,7 @@ export default function PageComposer() {
   const seq = useRef(0);
   const inputsRef = useRef<Record<string, unknown>>({});
   // The create whose outcome is unknown: its title and start time.
-  const createAttempt = useRef({ title: "", at: 0 });
+  const createAttempt = useRef({ spaceId: "", parentId: "", title: "", value: "", at: 0 });
   const draftRef = useRef({ spaceId, parentId, pageId, title, body });
   draftRef.current = { spaceId, parentId, pageId, title, body };
 
@@ -125,7 +125,14 @@ export default function PageComposer() {
         setStatus({ kind: "idle" });
       }
     };
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // Token renewal re-sends init with identical inputs: only real input changes reset the component.
+    let last: string | null = null;
+    tangram.onInput((inputs: Record<string, unknown>) => {
+      const key = stableJson(inputs ?? {});
+      if (key === last) return;
+      last = key;
+      apply(inputs ?? {});
+    });
   }, [loadPage]);
 
   // All spaces, cursor by cursor (bounded), with retry on failure.
@@ -205,32 +212,45 @@ export default function PageComposer() {
         if (editing && /409|conflict|version/i.test(message)) setStatus({ kind: "conflict", message });
         // A create that may have landed: look for it before ever offering Create again.
         else if (!editing && !definiteFailure(e)) {
-          createAttempt.current = { title: title.trim(), at };
+          createAttempt.current = { spaceId, parentId, title: title.trim(), value, at };
           findCreated(s);
         }
         else setStatus({ kind: "error", message });
       });
   }
 
-  // Uncertain create: a current page with this exact title in the space, created since the attempt, is ours — switch
-  // to editing it (the draft is kept); otherwise stay uncertain until the user checks again or insists.
+  // Uncertain create, judged only by what was submitted (space, parent, title, body — captured at the attempt): exactly
+  // one page with that title in that space, under that parent, created since the attempt and holding the submitted body
+  // is ours — switch to editing it, keeping the draft. Anything else stays uncertain until checked again or insisted.
   function findCreated(s: number) {
-    const { title: wanted, at } = createAttempt.current;
+    const a = createAttempt.current;
     setStatus({ kind: "busy" });
     tangram
       .performAction({ resourceType: "Page", action: "List" }, {
-        parameters: { "space-id": spaceId, title: wanted, status: "current", limit: 5 },
+        parameters: { "space-id": a.spaceId, title: a.title, status: "current", limit: 10 },
       })
-      .then((r: { results?: (Page & { createdAt?: string })[] }) => {
+      .then(async (r: { results?: (Page & { createdAt?: string; parentId?: string })[] }) => {
+        const fresh = (r?.results ?? []).filter(
+          (x) => since(x.createdAt, a.at) && (!a.parentId || x.parentId === a.parentId),
+        );
+        const full = (await Promise.all(
+          fresh.map((x) =>
+            tangram.performAction({ resourceType: "Page", action: "Get" }, { parameters: { id: x.id, "body-format": "storage" } }),
+          ),
+        )) as Page[];
         if (s !== seq.current) return;
-        const p = (r?.results ?? []).find((x) => since(x.createdAt, at));
-        if (!p) {
-          setStatus({ kind: "uncertain", message: "Not visible yet — Confluence may still have created it." });
+        const ours = full.filter((p) => sameText(p.body?.storage?.value ?? "", a.value));
+        if (ours.length !== 1) {
+          setStatus({
+            kind: "uncertain",
+            message: ours.length ? "More than one matching page was found." : "Not visible yet — Confluence may still have created it.",
+          });
           return;
         }
+        const p = ours[0];
         setPageId(p.id);
         loadPage(p.id, { title, body });
-        tangram.emit("saved", { pageId: p.id, title: p.title ?? wanted, url: "" });
+        tangram.emit("saved", { pageId: p.id, title: p.title ?? a.title, url: "" });
       })
       .catch((err: unknown) => s === seq.current && setStatus({ kind: "uncertain", message: `Couldn't check: ${errText(err)}` }));
   }
@@ -298,6 +318,7 @@ export default function PageComposer() {
                   showSearch
                   optionFilterProp="label"
                   value={spaceId || undefined}
+                  disabled={status.kind === "uncertain" || busy}
                   onChange={(v: string) => setSpaceId(v)}
                   options={(spaces ?? []).map((sp) => ({ value: sp.id, label: `${sp.name ?? sp.key} (${sp.key})` }))}
                 />

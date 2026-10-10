@@ -33,3 +33,15 @@ export function since(iso: string | undefined, attemptMs: number): boolean {
   const t = iso ? Date.parse(iso) : NaN;
   return Number.isFinite(t) && t >= attemptMs - 60_000;
 }
+
+// Stable JSON (sorted keys): the shell re-sends init with the same inputs on token renewal, and that must not reset
+// a component's edits or pending-write tracking.
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
