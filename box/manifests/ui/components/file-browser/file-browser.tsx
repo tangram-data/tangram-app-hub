@@ -9,7 +9,8 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/box.css";
 import "../../shared/tangram-buttons.css";
-import { BoxItem, badgeFor, errorText, formatSize, modifiedLabel, openItem } from "../../shared/box-format";
+import { BoxItem, badgeFor, canOpen, errorText, formatSize, modifiedLabel, openItem } from "../../shared/box-format";
+import { PlainLink } from "./plain-link";
 
 const tangram = (window as any).tangram;
 
@@ -48,6 +49,8 @@ export default function FileBrowser() {
   const [nextOffset, setNextOffset] = useState(0);
   const [state, setState] = useState<"loading" | "more" | "ready" | "error">("loading");
   const [error, setError] = useState("");
+  // An http bookmark the host can't open: its URL is shown to copy instead.
+  const [plainLink, setPlainLink] = useState<BoxItem | null>(null);
   // A failed "Load more" keeps the rows and offers a retry of exactly that page.
   const [failedPage, setFailedPage] = useState<{ src: Source; offset: number } | null>(null);
   const loadSeq = useRef(0);
@@ -135,7 +138,10 @@ export default function FileBrowser() {
     if (busy) return;
     if (item.type === "folder") openFolder(item);
     // a web link is a bookmark, not a file: open its target instead of selecting it
-    else if (item.type === "web_link") openItem(item);
+    else if (item.type === "web_link") {
+      if (canOpen(item)) openItem(item);
+      else setPlainLink(item);
+    }
     else tangram.emit("open", { fileId: item.id, name: item.name, type: item.type });
   }
 
@@ -187,6 +193,7 @@ export default function FileBrowser() {
           </>
         )}
       </nav>
+      {plainLink ? <PlainLink item={plainLink} onClose={() => setPlainLink(null)} /> : null}
       {failedPage ? (
         <div className="bx-error" role="alert">
           <b>Couldn't load more</b>
@@ -247,7 +254,9 @@ export default function FileBrowser() {
                     item.type === "folder"
                       ? `Open folder ${item.name}`
                       : item.type === "web_link"
-                        ? `Open link ${item.name}`
+                        ? canOpen(item)
+                          ? `Open link ${item.name}`
+                          : `Show link ${item.name}`
                         : `Select ${item.name}`
                   }
                   onClick={() => activate(item)}
@@ -283,7 +292,10 @@ export default function FileBrowser() {
                       type="text"
                       size="small"
                       aria-label={item.type === "web_link" ? `Open link ${item.name}` : `Open ${item.name} in Box`}
-                      title={item.type === "web_link" ? "Open link" : "Open in Box"}
+                      title={
+                        canOpen(item) ? (item.type === "web_link" ? "Open link" : "Open in Box") : "Only https links open from here"
+                      }
+                      disabled={!canOpen(item)}
                       icon={<ExportOutlined aria-hidden="true" />}
                       onClick={(e) => {
                         e.stopPropagation();

@@ -80,12 +80,13 @@ export function boxUrl(item: Pick<BoxItem, "type" | "id">): string {
   return item.type === "folder" ? `https://app.box.com/folder/${item.id}` : `https://app.box.com/file/${item.id}`;
 }
 
-// Folders and files open on app.box.com; a web link (a bookmark) opens its own target, http(s) only.
+// Folders and files open on app.box.com; a web link (a bookmark) opens its own target. The host's open-URL
+// relay accepts https only, so an http bookmark can't be opened from here (see canOpen).
+export function canOpen(item: Pick<BoxItem, "type" | "url">): boolean {
+  return item.type !== "web_link" || /^https:\/\//i.test((item.url ?? "").trim());
+}
+
 export function openItem(item: Pick<BoxItem, "type" | "id" | "url">) {
-  if (item.type !== "web_link") return openExternal(boxUrl(item));
-  const url = (item.url ?? "").trim();
-  if (!/^https?:\/\//i.test(url)) return;
-  const tangram = (window as any).tangram;
-  if (tangram?.openUrl) tangram.openUrl(url);
-  else window.open(url, "_blank", "noopener,noreferrer");
+  if (!canOpen(item)) return;
+  openExternal(item.type === "web_link" ? (item.url ?? "").trim() : boxUrl(item));
 }
