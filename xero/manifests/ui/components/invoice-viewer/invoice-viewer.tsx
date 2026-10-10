@@ -209,8 +209,9 @@ export default function InvoiceViewer() {
             <div className="x-empty">No line items</div>
           </div>
         ) : (
-          <div className="x-card">
-            <table className="x-table">
+          <div className="x-card" style={{ overflowX: "auto" }}>
+            {/* description keeps >= 180px next to the 280px of numbers; narrower panels scroll */}
+            <table className="x-table" style={{ minWidth: 460 }}>
               <colgroup>
                 <col />
                 <col style={{ width: 64 }} />

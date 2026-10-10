@@ -84,7 +84,8 @@ function Rows({ rows, cols, depth }: { rows: Row[]; cols: number; depth: number 
         return (
           <tr key={`r${depth}-${i}`} className={r.RowType === "SummaryRow" ? "sum" : undefined}>
             {Array.from({ length: cols }, (_, c) => {
-              const text = cellText(cells[c]?.Value);
+              // account labels stay verbatim ("00123"); only amount columns format as money
+              const text = c === 0 ? (cells[c]?.Value ?? "") : cellText(cells[c]?.Value);
               return c === 0 ? (
                 <td key={c} title={text} style={{ paddingLeft: 12 + Math.min(depth, 3) * 8 }}>
                   {text}
