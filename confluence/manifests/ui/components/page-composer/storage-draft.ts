@@ -92,6 +92,7 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
   if (Array.from(doc.body.querySelectorAll("ac\\:structured-macro, ac\\:macro")).some((m) => m.getAttribute("ac:name") !== "code"))
     lossy.push("macros");
   if (has("u, s, del, sub, sup, span[style], ac\\:task-list, ac\\:emoticon, time")) lossy.push("other formatting");
+  if (has("pre")) lossy.push("preformatted blocks (saved as code blocks)");
 
   const text = (n: Node): string => {
     if (n.nodeType === Node.TEXT_NODE) return escInline((n.textContent ?? "").replace(/\s+/g, " "));
@@ -102,7 +103,8 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
     const inner = Array.from(el.childNodes).map(text).join("");
     if (t === "strong" || t === "b") return inner.trim() ? `**${inner}**` : inner;
     if (t === "em" || t === "i") return inner.trim() ? `*${inner}*` : inner;
-    if (t === "code") return `\`${(el.textContent ?? "").replace(/`/g, "'")}\``;
+    // Backslash-escaped inside the span, so backticks and backslashes come back exactly.
+    if (t === "code") return `\`${(el.textContent ?? "").replace(/[\\`]/g, (c) => `\\${c}`)}\``;
     if (t === "br") return " ";
     if (t === "ac:link") return inner.trim() || escInline(el.querySelector("ri\\:page")?.getAttribute("ri:content-title") ?? "");
     return inner;
@@ -110,6 +112,14 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
   const line = (el: Element) => escLineStart(text(el).trim());
 
   const lines: string[] = [];
+  // Code goes in as one entry, so its blank lines survive; a code line that is itself a fence can't round-trip.
+  const code = (lang: string, content: string) => {
+    if (/^```\s*$/m.test(content) && !lossy.includes("code containing ``` lines")) lossy.push("code containing ``` lines");
+    lines.push("```" + lang, content, "```");
+  };
+  const blank = () => {
+    if (lines.length && lines[lines.length - 1] !== "") lines.push("");
+  };
   const list = (el: Element, ordered: boolean) =>
     Array.from(el.children).forEach((li, i) => {
       lines.push(`${ordered ? `${i + 1}.` : "-"} ${text(li).trim()}`);
@@ -123,16 +133,17 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
     else if (t === "ul" || t === "ol") list(el, t === "ol");
     else if (t === "blockquote") Array.from(el.children).forEach((c) => lines.push(`> ${text(c).trim()}`));
     else if (t === "hr") lines.push("---");
-    else if (t === "pre") lines.push("```", el.textContent ?? "", "```");
+    else if (t === "pre") code("", el.textContent ?? "");
     else if (t === "ac:structured-macro" && el.getAttribute("ac:name") === "code") {
       const lang = Array.from(el.children).find((c) => c.getAttribute("ac:name") === "language")?.textContent ?? "";
       const body = Array.from(el.children).find((c) => c.tagName.toLowerCase() === "ac:plain-text-body");
-      lines.push("```" + lang, body?.textContent ?? "", "```");
+      code(lang, body?.textContent ?? "");
     } else if (t === "table") el.querySelectorAll("tr").forEach((tr) => lines.push(escLineStart(Array.from(tr.children).map((c) => text(c).trim()).join(" | "))));
     else if (t.startsWith("ac:") || t === "div" || t === "section") Array.from(el.children).forEach(block);
     else if (text(el).trim()) lines.push(line(el));
-    if (/^(h[1-6]|p|ul|ol|blockquote|pre|table|ac:structured-macro)$/.test(t)) lines.push("");
+    if (/^(h[1-6]|p|ul|ol|blockquote|pre|table|ac:structured-macro)$/.test(t)) blank();
   };
   Array.from(doc.body.children).forEach(block);
-  return { draft: lines.join("\n").replace(/\n{3,}/g, "\n\n").trim(), lossy };
+  while (lines.length && lines[lines.length - 1] === "") lines.pop();
+  return { draft: lines.join("\n"), lossy };
 }

@@ -82,6 +82,8 @@ export default function PageViewer() {
   const commentSeq = useRef(0);
   const postSeq = useRef(0);
   const shownId = useRef("");
+  // Comments posted here, merged into every later list load (a load may predate or miss them).
+  const posted = useRef<Comment[]>([]);
 
   const loadComments = useCallback(async (id: string, cursor?: string) => {
     const s = ++commentSeq.current;
@@ -95,9 +97,11 @@ export default function PageViewer() {
       if (s !== commentSeq.current) return;
       const got = (r?.results as Comment[]) ?? [];
       setComments((prev) => {
-        if (!cursor) return got;
-        const seen = new Set(prev.map((c) => c.id));
-        return [...prev, ...got.filter((c) => !seen.has(c.id))];
+        const base = cursor ? prev : [];
+        const seen = new Set(base.map((c) => c.id));
+        const merged = [...base, ...got.filter((c) => !seen.has(c.id))];
+        const have = new Set(merged.map((c) => c.id));
+        return [...merged, ...posted.current.filter((c) => !have.has(c.id))];
       });
       setNextCursor(cursorOf(r?._links?.next));
       setCommentState("ready");
@@ -124,6 +128,7 @@ export default function PageViewer() {
       // A different page: its draft, post error and in-flight post result don't carry over.
       if (id !== shownId.current) {
         shownId.current = id;
+        posted.current = [];
         setDraft("");
         setPostError("");
         postSeq.current++;
@@ -185,17 +190,22 @@ export default function PageViewer() {
       .performAction({ resourceType: "Comment", action: "Create" }, {
         requestBody: { pageId: page.id, body: { representation: "storage", value } },
       })
-      .then((c: Comment) => {
+      .then((resp: Comment) => {
         if (s !== postSeq.current) return;
+        let c: Comment = resp;
         setDraft("");
         // Show it now, whatever page of comments is loaded; the response may omit the body.
-        const posted: Comment = {
+        c = {
           ...c,
           id: c?.id ?? `posted-${s}`,
           body: c?.body?.storage?.value ? c.body : { storage: { value } },
           version: c?.version ?? { createdAt: new Date().toISOString() },
         };
-        setComments((prev) => [...prev.filter((x) => x.id !== posted.id), posted]);
+        const shown = c;
+        posted.current = [...posted.current.filter((x) => x.id !== shown.id), shown];
+        setComments((prev) => [...prev.filter((x) => x.id !== shown.id), shown]);
+        // Any list request in flight predates this post: drop it and reload, merging the post in.
+        loadComments(page.id);
       })
       .catch((e: unknown) => s === postSeq.current && setPostError(errText(e)))
       .finally(() => s === postSeq.current && setPosting(false));
@@ -255,7 +265,7 @@ export default function PageViewer() {
             )}
             <section className="a-section" aria-label="Comments">
               <h2>Comments</h2>
-              {commentState === "loading" ? (
+              {commentState === "loading" && comments.length === 0 ? (
                 <Skeleton active title={false} paragraph={{ rows: 2 }} />
               ) : commentState === "error" ? (
                 <div className="a-error">

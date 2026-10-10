@@ -66,7 +66,7 @@ export default function PageComposer() {
   // Edit mode: the page as loaded. An unedited body is saved back byte-for-byte, so a title-only save never
   // rewrites content; `loaded` gates Update until the page (and its version) arrived.
   const [loaded, setLoaded] = useState(false);
-  const original = useRef({ storage: "", draft: "" });
+  const original = useRef({ storage: "", draft: "", title: "" });
   // New pages without a spaceId input keep the space picker visible.
   const [pickSpace, setPickSpace] = useState(false);
   const [spaces, setSpaces] = useState<Space[] | null>(null);
@@ -87,7 +87,7 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         const storage = p.body?.storage?.value ?? "";
         const conv = storageToDraft(storage);
-        original.current = { storage, draft: conv.draft };
+        original.current = { storage, draft: conv.draft, title: p.title ?? "" };
         setVersion(p.version?.number ?? 0);
         setSpaceId(p.spaceId ?? "");
         // Inputs that are present (even empty) win over the page's values.
@@ -113,7 +113,7 @@ export default function PageComposer() {
       setBody(String(inputs?.body ?? ""));
       setLossy([]);
       setVersion(0);
-      original.current = { storage: "", draft: "" };
+      original.current = { storage: "", draft: "", title: "" };
       if (id) loadPage(id, inputs);
       else {
         ++seq.current;
@@ -187,7 +187,7 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         setVersion(p.version?.number ?? version + 1);
         if (!editing && p.id) setPageId(p.id);
-        original.current = { storage: value, draft: body };
+        original.current = { storage: value, draft: body, title: p.title ?? title.trim() };
         setLoaded(true);
         if (bodyEdited) setLossy([]);
         setStatus({ kind: "saved", title: p.title ?? title, url });
@@ -206,6 +206,7 @@ export default function PageComposer() {
   function reloadLatest() {
     const s = ++seq.current;
     const bodyWasEdited = body !== original.current.draft;
+    const titleWasEdited = title !== original.current.title;
     setStatus({ kind: "busy" });
     tangram
       .performAction({ resourceType: "Page", action: "Get" }, { parameters: { id: pageId, "body-format": "storage" } })
@@ -213,15 +214,17 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         const storage = p.body?.storage?.value ?? "";
         const conv = storageToDraft(storage);
-        original.current = { storage, draft: conv.draft };
+        original.current = { storage, draft: conv.draft, title: p.title ?? "" };
         setVersion(p.version?.number ?? version);
+        // Unedited fields follow the latest version, so Update can't undo someone else's change to them.
         if (!bodyWasEdited) setBody(conv.draft);
+        if (!titleWasEdited) setTitle(p.title ?? "");
         setLossy(conv.lossy);
         setLoaded(true);
         setStatus({
           kind: "error",
           message: `Reloaded v${p.version?.number ?? "?"} — the page changed in Confluence. ${
-            bodyWasEdited ? "Your edits are kept and would replace that version; review them, then " : ""
+            bodyWasEdited || titleWasEdited ? "Your edits are kept and would replace that version's; review them, then " : ""
           }Update again to save.`,
         });
       })
