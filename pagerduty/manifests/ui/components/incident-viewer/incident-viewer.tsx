@@ -70,45 +70,51 @@ export default function IncidentViewer() {
     }
     if (!quiet) setState("loading");
     setError("");
-    const params = { parameters: { id } };
-    Promise.allSettled([
-      call<{ incident?: Incident }>("Incident", "Get", params),
-      call<{ log_entries?: LogEntry[]; more?: boolean }>("Incident", "ListLogEntries", {
-        parameters: { id, is_overview: true, limit: LOG_PAGE, offset: 0 },
-      }),
-      call<{ notes?: Note[] }>("Incident", "ListNotes", params),
-    ]).then(([inc, lg, nt]) => {
-      if (mine !== seq.current) return;
-      if (inc.status === "rejected" || !inc.value?.incident) {
+    // The input may be an incident NUMBER: resolve the incident first, then read its sections by resource id.
+    call<{ incident?: Incident }>("Incident", "Get", { parameters: { id } })
+      .then((r) => {
+        if (!r?.incident?.id) throw new Error("Incident not found.");
+        const incident = r.incident;
+        const rid = incident.id;
+        return Promise.allSettled([
+          call<{ log_entries?: LogEntry[]; more?: boolean }>("Incident", "ListLogEntries", {
+            parameters: { id: rid, is_overview: true, limit: LOG_PAGE, offset: 0 },
+          }),
+          call<{ notes?: Note[] }>("Incident", "ListNotes", { parameters: { id: rid } }),
+        ]).then(([lg, nt]) => ({ incident, lg, nt }));
+      })
+      .then(({ incident, lg, nt }) => {
+        if (mine !== seq.current) return;
+        setIncident(incident);
+        canonicalId.current = incident.id;
+        setLogs(
+          lg.status === "fulfilled"
+            ? {
+                items: [...(lg.value?.log_entries ?? [])].sort(byTimeDesc),
+                error: "",
+                more: Boolean(lg.value?.more),
+                offset: (lg.value?.log_entries ?? []).length,
+                loadingMore: false,
+              }
+            : { ...EMPTY_TIMELINE, error: errText(lg.reason) },
+        );
+        setNotes(
+          nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
+        );
+        const u = unverified.current;
+        if (u && u.id === incident.id && nt.status === "fulfilled") {
+          unverified.current = null;
+          setNoteCheck("");
+          if (hasNote(nt.value?.notes ?? [], u.content, u.since)) setNoteText((t) => (t.trim() === u.content ? "" : t));
+        }
+        setState("ready");
+      })
+      .catch((e: unknown) => {
+        if (mine !== seq.current) return;
         setIncident(null);
-        setError(inc.status === "rejected" ? errText(inc.reason) : "Incident not found.");
+        setError(errText(e));
         setState("error");
-        return;
-      }
-      setIncident(inc.value.incident);
-      canonicalId.current = inc.value.incident.id;
-      setLogs(
-        lg.status === "fulfilled"
-          ? {
-              items: [...(lg.value?.log_entries ?? [])].sort(byTimeDesc),
-              error: "",
-              more: Boolean(lg.value?.more),
-              offset: (lg.value?.log_entries ?? []).length,
-              loadingMore: false,
-            }
-          : { ...EMPTY_TIMELINE, error: errText(lg.reason) },
-      );
-      setNotes(
-        nt.status === "fulfilled" ? { items: nt.value?.notes ?? [], error: "" } : { items: [], error: errText(nt.reason) },
-      );
-      const u = unverified.current;
-      if (u && u.id === inc.value.incident.id && nt.status === "fulfilled") {
-        unverified.current = null;
-        setNoteCheck("");
-        if (hasNote(nt.value?.notes ?? [], u.content, u.since)) setNoteText((t) => (t.trim() === u.content ? "" : t));
-      }
-      setState("ready");
-    });
+      });
   }, []);
 
   useEffect(() => {

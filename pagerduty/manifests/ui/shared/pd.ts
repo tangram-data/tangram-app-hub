@@ -50,12 +50,12 @@ export function initials(name: string): string {
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
 }
 
-// Only absolute http(s) URLs from API responses become links; anything else renders as text.
+// Only absolute https URLs from API responses become links (the host relay opens https only); anything else is text.
 export function safeUrl(u?: string | null): string | undefined {
   if (!u) return undefined;
   try {
     const url = new URL(u);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+    return url.protocol === "https:" ? url.href : undefined;
   } catch {
     return undefined;
   }
@@ -65,7 +65,7 @@ export function safeUrl(u?: string | null): string | undefined {
 export function openExternal(e: { preventDefault(): void }, url?: string | null) {
   e.preventDefault();
   const u = safeUrl(url);
-  if (!u || !u.startsWith("https:")) return;
+  if (!u) return;
   if (tangram?.openUrl) tangram.openUrl(u);
   else window.open(u, "_blank", "noopener,noreferrer");
 }
