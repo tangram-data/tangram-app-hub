@@ -35,7 +35,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
     entry = "components/page-composer/page-composer.tsx"
     spec = new ui.UIComponentContract {
       title = "Confluence page composer"
-      description = "Confluence-editor-style composer: write a new page in a space (optionally under a parent) or, with pageId, edit an existing page's title and body. The body is plain text where #, ##, ### headings, - bullets, 1. lists, > quotes, --- rules and ``` code fences become Confluence formatting; **bold**, *italic* and `code` work inline. Editing warns when the page holds tables, macros or images the editor can't keep. The user edits and confirms before anything is saved."
+      description = "Markdown-style Confluence composer with a live preview. New page: write it in a space (optionally under a parent). Existing page (pageId): by default append a section at the end — the page's current content is sent back exactly as it is, so nothing can be lost; 'Edit whole page' is offered only when the page converts to markdown without loss (otherwise the user appends or opens Confluence). Markdown: #, ##, ### headings, - bullets, 1. lists, > quotes, --- rules, ``` code fences; **bold**, *italic*, `code` inline. The user edits and confirms before anything is saved."
       inputs {
         type = "object"
         properties {
@@ -49,7 +49,11 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           }
           ["pageId"] = new Dynamic {
             type = "string"
-            description = "Set to edit an existing page: its title and body are loaded unless title/body are given."
+            description = "Set to work on an existing page (append a section by default)."
+          }
+          ["append"] = new Dynamic {
+            type = "boolean"
+            description = "Existing pages only. true (default): body is a section appended to the page. false: body replaces the whole page — honoured only when the page converts to markdown without loss, else the composer falls back to appending."
           }
           ["title"] = new Dynamic {
             type = "string"
@@ -57,7 +61,7 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           }
           ["body"] = new Dynamic {
             type = "string"
-            description = "Plain-text draft; markdown-style prefixes become Confluence formatting (see description). Replaces the whole body when editing."
+            description = "Markdown draft (see description): the new page's content, the section to append, or — with append=false — the whole page body."
           }
         }
       }

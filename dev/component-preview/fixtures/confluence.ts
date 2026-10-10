@@ -5,20 +5,20 @@ export const previews = [
   { component: "page-viewer", title: "Rich page with comments (Load more pages comments)", inputs: { pageId: "1001" }, height: 900 },
   {
     component: "page-composer",
-    title: "New page — space picker, agent-drafted body",
+    title: "New page — space picker, agent draft with live preview",
     inputs: {
       title: "Q4 on-call rotation",
-      body: "## Who\n- Primary: platform team\n- Secondary: data team\n\n## Escalation\n1. Page the primary\n2. After 15 min, page the secondary\n\n> Swap shifts in #oncall, not by DM.",
+      body: "## Who\n- Primary: platform team\n- Secondary: data team\n\n## Escalation\n1. Page the primary\n2. After 15 min, page the secondary\n\n> Swap shifts in #oncall, not by DM.\n\n```bash\npd schedule show q4-oncall\n```",
     },
-    height: 640,
+    height: 720,
   },
   {
     component: "page-composer",
-    title: "Editing a page with a table and a macro — lossy warning",
-    inputs: { pageId: "1002", body: "# Release checklist\n\nRewritten by the agent." },
-    height: 560,
+    title: "Append a section to the rich page (whole-page edit not offered)",
+    inputs: { pageId: "1001", body: "## Incident 2026-10-08\n- **Impact:** 4% of card payments failed for 11 minutes\n- **Cause:** connection pool exhausted after a config push\n\nFollow-up: alert on pool saturation above *80%*." },
+    height: 720,
   },
-  { component: "page-composer", title: "Editing an existing simple page (round-trips cleanly)", inputs: { pageId: "1003" }, height: 560 },
+  { component: "page-composer", title: "Edit the simple page as a whole", inputs: { pageId: "1003", append: false }, height: 680 },
   { component: "page-viewer", title: "Error — page not found", inputs: { pageId: "404" }, height: 280 },
 ];
 

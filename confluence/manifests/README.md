@@ -32,7 +32,7 @@ Bodies use the Confluence storage format (XHTML): `<p>text</p><h2>Heading</h2><u
 | Component | What it shows |
 |-----------|---------------|
 | `page-viewer` (`pageId`) | The page as it reads in Confluence: space › parent breadcrumb, title, last-updated line, body (headings, lists, tables, code, info/note/warning panels; other macros as labels), footer comments, and an *Add comment* box. `Page.Get` results open in it. |
-| `page-composer` (`spaceId`, `parentId`, `pageId`, `title`, `body`) | Write a new page or edit one. Plain-text draft with `#` headings, `-` bullets, `1.` lists, `>` quotes, ``` code; editing warns when the page holds tables/macros/images it can't keep. Emits `saved`. |
+| `page-composer` (`spaceId`, `parentId`, `pageId`, `append`, `title`, `body`) | Markdown draft beside a live preview (rendered with the viewer's renderer). New page → Publish. Existing page → **Append section** by default: the draft is added at the end and the current content is sent back byte-for-byte. **Edit whole page** appears only when the page converts to markdown without loss; otherwise append, or *Open in Confluence*. Emits `saved`. |
 
 The storage body is rendered from a parsed DOM through a tag allowlist (links and images http(s) only) — never as raw HTML. Posting a comment,
 publishing and updating all go through the host's confirmation.
