@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/stripe.css";
 import "../../shared/tangram-buttons.css";
 import ExtLink from "../../shared/ext-link";
-import { dashboardUrl, day, errorText, invoiceStatus, isNotFound, money, safeUrl } from "../../shared/stripe-format";
+import { dashboardUrl, day, errorText, invoiceStatus, isNotFound, money, safeUrl, stableJson } from "../../shared/stripe-format";
 import { IdempotencyKeys } from "./idempotency";
 import { WriteBook } from "./write-book";
 import LineForm, { LineBody } from "./line-form";
@@ -59,10 +59,6 @@ export default function InvoiceComposer() {
   const [description, setDescription] = useState("");
   // the user chose to create another draft identical to one created earlier
   const [anyway, setAnyway] = useState(false);
-  // invoice ids this composer emailed; Send turns into an explicit Resend
-  const [sent, setSent] = useState<Set<string>>(new Set());
-  // successful sends per invoice: each completed send makes the next one a new logical request (new key)
-  const sendAttempt = useRef(new Map<string, number>());
   const keys = useRef(new IdempotencyKeys());
   // bumped on every input change: results of reads/writes started earlier are dropped
   const gen = useRef(0);
@@ -76,9 +72,10 @@ export default function InvoiceComposer() {
     setLoading(true);
     try {
       const inv: Invoice = await act("Invoice", "Get", { id });
-      book.current.readSucceeded(token, inv.status);
+      const reconciled = book.current.readSucceeded(token, inv.status);
       bump();
       if (g !== gen.current || mine !== seq.current) return false;
+      if (reconciled && book.current.takeSavedDue(id)) tangram.emit("saved", { invoiceId: id, status: inv.status });
       setInvoice(inv);
       setCustomerId(inv.customer);
       setStale(false);
@@ -110,7 +107,12 @@ export default function InvoiceComposer() {
   }, []);
 
   useEffect(() => {
+    let last: string | undefined;
     const apply = (inputs: Record<string, unknown>) => {
+      // the shell re-sends the same inputs on token renewal: keep the draft and pending writes untouched
+      const sig = stableJson(inputs);
+      if (sig === last) return;
+      last = sig;
       const g = ++gen.current;
       const invoiceId = String(inputs?.invoiceId ?? "").trim();
       setTarget(invoiceId);
@@ -119,7 +121,6 @@ export default function InvoiceComposer() {
       setError("");
       setStale(false);
       setAnyway(false);
-      setSent(new Set());
       setCustomerId(String(inputs?.customerId ?? "").trim());
       if (invoiceId) reload(invoiceId, g);
       else {
@@ -140,7 +141,7 @@ export default function InvoiceComposer() {
     total: invoice?.total ?? null,
     lines: (invoice?.lines?.data ?? []).map((l) => ({ description: l.description, amount: l.amount, quantity: l.quantity })),
     outOfDate: stale || (invoice ? book.current.locked(invoice.id) : false),
-    sent: invoice ? sent.has(invoice.id) : false,
+    sent: invoice ? book.current.sendCount(invoice.id) > 0 : false,
   };
   useEffect(() => {
     tangram.provideState?.(() => ({ ...stateRef.current }));
@@ -222,7 +223,8 @@ export default function InvoiceComposer() {
       const key = keys.current.keyFor("line", body);
       await act("InvoiceItem", "Create", { "Idempotency-Key": key }, body);
       keys.current.done("line", body);
-      // the line exists; totals stay locked until the reconcile read after this write settles
+      // the line exists; totals stay locked (and `saved` waits) until the reconcile read after this write settles
+      book.current.savedAfterReconcile(invoice.id);
     });
 
   const finalize = () =>
@@ -243,14 +245,13 @@ export default function InvoiceComposer() {
       if (!invoice) return;
       const id = invoice.id;
       const slot = `send:${id}`;
-      const attempt = { attempt: sendAttempt.current.get(id) ?? 0 };
+      // each successful send makes the next one a deliberate resend (new key); a failed attempt keeps its key
+      const attempt = { attempt: book.current.sendCount(id) };
       const key = keys.current.keyFor(slot, attempt);
       const inv: Invoice = await act("Invoice", "Send", { id, "Idempotency-Key": key });
       keys.current.done(slot, attempt);
-      // the next click is a deliberate resend (new key); a failed attempt keeps its key for the retry
-      sendAttempt.current.set(id, (sendAttempt.current.get(id) ?? 0) + 1);
-      if (!live()) return;
-      setSent((prev) => new Set(prev).add(id));
+      // recorded even if another invoice is shown now: returning to this one offers Resend
+      book.current.sendSucceeded(id);
       await applied(inv, g, live);
     });
 
@@ -451,7 +452,7 @@ export default function InvoiceComposer() {
             {charges ? "Finalize and charge" : "Finalize"}
           </Button>
         ) : null}
-        {invoice.status === "open" && !charges && sent.has(invoice.id) ? (
+        {invoice.status === "open" && !charges && book.current.sendCount(invoice.id) > 0 ? (
           <>
             <span className="s-status" style={{ ["--dot" as any]: "#16a34a" }}>
               Sent to the customer

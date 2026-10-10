@@ -2,7 +2,9 @@
 //   - one write in flight per lock (invoice id, or "create");
 //   - an invoice that had a write is "unreconciled" until a read that started after every write on it settled;
 //   - a Delete without a clear answer is remembered, so a not-found on reconcile means it went through;
-//   - drafts created here, by create payload, offered as a resume instead of a duplicate create.
+//   - drafts created here, by create payload, offered as a resume instead of a duplicate create;
+//   - successful sends per invoice (Send becomes Resend; each resend is a new request);
+//   - lines added whose `saved` is due once the invoice is read back.
 export type ReadToken = { id: string; epoch: number; clean: boolean };
 
 export class WriteBook {
@@ -11,6 +13,8 @@ export class WriteBook {
   private epochs = new Map<string, number>();
   private pendingDeletes = new Set<string>();
   private drafts = new Map<string, string>();
+  private sends = new Map<string, number>();
+  private savedDue = new Set<string>();
 
   /** Takes the lock; false when a write already holds it. */
   begin(lock: string): boolean {
@@ -44,11 +48,30 @@ export class WriteBook {
     return { id, epoch: this.epochs.get(id) ?? 0, clean: !this.inFlight.has(id) };
   }
 
-  /** A read that saw the result of every write on the invoice reconciles it. */
-  readSucceeded(t: ReadToken, status: string) {
+  /** A read that saw the result of every write on the invoice reconciles it; true when it did. */
+  readSucceeded(t: ReadToken, status: string): boolean {
     this.pendingDeletes.delete(t.id);
-    if (t.clean && !this.inFlight.has(t.id) && (this.epochs.get(t.id) ?? 0) === t.epoch) this.unreconciled.delete(t.id);
+    const reconciled = t.clean && !this.inFlight.has(t.id) && (this.epochs.get(t.id) ?? 0) === t.epoch;
+    if (reconciled) this.unreconciled.delete(t.id);
     if (status !== "draft") this.retireDraft(t.id);
+    return reconciled;
+  }
+
+  /** A line was added: `saved` goes out once a reconciling read shows it. */
+  savedAfterReconcile(id: string) {
+    this.savedDue.add(id);
+  }
+
+  takeSavedDue(id: string): boolean {
+    return this.savedDue.delete(id);
+  }
+
+  sendCount(id: string): number {
+    return this.sends.get(id) ?? 0;
+  }
+
+  sendSucceeded(id: string) {
+    this.sends.set(id, this.sendCount(id) + 1);
   }
 
   deleteStarted(id: string) {

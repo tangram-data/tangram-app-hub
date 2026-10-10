@@ -13,6 +13,7 @@ import {
   invoiceStatus,
   money,
   paymentStatus,
+  stableJson,
   Status,
   subscriptionStatus,
   when,
@@ -171,7 +172,14 @@ export default function CustomerViewer() {
   const retrySection = (name: "payments" | "invoices" | "subs") => loadSection(name, customerId, seq.current);
 
   useEffect(() => {
-    const apply = (inputs: Record<string, unknown>) => load(String(inputs?.customerId ?? "").trim());
+    let last: string | undefined;
+    const apply = (inputs: Record<string, unknown>) => {
+      // the shell re-sends the same inputs on token renewal: keep what's on screen
+      const sig = stableJson(inputs);
+      if (sig === last) return;
+      last = sig;
+      load(String(inputs?.customerId ?? "").trim());
+    };
     // onInput fires as soon as the frame is initialised (getInputs() is async in the sandbox shell)
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);

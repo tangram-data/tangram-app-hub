@@ -159,3 +159,14 @@ export function safeUrl(raw: string | null | undefined): string | undefined {
     return undefined;
   }
 }
+
+/** Key-order-independent JSON, to tell a repeated input delivery (token renewal re-init) from a real change. */
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as any)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
