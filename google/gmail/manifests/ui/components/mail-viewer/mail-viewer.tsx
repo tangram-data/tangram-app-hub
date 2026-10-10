@@ -9,6 +9,7 @@ import { Button, Skeleton } from "antd";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 
 const tangram = (window as any).tangram;
 
@@ -704,8 +705,7 @@ export default function MailViewer() {
   }, []);
 
   useEffect(() => {
-    load(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
+    onNewInputs(load);
   }, [load]);
 
   if (state === "loading")

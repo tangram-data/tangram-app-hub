@@ -13,5 +13,7 @@ sync notion.css "${NOTION[@]}"
 VENDOR=(box datadog hubspot pagerduty salesforce stripe xero)
 for app in "${VENDOR[@]}"; do sync "$app.css" "$app"; done
 sync atlassian.css confluence
+# Shared sandbox-inputs helper (onInput only, identical replays ignored) for the original connector components.
+sync sandbox-inputs.ts "${GOOGLE[@]}" "${MICROSOFT[@]}" "${NOTION[@]}"
 sync tangram-buttons.css "${GOOGLE[@]}" "${MICROSOFT[@]}" "${NOTION[@]}" "${VENDOR[@]}" confluence
 echo "synced ui kits"

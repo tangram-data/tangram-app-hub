@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 
 const tangram = (window as any).tangram;
 
@@ -156,8 +157,7 @@ export default function FileBrowser() {
       setPath([]);
       load(q, order, size);
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    onNewInputs(apply);
   }, [load]);
 
   function openFolder(f: DriveFile) {

@@ -19,6 +19,7 @@ import { DraftBlock, Editable, editableIn, focusEnd, NewBlock } from "./editable
 import { blockOps } from "./block-ops";
 import { PendingDraft } from "./pending-draft";
 import { sharedWrites, writeKey } from "./write-queue";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 import {
   AppendFailure,
   appendBlocks,
@@ -148,11 +149,7 @@ export default function PageViewer() {
       setPageId(id);
       load(id);
     };
-    // getInputs() resolves after the host's init handshake delivers the inputs.
-    Promise.resolve(tangram.getInputs()).then((inputs: Record<string, unknown>) =>
-      apply(inputs ?? {}),
-    );
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    onNewInputs(apply);
   }, []);
 
   const ready = state.kind === "ready" ? state : null;

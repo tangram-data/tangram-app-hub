@@ -12,6 +12,7 @@ import dayjs, { Dayjs } from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
 import "../../shared/microsoft.css";
 import "../../shared/tangram-buttons.css";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 
 const tangram = (window as any).tangram;
 
@@ -107,8 +108,7 @@ export default function EventComposer() {
       setTimeZone(String(inputs?.timeZone ?? "").trim());
       setStatus({ kind: "idle" });
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    onNewInputs(apply);
   }, []);
 
   // Expose the draft to the agent (tangram_get_component_state) so "adjust my

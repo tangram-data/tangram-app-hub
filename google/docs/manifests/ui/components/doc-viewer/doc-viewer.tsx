@@ -8,6 +8,7 @@ import { Button, Spin } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 
 const tangram = (window as any).tangram;
 
@@ -221,8 +222,7 @@ export default function DocViewer() {
       setDocumentId(id);
       load(id);
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    onNewInputs(apply);
   }, []);
 
   const doc = state.kind === "ready" ? state.doc : null;

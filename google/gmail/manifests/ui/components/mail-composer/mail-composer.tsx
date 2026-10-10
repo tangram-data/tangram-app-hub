@@ -8,6 +8,7 @@ import { Button } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import "../../shared/google.css";
 import "../../shared/tangram-buttons.css";
+import { onNewInputs } from "../../shared/sandbox-inputs";
 
 const tangram = (window as any).tangram;
 
@@ -115,8 +116,7 @@ export default function MailComposer() {
       setReply({ inReplyTo: String(inputs?.inReplyTo ?? ""), references: String(inputs?.references ?? "") });
       setStatus({ kind: "idle" });
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    onNewInputs(apply);
   }, []);
 
   // Expose the draft fields to the agent (tangram_get_component_state) so
