@@ -10,6 +10,7 @@ import "../../shared/tangram-buttons.css";
 import ExtLink from "../../shared/ext-link";
 import { dashboardUrl, day, errorText, invoiceStatus, isNotFound, money, safeUrl } from "../../shared/stripe-format";
 import { IdempotencyKeys } from "./idempotency";
+import { WriteBook } from "./write-book";
 import LineForm, { LineBody } from "./line-form";
 
 const tangram = (window as any).tangram;
@@ -48,24 +49,21 @@ export default function InvoiceComposer() {
   const [loading, setLoading] = useState(true);
   // the shown invoice may be out of date (a refresh after a write failed): writes stay blocked until it reloads
   const [stale, setStale] = useState(false);
-  // Writes in flight, by invoice id ("create" for a new draft). Kept across input changes so returning to an
-  // invoice can't start a second write on it before the first settles; the tick re-renders on release.
-  const inFlight = useRef(new Set<string>());
-  const [, setLockTick] = useState(0);
-  // invoice ids whose Delete got no clear answer: a not-found on reconcile means it was deleted
-  const pendingDelete = useRef(new Set<string>());
+  // writes in flight, reconcile state and created drafts — across input changes; the tick re-renders on change
+  const book = useRef(new WriteBook());
+  const [lockTick, setLockTick] = useState(0);
+  const bump = () => setLockTick((t) => t + 1);
   const [error, setError] = useState("");
   const [method, setMethod] = useState<Method>("send_invoice");
   const [daysUntilDue, setDaysUntilDue] = useState<number>(30);
   const [description, setDescription] = useState("");
+  // the user chose to create another draft identical to one created earlier
+  const [anyway, setAnyway] = useState(false);
   // invoice ids this composer emailed; Send turns into an explicit Resend
   const [sent, setSent] = useState<Set<string>>(new Set());
   // successful sends per invoice: each completed send makes the next one a new logical request (new key)
   const sendAttempt = useRef(new Map<string, number>());
   const keys = useRef(new IdempotencyKeys());
-  // drafts this composer created, by create payload — kept across input changes so a repeat create of the same
-  // draft is offered as a resume instead of making another invoice
-  const [createdDrafts, setCreatedDrafts] = useState<Record<string, string>>({});
   // bumped on every input change: results of reads/writes started earlier are dropped
   const gen = useRef(0);
   const seq = useRef(0);
@@ -74,10 +72,12 @@ export default function InvoiceComposer() {
   // Re-reads the invoice; true when it now matches Stripe. Ignored once the inputs moved on.
   const reload = useCallback(async (id: string, g: number): Promise<boolean> => {
     const mine = ++seq.current;
+    const token = book.current.readStarted(id);
     setLoading(true);
     try {
       const inv: Invoice = await act("Invoice", "Get", { id });
-      pendingDelete.current.delete(id);
+      book.current.readSucceeded(token, inv.status);
+      bump();
       if (g !== gen.current || mine !== seq.current) return false;
       setInvoice(inv);
       setCustomerId(inv.customer);
@@ -85,17 +85,19 @@ export default function InvoiceComposer() {
       setError("");
       return true;
     } catch (e) {
-      if (pendingDelete.current.has(id) && isNotFound(e)) {
+      if (isNotFound(e)) {
+        const wasDeleting = book.current.deletePending(id);
+        book.current.gone(id);
+        bump();
         // the earlier Delete did go through
-        pendingDelete.current.delete(id);
-        if (g === gen.current && mine === seq.current) {
+        if (wasDeleting && g === gen.current && mine === seq.current) {
           tangram.emit("saved", { invoiceId: id, status: "deleted" });
           setDeleted(id);
           setInvoice(null);
           setStale(false);
           setError("");
+          return false;
         }
-        return false;
       }
       if (g === gen.current && mine === seq.current) {
         setStale(true);
@@ -116,6 +118,7 @@ export default function InvoiceComposer() {
       setDeleted("");
       setError("");
       setStale(false);
+      setAnyway(false);
       setSent(new Set());
       setCustomerId(String(inputs?.customerId ?? "").trim());
       if (invoiceId) reload(invoiceId, g);
@@ -136,7 +139,7 @@ export default function InvoiceComposer() {
     currency: invoice?.currency ?? null,
     total: invoice?.total ?? null,
     lines: (invoice?.lines?.data ?? []).map((l) => ({ description: l.description, amount: l.amount, quantity: l.quantity })),
-    outOfDate: stale,
+    outOfDate: stale || (invoice ? book.current.locked(invoice.id) : false),
     sent: invoice ? sent.has(invoice.id) : false,
   };
   useEffect(() => {
@@ -144,17 +147,22 @@ export default function InvoiceComposer() {
   }, []);
 
   const lockKey = invoice?.id ?? (target || "create");
-  const busy = inFlight.current.has(lockKey);
+  const busy = book.current.busy(lockKey);
+
+  // After a write on the shown invoice settles (here or before an input switch), read it back before unlocking.
+  useEffect(() => {
+    const id = invoice?.id;
+    if (id && !loading && !stale && book.current.needsReconcile(id)) reload(id, gen.current);
+  }, [invoice?.id, loading, stale, lockTick, reload]);
 
   // Runs one gated write for the current inputs; a result arriving after the inputs changed touches nothing.
   // Failures (including the user declining the host confirmation) show inline.
   async function run(step: (g: number, live: () => boolean) => Promise<unknown>): Promise<boolean> {
     const lock = lockKey;
-    if (inFlight.current.has(lock)) return false;
+    if (!book.current.begin(lock)) return false;
     const g = gen.current;
     const live = () => g === gen.current;
-    inFlight.current.add(lock);
-    setLockTick((t) => t + 1);
+    bump();
     setError("");
     try {
       await step(g, live);
@@ -168,18 +176,17 @@ export default function InvoiceComposer() {
       }
       return false;
     } finally {
-      inFlight.current.delete(lock);
-      setLockTick((t) => t + 1);
+      book.current.end(lock);
+      bump();
     }
   }
 
-  // Applies a write's returned invoice at once, then reconciles with a fresh read.
-  async function applied(inv: Invoice, g: number, live: () => boolean) {
+  // Applies a write's returned invoice at once; the reconcile read follows once the write's lock is released.
+  async function applied(inv: Invoice, _g: number, live: () => boolean) {
     if (!live()) return;
     setInvoice(inv);
     setTarget(inv.id);
     tangram.emit("saved", { invoiceId: inv.id, status: inv.status });
-    await reload(inv.id, g);
   }
 
   const createBody = (): Record<string, unknown> => {
@@ -195,8 +202,9 @@ export default function InvoiceComposer() {
       const key = keys.current.keyFor("create", body);
       const inv: Invoice = await act("Invoice", "Create", { "Idempotency-Key": key }, body);
       // recorded whatever the inputs did meanwhile: the draft exists either way
-      setCreatedDrafts((prev) => ({ ...prev, [JSON.stringify(body)]: inv.id }));
+      book.current.recordDraft(JSON.stringify(body), inv.id);
       keys.current.done("create", body);
+      if (live()) setAnyway(false);
       await applied(inv, g, live);
     });
 
@@ -208,16 +216,13 @@ export default function InvoiceComposer() {
   };
 
   const addLine = (line: LineBody) =>
-    run(async (g, live) => {
+    run(async () => {
       if (!invoice) return;
       const body = { customer: invoice.customer, invoice: invoice.id, ...line };
       const key = keys.current.keyFor("line", body);
       await act("InvoiceItem", "Create", { "Idempotency-Key": key }, body);
       keys.current.done("line", body);
-      if (!live()) return;
-      // the line exists; totals are unknown until the invoice reloads
-      setStale(true);
-      await reload(invoice.id, g);
+      // the line exists; totals stay locked until the reconcile read after this write settles
     });
 
   const finalize = () =>
@@ -252,9 +257,9 @@ export default function InvoiceComposer() {
   const remove = () =>
     run(async (_g, live) => {
       if (!invoice) return;
-      pendingDelete.current.add(invoice.id);
+      book.current.deleteStarted(invoice.id);
       await act("Invoice", "Delete", { id: invoice.id });
-      pendingDelete.current.delete(invoice.id);
+      book.current.gone(invoice.id);
       if (!live()) return;
       tangram.emit("saved", { invoiceId: invoice.id, status: "deleted" });
       seq.current++;
@@ -267,7 +272,7 @@ export default function InvoiceComposer() {
     if (id) reload(id, gen.current);
   };
   // writes need the requested invoice loaded and in sync with Stripe
-  const locked = busy || loading || stale;
+  const locked = busy || loading || stale || (invoice ? book.current.locked(invoice.id) : false);
 
   const errorBox = error ? <div className="s-error inline">{error}</div> : null;
 
@@ -292,7 +297,7 @@ export default function InvoiceComposer() {
     );
 
   if (!invoice) {
-    const prior = createdDrafts[JSON.stringify(createBody())];
+    const prior = anyway ? undefined : book.current.draftFor(JSON.stringify(createBody()));
     const ready = !prior && /^cus_\w+$/.test(customerId) && (method === "charge_automatically" || daysUntilDue >= 0);
     return (
       <div className="s-root s-pad">
@@ -333,6 +338,9 @@ export default function InvoiceComposer() {
             You already created this draft ({prior}).{" "}
             <Button size="small" disabled={busy} onClick={() => resume(prior)}>
               Resume it
+            </Button>{" "}
+            <Button size="small" type="text" disabled={busy} onClick={() => setAnyway(true)}>
+              Create a new draft anyway
             </Button>
           </div>
         ) : null}
