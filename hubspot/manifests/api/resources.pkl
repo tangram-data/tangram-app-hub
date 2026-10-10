@@ -65,7 +65,8 @@ types: List<resources.ResourceTypeDefinition> = List(
         new resources.Action {
           name = "Create"
           privilege = "Create"
-          effect = "Reversible"
+          // A new link can satisfy workflow enrollment and send email.
+          effect = "Irreversible"
           idempotent = true
           requiresConfirmation = true
           doc = "Link two records with HubSpot's default association (e.g. contact 123 → company 789). Confirmation-gated."

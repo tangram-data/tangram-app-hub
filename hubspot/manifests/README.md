@@ -32,5 +32,7 @@ https://<your-tangram-host>/api/core/v1/connector-oauth/callback/com.hubspot/hub
 and the scopes `oauth`, `crm.objects.{contacts,companies,deals}.{read,write}`, `tickets`, `crm.objects.owners.read`,
 `crm.schemas.{contacts,companies,deals}.read`. Store the credentials as the global system secrets `hubspotClientId` /
 `hubspotClientSecret`. Access tokens last 30 minutes and refresh automatically. HubSpot has no RFC 7009 revocation: disconnect clears Tangram's
-tokens; a super admin uninstalls the app under Settings → Integrations → Connected apps to revoke it. Connection scope: **PerUser** (default) or
-**WorkspaceShared**.
+tokens; a super admin uninstalls the app under Settings → Integrations → Connected apps to revoke it.
+
+Connection scope is **WorkspaceShared** only: a HubSpot token carries the app's scopes across the whole portal regardless of who connected, so
+per-user connections would not narrow access. Control who may search, read or write through Tangram's per-action permissions instead.

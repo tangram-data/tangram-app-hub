@@ -43,9 +43,8 @@ oauth = new oauthTypes.OAuth2AuthCode {
   // not RFC 7009 — admins uninstall the app in HubSpot instead.
   pkce = false
   refreshWindowSeconds = 600
-  // HubSpot apps install per portal; users still act with their own seat.
-  connectionScope = new oauthTypes.SelectableScope {
-    default = "PerUser"
-    allowedAtInstall = List("PerUser", "WorkspaceShared")
-  }
+  // A HubSpot token grants the app's scopes portal-wide, whoever connected —
+  // not that user's seat permissions — so one shared connection, gated by
+  // Tangram IAM per action.
+  connectionScope = new oauthTypes.WorkspaceOnly {}
 }
