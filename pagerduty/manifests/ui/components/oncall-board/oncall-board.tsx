@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/pagerduty.css";
 import "../../shared/tangram-buttons.css";
-import { avatarColor, call, errText, initials, Ref, relative, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
+import { avatarColor, call, errText, initials, openExternal, Ref, relative, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
 
 type OnCall = {
   escalation_policy?: Ref;
@@ -243,7 +243,11 @@ export default function OncallBoard() {
                               </span>
                               <span className="nm" title={name}>
                                 {safeUrl(person.user.html_url) ? (
-                                  <a href={safeUrl(person.user.html_url)} target="_blank" rel="noopener noreferrer">
+                                  <a
+                                    href={safeUrl(person.user.html_url)}
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => openExternal(e, person.user.html_url)}
+                                  >
                                     {name}
                                   </a>
                                 ) : (

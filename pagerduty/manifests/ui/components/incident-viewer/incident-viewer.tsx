@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/pagerduty.css";
 import "../../shared/tangram-buttons.css";
-import { call, errText, relative, Ref, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
+import { call, errText, openExternal, relative, Ref, safeUrl, STATUS_WORD, tangram, timeLabel } from "../../shared/pd";
 
 type Incident = {
   id: string;
@@ -104,6 +104,8 @@ export default function IncidentViewer() {
       const id = String(inputs?.incidentId ?? "").trim();
       generation.current += 1;
       canonicalId.current = "";
+      // an earlier input's pending write no longer owns the controls
+      setWriting("");
       setIncidentId(id);
       setWriteError("");
       setNoteText("");
@@ -120,13 +122,16 @@ export default function IncidentViewer() {
     const gen = generation.current;
     setWriting(status);
     setWriteError("");
-    call("Incident", "Update", {
+    call<{ incident?: Incident }>("Incident", "Update", {
       parameters: { id },
       requestBody: { incident: { type: "incident_reference", status } },
     })
-      .then(() => {
-        tangram.emit("updated", { incidentId: id, status });
-        if (gen === generation.current) load(id, true);
+      .then((r) => {
+        tangram.emit("updated", { incidentId: id, status: r?.incident?.status ?? status });
+        if (gen !== generation.current) return;
+        // Show the new state before the controls unlock, so a stale Acknowledge can't reopen a resolved incident.
+        setIncident((prev) => (prev && prev.id === id ? { ...prev, ...(r?.incident ?? {}), status: r?.incident?.status ?? status } : prev));
+        load(id, true);
       })
       .catch((e: unknown) => {
         if (gen === generation.current) setWriteError(errText(e));
@@ -141,10 +146,12 @@ export default function IncidentViewer() {
     if (!incident || !content || writing) return;
     const id = incident.id;
     const gen = generation.current;
+    const statusAtWrite = incident.status ?? "";
     setWriting("note");
     setWriteError("");
     call("Incident", "AddNote", { parameters: { id }, requestBody: { note: { content } } })
       .then(() => {
+        tangram.emit("updated", { incidentId: id, status: statusAtWrite });
         if (gen !== generation.current) return;
         setNoteText("");
         load(id, true);
@@ -227,7 +234,11 @@ export default function IncidentViewer() {
               {safeUrl(incident.html_url) ? (
                 <>
                   {" · "}
-                  <a href={safeUrl(incident.html_url)} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={safeUrl(incident.html_url)}
+                    rel="noopener noreferrer"
+                    onClick={(e) => openExternal(e, incident.html_url)}
+                  >
                     Open in PagerDuty <ExportOutlined aria-hidden="true" />
                   </a>
                 </>

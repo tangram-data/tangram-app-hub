@@ -60,3 +60,12 @@ export function safeUrl(u?: string | null): string | undefined {
     return undefined;
   }
 }
+
+// The sandbox frame blocks popups: links open through the host (https only, matching the host relay).
+export function openExternal(e: { preventDefault(): void }, url?: string | null) {
+  e.preventDefault();
+  const u = safeUrl(url);
+  if (!u || !u.startsWith("https:")) return;
+  if (tangram?.openUrl) tangram.openUrl(u);
+  else window.open(u, "_blank", "noopener,noreferrer");
+}
