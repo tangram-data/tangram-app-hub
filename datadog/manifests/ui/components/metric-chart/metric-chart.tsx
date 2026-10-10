@@ -77,8 +77,8 @@ export default function MetricChart() {
       setSeries([]);
       load(q, w);
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // onInput fires at once when the frame is initialised and again on every new input; getInputs() is a promise.
+    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => apply(inputs ?? {}));
   }, [load]);
 
   const lines = useMemo(() => toLines(series.slice(0, MAX_SERIES)), [series]);

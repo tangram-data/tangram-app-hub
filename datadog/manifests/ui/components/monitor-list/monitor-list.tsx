@@ -34,6 +34,7 @@ export default function MonitorList() {
   const [page, setPage] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
+  // "loading" until the first onInput delivers the real inputs.
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
@@ -81,8 +82,8 @@ export default function MonitorList() {
       setText(q);
       load(q, 0);
     };
-    apply(tangram.getInputs() ?? {});
-    tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
+    // onInput fires at once when the frame is initialised and again on every new input; getInputs() is a promise.
+    tangram.onInput((inputs: Record<string, unknown> | null | undefined) => apply(inputs ?? {}));
   }, [load]);
 
   const busy = state === "loading";
