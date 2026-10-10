@@ -1,8 +1,12 @@
 # Stripe connector
 
 Tangram OS ConnectorApp for the Stripe API. It answers revenue, billing and support questions (who paid, what failed, which invoices are open,
-which subscriptions are past due) and handles routine billing operations: customers, invoices, refunds and subscription cancellation. It never
-creates charges or payments. Every write asks for confirmation, and the install's restricted key decides which writes Stripe accepts at all.
+which subscriptions are past due) and handles routine billing operations: customers, invoices, refunds and subscription cancellation. Every
+write asks for confirmation, and the install's restricted key decides which writes Stripe accepts at all.
+
+**Money can move.** No action creates a charge directly, but an invoice with `collection_method: charge_automatically` is charged to the
+customer's saved payment method once it is finalized (by `Finalize`, or by Stripe itself about an hour after creation when `auto_advance` is
+true), and an invoice item added without an `invoice` lands on the customer's next subscription invoice. Refunds return money immediately.
 
 ## Agent tools
 
@@ -15,7 +19,7 @@ creates charges or payments. Every write asks for confirmation, and the install'
 | `stripe_get_<object>` | `<Object>.Get` | One object by id; `expand[]` inlines related objects. |
 | `stripe_create_customer` / `stripe_update_customer` | `Customer.Create` / `.Update` | **Confirmation-gated.** Name, email, description, phone, metadata. |
 | `stripe_create_invoice` | `Invoice.Create` | **Confirmation-gated.** Draft for a customer; `auto_advance: false` keeps it a draft until Finalize. |
-| `stripe_create_invoiceitem` | `InvoiceItem.Create` | **Confirmation-gated.** A line on a draft invoice (price + quantity, or amount + currency). |
+| `stripe_create_invoiceitem` | `InvoiceItem.Create` | **Confirmation-gated, irreversible.** A line on a draft invoice — or, without `invoice`, on the customer's next subscription invoice. |
 | `stripe_finalize_invoice` / `stripe_send_invoice` / `stripe_void_invoice` / `stripe_delete_invoice` | `Invoice.*` | **Confirmation-gated, irreversible.** Finalize makes it payable; Send emails it; Void cancels a finalized invoice; Delete removes a draft. |
 | `stripe_create_refund` | `Refund.Create` | **Confirmation-gated, irreversible.** Full or partial refund of a charge or payment intent. |
 | `stripe_update_subscription` / `stripe_cancel_subscription` | `Subscription.Update` / `.Cancel` | **Confirmation-gated, irreversible.** `cancel_at_period_end`, metadata; Cancel stops billing now. |

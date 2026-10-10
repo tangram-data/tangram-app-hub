@@ -65,8 +65,8 @@ types: List<resources.ResourceTypeDefinition> = List(
     reader("Find", "searchInvoices", "Search invoices with Stripe search query syntax, e.g. status:'open' AND total>5000, customer:'cus_123'. Fields: exact match field:'value', substring field~'val' (3+ chars), numeric > < =, AND/OR (not mixed), metadata['key']. Results can lag ~1 minute; page with page = next_page. Not available in India."),
     reader("List", "listInvoices", "List invoices, newest first. Filter by customer, subscription, status and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),
     reader("Get", "getInvoice", "Retrieve one invoice by id; expand[] inlines related objects."),
-    writer("Create", "Create", "Irreversible", "createInvoice", "Create a draft invoice for a customer, then add lines with InvoiceItem.Create. Set auto_advance: false to keep it a draft until Finalize — with true, Stripe finalizes it and may email it about an hour later. collection_method send_invoice needs days_until_due. \(idem)"),
-    writer("Finalize", "Update", "Irreversible", "finalizeInvoice", "Finalize a draft: it gets a number and becomes payable (open); with auto_advance it is then emailed or charged automatically. Cannot be undone — only voided."),
+    writer("Create", "Create", "Irreversible", "createInvoice", "Create a draft invoice for a customer, then add lines with InvoiceItem.Create. Set auto_advance: false to keep it a draft until Finalize — with true, Stripe finalizes it about an hour later and then emails it (send_invoice) or charges the customer's saved payment method (charge_automatically). collection_method send_invoice needs days_until_due. \(idem)"),
+    writer("Finalize", "Update", "Irreversible", "finalizeInvoice", "Finalize a draft: it gets a number and becomes payable (open); with auto_advance Stripe then emails it or, for charge_automatically, charges the customer's saved payment method. Cannot be undone — only voided."),
     writer("Send", "Update", "Irreversible", "sendInvoice", "Email a finalized invoice to the customer (send_invoice collection only)."),
     writer("Void", "Update", "Irreversible", "voidInvoice", "Void a finalized, unpaid invoice — permanent; it stays on record as void."),
     writer("Delete", "Delete", "Irreversible", "deleteInvoice", "Delete a DRAFT invoice (finalized invoices can only be voided).")
@@ -79,7 +79,7 @@ types: List<resources.ResourceTypeDefinition> = List(
     writer("Cancel", "Delete", "Irreversible", "cancelSubscription", "Cancel a subscription immediately — billing stops now and it cannot be reactivated. Prefer Update with cancel_at_period_end: true.")
   )),
   readOnly("InvoiceItem", "A line added to a draft invoice (or a customer's next invoice).", List(
-    writer("Create", "Create", "Reversible", "createInvoiceItem", "Add a line to a draft invoice (invoice id) or to the customer's next invoice: a price id with quantity, or amount + currency + description. \(idem)")
+    writer("Create", "Create", "Irreversible", "createInvoiceItem", "Add a line to a draft invoice (invoice id) — or, with invoice omitted, to the customer's next subscription invoice, which Stripe may charge automatically. Line: a price id with quantity, or amount + currency + description. \(idem)")
   )),
   readOnly("Refund", "A refund of a charge.", List(
     reader("List", "listRefunds", "List refunds, newest first. Filter by charge, payment_intent and created[gte]/created[lte] (UNIX seconds); page with starting_after = the last id while has_more. Amounts are in the smallest currency unit. expand[] inlines related objects (e.g. data.customer)."),

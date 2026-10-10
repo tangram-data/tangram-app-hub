@@ -3,8 +3,10 @@ import "@tangram-app-manifest/connector.pkl" as connector
 // Stripe API. Writes are form-encoded (declared application/x-www-form-urlencoded;
 // the platform encodes the JSON arguments) and carry an Idempotency-Key
 // header param. Every write is confirmation-gated; the install's restricted
-// key decides which writes Stripe accepts at all. No charge or payment
-// creation — only refunds, invoices, customers and subscription changes.
+// key decides which writes Stripe accepts at all. No action creates a
+// charge or payment directly, but a finalized charge_automatically invoice
+// (or an invoice item landing on the next subscription invoice) is charged
+// to the customer's saved payment method.
 endpoint = "https://api.stripe.com"
 endpointOverridable = false
 endpointRequired = false
