@@ -14,6 +14,8 @@ import { BoxItem, badgeFor, errorText, formatSize, modifiedLabel, openItem } fro
 const tangram = (window as any).tangram;
 
 const PAGE_SIZE = 50;
+// Box search can't page past offset 10,000 (GET /search returns 400); narrow the query instead.
+const MAX_SEARCH_OFFSET = 10000;
 const LIST_FIELDS = "id,type,name,size,modified_at,modified_by,extension,url";
 
 // A listing source: a search, or one folder's items.
@@ -290,7 +292,14 @@ export default function FileBrowser() {
           </tbody>
         </table>
       )}
-      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total ? (
+      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
+      active.current.kind === "search" && nextOffset >= MAX_SEARCH_OFFSET ? (
+        <div className="bx-toolbar bx-faint">
+          Showing the first {items.length} of {total} results — Box search stops here. Narrow the query to see more.
+        </div>
+      ) : null}
+      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
+      !(active.current.kind === "search" && nextOffset >= MAX_SEARCH_OFFSET) ? (
         <div className="bx-toolbar">
           <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, nextOffset)}>
             Load more

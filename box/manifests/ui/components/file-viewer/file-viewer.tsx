@@ -30,6 +30,10 @@ export default function FileViewer() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  // The fileId of the current load, for Retry.
+  const fileIdRef = useRef("");
   // Every load (new fileId input) bumps this; late results of an older file are dropped.
   const seq = useRef(0);
 
@@ -49,7 +53,9 @@ export default function FileViewer() {
         else setContent({ kind: "text", text: text ?? "", truncated });
       })
       .catch((e: unknown) => {
-        if (mine === seq.current) setNote(`Preview unavailable: ${errorText(e)}`);
+        if (mine !== seq.current) return;
+        setNote(`${mode === "save" ? "Save failed" : "Preview unavailable"}: ${errorText(e)}`);
+        if (mode === "preview") setPreviewFailed(true);
       })
       .then(() => {
         // a stale download must not clear a newer file's saving state
@@ -57,14 +63,15 @@ export default function FileViewer() {
       });
   }
 
-  useEffect(() => {
-    const load = (inputs: Record<string, unknown>) => {
+  function loadFile(fileId: string) {
       const mine = ++seq.current;
-      const fileId = String(inputs?.fileId ?? "").trim();
+      fileIdRef.current = fileId;
       setFile(null);
       setContent({ kind: "none" });
       setNote("");
       setSaving(false);
+      setPreviewFailed(false);
+      setPreviewing(false);
       if (!fileId) {
         setError("No fileId input provided.");
         setState("error");
@@ -86,7 +93,10 @@ export default function FileViewer() {
           setError(errorText(e));
           setState("error");
         });
-    };
+  }
+
+  useEffect(() => {
+    const load = (inputs: Record<string, unknown>) => loadFile(String(inputs?.fileId ?? "").trim());
     load(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => load(inputs ?? {}));
   }, []);
@@ -103,6 +113,13 @@ export default function FileViewer() {
         <div className="bx-error" role="alert">
           <b>Couldn't load file</b>
           {error}
+          {fileIdRef.current ? (
+            <div style={{ marginTop: 8 }}>
+              <Button size="small" onClick={() => loadFile(fileIdRef.current)}>
+                Retry
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -127,6 +144,14 @@ export default function FileViewer() {
   const header = content.kind === "table" ? content.rows[0] ?? [] : [];
   const body = content.kind === "table" ? content.rows.slice(1, 1 + MAX_ROWS) : [];
   const overflow = content.kind === "table" && content.rows.length - 1 > MAX_ROWS;
+
+  function retryPreview() {
+    if (previewing || !file) return;
+    setPreviewing(true);
+    setPreviewFailed(false);
+    setNote("");
+    download(file.id, ext, seq.current, "preview", () => setPreviewing(false));
+  }
 
   function saveCopy() {
     if (saving || !file) return;
@@ -207,6 +232,13 @@ export default function FileViewer() {
         </div>
       ) : null}
       {note && content.kind !== "saved" ? <div className="bx-faint">{note}</div> : null}
+      {previewFailed ? (
+        <div style={{ marginTop: 8 }}>
+          <Button size="small" loading={previewing} onClick={retryPreview}>
+            Retry preview
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
