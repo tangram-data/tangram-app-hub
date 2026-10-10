@@ -55,12 +55,21 @@ async function fetchDeals(pipelineId: string, ownerId: string): Promise<{ deals:
   }
 }
 
-// Totals across currencies would be meaningless: one currency → formatted, mixed → plain sum flagged.
+// Totals per currency (deal_currency_code), never summed across currencies; deals without a code form
+// their own "unknown currency" group rather than joining a known one.
 function total(deals: CrmRecord[]): string {
-  const currencies = new Set(deals.map((d) => d.properties?.deal_currency_code).filter(Boolean) as string[]);
-  const sum = deals.reduce((n, d) => n + (Number(d.properties?.amount) || 0), 0);
-  if (currencies.size > 1) return `${formatMoney(sum)} (mixed currencies)`;
-  return formatMoney(sum, [...currencies][0]);
+  const sums = new Map<string, number>();
+  deals.forEach((d) => {
+    const amount = Number(d.properties?.amount);
+    if (!d.properties?.amount || !Number.isFinite(amount)) return;
+    const code = (d.properties?.deal_currency_code ?? "").trim().toUpperCase();
+    sums.set(code, (sums.get(code) ?? 0) + amount);
+  });
+  if (sums.size === 0) return formatMoney(0);
+  return [...sums.entries()]
+    .sort(([a], [b]) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)))
+    .map(([code, sum]) => (code ? formatMoney(sum, code) : `${formatMoney(sum)} (unknown currency)`))
+    .join(" + ");
 }
 
 export default function DealBoard() {
@@ -104,7 +113,7 @@ export default function DealBoard() {
   return (
     <div className="hs-root">
       <div className="hs-bar">
-        <span className="sum">
+        <span className="sum" title={board ? total(board.deals) : undefined}>
           {board
             ? `${board.deals.length}${board.capped ? "+" : ""} deals · ${total(board.deals)}${ownerLabel ? ` · owned by ${ownerLabel}` : ""}`
             : "Deals"}
@@ -165,7 +174,9 @@ export default function DealBoard() {
                       {stage.label}
                       <span className="c">{deals.length}</span>
                     </div>
-                    <div className="tot">Total: {total(deals)}</div>
+                    <div className="tot" title={total(deals)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      Total: {total(deals)}
+                    </div>
                   </div>
                   <div className="hs-col-b">
                     {deals.length === 0 ? <div className="hs-col-empty">No deals</div> : null}
