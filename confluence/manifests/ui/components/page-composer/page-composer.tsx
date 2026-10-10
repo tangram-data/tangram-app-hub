@@ -7,14 +7,14 @@
 // Writes are confirmation-gated by the host. Uncertain creates are reconciled (composer-io titledPages snapshot),
 // version conflicts reload the latest page and need an explicit re-save, identical inputs are ignored. The draft
 // (with mode) is readable via provideState; a successful save emits `saved` {pageId, title, url}.
-import { Button, Segmented, Skeleton } from "antd";
+import { Button, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
 import { definiteFailure, sameText, stableJson } from "../../shared/write-outcome";
-import { Page, errText, getPage, openExternal, pageUrl, titledPages } from "./composer-io";
+import { Page, errText, getPage, openExternal, pageUrl, storedPage, titledPages } from "./composer-io";
 import { SpacePicker } from "./space-picker";
-import { Status, StatusBanners } from "./composer-banners";
+import { ModeBar, Status, StatusBanners } from "./composer-banners";
 import { DraftPreview } from "./draft-preview";
 import { draftToStorage, sameStorage, storageToDraft } from "./storage-draft";
 import { UpdateAttempt, reconcile, retryBody } from "./update-attempt";
@@ -240,8 +240,15 @@ export default function PageComposer() {
         });
     call
       .then(async (p: Page) => {
-        const link = await pageUrl(p);
-        if (s === seq.current) landed(p, value, link, sentDraft);
+        // Confluence's stored body (with any markup it added) is the new baseline, never the submitted one.
+        const [stored, link] = await Promise.all([storedPage(p).catch(() => null), pageUrl(p)]);
+        if (s !== seq.current) return;
+        if (stored) return landed(stored, stored.body?.storage?.value ?? "", link, sentDraft);
+        // Saved, but the stored body is unknown: no further saves until the page is re-read (Retry reloads it).
+        if (mode === "create" && p.id) (setPageId(p.id), setMode("whole"));
+        setLoaded(false);
+        setStatus({ kind: "error", message: "Saved — but couldn't re-read the page. Retry before saving again." });
+        tangram.emit("saved", { pageId: p.id, title: p.title ?? title.trim(), url: link });
       })
       .catch((e: unknown) => {
         if (s !== seq.current) return;
@@ -367,35 +374,20 @@ export default function PageComposer() {
               </div>
             ) : null}
             {editing && loaded ? (
-              <div className="a-modes">
-                {roundTrips || mode === "whole" ? (
-                  <Segmented
-                    size="small"
-                    value={mode}
-                    disabled={busy || locked}
-                    onChange={(v) => {
-                      setMode(v as Mode);
-                      // A whole-page draft derived from an older baseline (e.g. before an append) is stale.
-                      if (v === "whole" && bodyBase.current !== original.current.storage) {
-                        setBody(original.current.draft);
-                        bodyBase.current = original.current.storage;
-                      }
-                    }}
-                    options={[
-                      { label: "Append section", value: "append" },
-                      { label: "Edit whole page", value: "whole" },
-                    ]}
-                  />
-                ) : (
-                  <span className="a-hint">This page has formatting markdown can't keep — append, or edit in Confluence.</span>
-                )}
-              </div>
-            ) : null}
-            {mode === "whole" && lossy.length ? (
-              <div className="a-error" role="alert">
-                The page now has {lossy.join(", ")} that markdown can't keep, so whole-page saving is off — switch to Append
-                section, or open it in Confluence.
-              </div>
+              <ModeBar
+                mode={mode === "whole" ? "whole" : "append"}
+                canWhole={roundTrips}
+                lossy={lossy}
+                disabled={busy || locked}
+                onChange={(v) => {
+                  setMode(v);
+                  // A whole-page draft derived from an older baseline (e.g. before an append) is stale.
+                  if (v === "whole" && bodyBase.current !== original.current.storage) {
+                    setBody(original.current.draft);
+                    bodyBase.current = original.current.storage;
+                  }
+                }}
+              />
             ) : null}
             <input
               className="a-input a-titleinput"

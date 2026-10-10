@@ -61,3 +61,10 @@ export const titledPages = (space: string, wanted: string): Promise<Page[]> =>
       parameters: { "space-id": space, title: wanted, status: "current", limit: 50 },
     })
     .then((r: { results?: Page[] }) => r?.results ?? []);
+
+// The page as Confluence stored it after a write: the response when it carries the storage body, else a re-read.
+// Its body (with any markup Confluence added) — not what was submitted — is the next baseline.
+export async function storedPage(p: Page): Promise<Page> {
+  if (p.body?.storage?.value != null) return p;
+  return getPage(p.id);
+}

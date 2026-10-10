@@ -105,28 +105,44 @@ export function lossReasons(body: Element): string[] {
   return Array.from(out);
 }
 
-const BLOCKS = "p|h[1-6]|ul|ol|li|blockquote|hr|pre|table|thead|tbody|tr|th|td|div|ac:[\\w-]+|body";
+const BLOCK = /^(p|h[1-6]|ul|ol|li|blockquote|hr|pre|table|thead|tbody|tfoot|tr|th|td|div|body|ac:[\w-]+)$/;
 const SYNONYM: Record<string, string> = { b: "strong", i: "em" };
+
+// A canonical node: text, exact code text, or an element [tag, attributes, children]. Serialized as JSON, so literal
+// text can never collide with markup (`&lt;strong&gt;` stays text).
+type CNode = string | { code: string } | [string, [string, string][], CNode[]];
 
 // A storage body reduced to what it shows: tags (b/i as strong/em), meaningful attributes (local ids dropped,
 // ol start="1" dropped, macro names and parameters kept), code text exact, other whitespace collapsed and trimmed
 // at block edges. Two bodies with the same canonical form read the same.
 export function canonical(body: Element): string {
-  const walk = (n: Node, raw: boolean): string => {
-    // Code text is encoded so no whitespace normalisation (here or in the block-edge trim below) can touch it.
-    if (n.nodeType === Node.TEXT_NODE)
-      return raw ? `\u0001${encodeURIComponent(n.textContent ?? "")}\u0002` : (n.textContent ?? "").replace(/\s+/g, " ");
-    if (n.nodeType !== Node.ELEMENT_NODE) return "";
+  const isBlock = (c: CNode) => Array.isArray(c) && BLOCK.test(c[0]);
+  const walk = (n: Node, raw: boolean): CNode | null => {
+    if (n.nodeType === Node.TEXT_NODE) return raw ? { code: n.textContent ?? "" } : (n.textContent ?? "").replace(/\s+/g, " ");
+    if (n.nodeType !== Node.ELEMENT_NODE) return null;
     const el = n as Element;
     const t = SYNONYM[tag(el)] ?? tag(el);
-    const keep = Array.from(el.attributes)
+    const attrs = Array.from(el.attributes)
       .filter((a) => !BENIGN.has(a.name) && !/^ac:(macro-id|schema-version|local-id)$/.test(a.name))
       .filter((a) => !(t === "ol" && a.name === "start" && a.value === "1"))
-      .map((a) => ` ${a.name}="${a.value}"`)
-      .sort()
-      .join("");
+      .map((a): [string, string] => [a.name, a.value])
+      .sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
     const isRaw = raw || t === "pre" || t === "code" || t === "ac:plain-text-body";
-    return `<${t}${keep}>${Array.from(el.childNodes).map((c) => walk(c, isRaw)).join("")}</${t}>`;
+    const kids = Array.from(el.childNodes)
+      .map((c) => walk(c, isRaw))
+      .filter((c): c is CNode => c !== null);
+    // Whitespace next to block edges carries nothing: trim it (prose text only; code stays exact).
+    const block = BLOCK.test(t);
+    const trimmed = kids
+      .map((c, i) => {
+        if (typeof c !== "string") return c;
+        let v = c;
+        if ((block && i === 0) || (i > 0 && isBlock(kids[i - 1]))) v = v.replace(/^ /, "");
+        if ((block && i === kids.length - 1) || (i < kids.length - 1 && isBlock(kids[i + 1]))) v = v.replace(/ $/, "");
+        return v;
+      })
+      .filter((c) => c !== "");
+    return [t, attrs, trimmed];
   };
-  return walk(body, false).replace(new RegExp(`\\s*(</?(?:${BLOCKS})(?:\\s[^>]*)?>)\\s*`, "g"), "$1");
+  return JSON.stringify(walk(body, false));
 }

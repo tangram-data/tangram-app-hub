@@ -1,6 +1,6 @@
 // The composer's outcome banners: errors, unknown create/update outcomes (with check / do-again-anyway), version
 // conflicts and the saved confirmation.
-import { Button } from "antd";
+import { Button, Segmented } from "antd";
 import React from "react";
 import { openExternal } from "./composer-io";
 
@@ -68,6 +68,44 @@ export function StatusBanners({
               Open in Confluence
             </a>
           ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+// Existing pages: append (always) or edit the whole page — offered only while the page round-trips through markdown.
+// A whole-page edit whose baseline turned lossy (e.g. after a conflict reload) stays visible but can't be saved.
+export function ModeBar(props: {
+  mode: "append" | "whole";
+  canWhole: boolean;
+  lossy: string[];
+  disabled: boolean;
+  onChange: (mode: "append" | "whole") => void;
+}) {
+  const { mode, canWhole, lossy, disabled, onChange } = props;
+  return (
+    <>
+      <div className="a-modes">
+        {canWhole || mode === "whole" ? (
+          <Segmented
+            size="small"
+            value={mode}
+            disabled={disabled}
+            onChange={(v) => onChange(v as "append" | "whole")}
+            options={[
+              { label: "Append section", value: "append" },
+              { label: "Edit whole page", value: "whole" },
+            ]}
+          />
+        ) : (
+          <span className="a-hint">This page has formatting markdown can't keep — append, or edit in Confluence.</span>
+        )}
+      </div>
+      {mode === "whole" && lossy.length ? (
+        <div className="a-error" role="alert">
+          The page now has {lossy.join(", ")} that markdown can't keep, so whole-page saving is off — switch to Append section,
+          or open it in Confluence.
         </div>
       ) : null}
     </>
