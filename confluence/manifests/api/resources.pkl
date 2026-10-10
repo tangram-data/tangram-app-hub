@@ -72,7 +72,15 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         reader("List", "listPages", "List pages, usually within one space (space-id) or by exact title. Bodies are omitted unless body-format is set. Page with cursor."),
-        reader("Get", "getPage", "Read a page by id: title, spaceId, parentId, version.number, and its body (storage format by default). version.number is needed for Update."),
+        (reader("Get", "getPage", "Read a page by id: title, spaceId, parentId, version.number, and its body (storage format by default). version.number is needed for Update.")) {
+          presentation = new resources.ComponentPresentation {
+            component = "page-viewer"
+            preferredDisplayMode = "panel"
+            inputs {
+              ["pageId"] = new resources.FromArg { path = List("parameters", "id") }
+            }
+          }
+        },
         reader("ListChildren", "listPageChildren", "List the direct child pages of a page (id, title, childPosition) — walk a page tree from a space's homepageId."),
         new resources.Action {
           name = "Create"

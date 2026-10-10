@@ -4,3 +4,77 @@ logo = "static/confluence.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "page-viewer"
+    kind = "sandboxed"
+    entry = "components/page-viewer/page-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Confluence page"
+      description = "Render a Confluence page as it reads in Confluence: space and parent breadcrumb, title, last-updated line, and the body (headings, lists, tables, code and info/note/warning panels; other macros show as labels). Footer comments are listed, and the user can add one (posted as them after confirmation)."
+      inputs {
+        type = "object"
+        required {
+          "pageId"
+        }
+        properties {
+          ["pageId"] = new Dynamic {
+            type = "string"
+            description = "Numeric Confluence page id, e.g. from confluence_search_content (content.id) or confluence_list_page."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "page-composer"
+    kind = "sandboxed"
+    entry = "components/page-composer/page-composer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Confluence page composer"
+      description = "Confluence-editor-style composer: write a new page in a space (optionally under a parent) or, with pageId, edit an existing page's title and body. The body is plain text where #, ##, ### headings, - bullets, 1. lists, > quotes, --- rules and ``` code fences become Confluence formatting; **bold**, *italic* and `code` work inline. Editing warns when the page holds tables, macros or images the editor can't keep. The user edits and confirms before anything is saved."
+      inputs {
+        type = "object"
+        properties {
+          ["spaceId"] = new Dynamic {
+            type = "string"
+            description = "Numeric space id for a new page; without it the user picks a space."
+          }
+          ["parentId"] = new Dynamic {
+            type = "string"
+            description = "Parent page id for a new page; omit for the space root."
+          }
+          ["pageId"] = new Dynamic {
+            type = "string"
+            description = "Set to edit an existing page: its title and body are loaded unless title/body are given."
+          }
+          ["title"] = new Dynamic {
+            type = "string"
+            description = "Page title."
+          }
+          ["body"] = new Dynamic {
+            type = "string"
+            description = "Plain-text draft; markdown-style prefixes become Confluence formatting (see description). Replaces the whole body when editing."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "saved"
+          payload {
+            type = "object"
+            properties {
+              ["pageId"] = new Dynamic { type = "string" }
+              ["title"] = new Dynamic { type = "string" }
+              ["url"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

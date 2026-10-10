@@ -27,6 +27,16 @@ Searchable from Tangram's cross-app search: `Content.Search` declares `x-tangram
 
 Bodies use the Confluence storage format (XHTML): `<p>text</p><h2>Heading</h2><ul><li>item</li></ul>`.
 
+## UI components
+
+| Component | What it shows |
+|-----------|---------------|
+| `page-viewer` (`pageId`) | The page as it reads in Confluence: space › parent breadcrumb, title, last-updated line, body (headings, lists, tables, code, info/note/warning panels; other macros as labels), footer comments, and an *Add comment* box. `Page.Get` results open in it. |
+| `page-composer` (`spaceId`, `parentId`, `pageId`, `title`, `body`) | Write a new page or edit one. Plain-text draft with `#` headings, `-` bullets, `1.` lists, `>` quotes, ``` code; editing warns when the page holds tables/macros/images it can't keep. Emits `saved`. |
+
+The storage body is rendered from a parsed DOM through a tag allowlist (links and images http(s) only) — never as raw HTML. Posting a comment,
+publishing and updating all go through the host's confirmation.
+
 ## OAuth setup
 
 Create an OAuth 2.0 (3LO) app in the [Atlassian developer console](https://developer.atlassian.com/console/myapps/), add the Confluence API

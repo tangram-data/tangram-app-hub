@@ -225,7 +225,12 @@ paths:
         path: "/ex/confluence/{{oauth.tenantId}}/wiki/api/v2/pages/{id}"
       summary: Get a page with its body
       parameters:
-        - $ref: "#/components/parameters/pageId"
+        - name: id
+          in: path
+          required: true
+          description: Numeric page id.
+          schema:
+            type: string
         - name: body-format
           in: query
           required: false
