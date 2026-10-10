@@ -1,7 +1,8 @@
 // A Salesforce record page in Lightning style: object badge + name, a
 // highlights row of up to four key fields, then a two-column details grid
 // driven by the object's describe (labels, types, picklist labels). Reference
-// fields open the related record by emitting `open` {sobject, id}. Read-only:
+// fields open the related record by emitting `open` {sobject, id} (polymorphic
+// lookups resolve their object from the id's key prefix). Read-only:
 // Record.Describe + Record.Get through the connector.
 import { ReloadOutlined } from "@ant-design/icons";
 import { Button, Skeleton, Switch, Tooltip } from "antd";
@@ -18,24 +19,29 @@ import {
   highlightFields,
   iconFor,
   isEmpty,
+  isPolymorphic,
   isSystem,
+  keyPrefixes,
   nameField,
+  openExternal,
 } from "../../shared/sf-describe";
 
 const tangram = (window as any).tangram;
 
 type Loaded = { d: Describe; rec: SfRecord };
 
-function Value({ f, rec }: { f: Field; rec: SfRecord }) {
-  const shown = display(f, rec[f.name], rec);
+function Value({ f, rec, keyMap }: { f: Field; rec: SfRecord; keyMap?: Map<string, string> }) {
+  const shown = display(f, rec[f.name], rec, keyMap);
   switch (shown.kind) {
     case "check":
       return <span className={`sf-check ${shown.on ? "on" : "off"}`}>{shown.on ? "✓ Yes" : "No"}</span>;
     case "link":
       return (
-        <a href={shown.href} target="_blank" rel="noopener noreferrer">
-          {shown.text}
-        </a>
+        <Tooltip title={shown.href}>
+          <button type="button" className="sf-linkbtn" onClick={() => openExternal(shown.href)}>
+            {shown.text}
+          </button>
+        </Tooltip>
       );
     case "ref":
       return (
@@ -56,6 +62,7 @@ export default function RecordViewer() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [showEmpty, setShowEmpty] = useState(false);
+  const [keyMap, setKeyMap] = useState<Map<string, string> | undefined>(undefined);
   const seq = useRef(0);
   const current = useRef({ sobject: "", id: "" });
 
@@ -81,6 +88,13 @@ export default function RecordViewer() {
         if (mine !== seq.current) return;
         setData({ d, rec: rec ?? {} });
         setState("ready");
+        // polymorphic lookups (WhoId, WhatId, OwnerId) need the key-prefix map to know what they point at
+        if (d.fields.some((f) => isPolymorphic(f) && !isEmpty(rec?.[f.name])))
+          keyPrefixes()
+            .then((m) => {
+              if (mine === seq.current) setKeyMap(m);
+            })
+            .catch(() => undefined);
       })
       .catch((e: unknown) => {
         if (mine !== seq.current) return;
@@ -92,7 +106,6 @@ export default function RecordViewer() {
 
   useEffect(() => {
     const apply = (inputs: Record<string, unknown>) => load(String(inputs?.sobject ?? "").trim(), String(inputs?.id ?? "").trim());
-    apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
@@ -164,7 +177,7 @@ export default function RecordViewer() {
                   {f.label}
                 </div>
                 <div className="v">
-                  <Value f={f} rec={rec} />
+                  <Value f={f} rec={rec} keyMap={keyMap} />
                 </div>
               </div>
             ))}
@@ -190,7 +203,7 @@ export default function RecordViewer() {
                   {f.label}
                 </div>
                 <div className={`v${isEmpty(rec[f.name]) ? " empty" : ""}`}>
-                  {isEmpty(rec[f.name]) ? "—" : <Value f={f} rec={rec} />}
+                  {isEmpty(rec[f.name]) ? "—" : <Value f={f} rec={rec} keyMap={keyMap} />}
                 </div>
               </div>
             ))}

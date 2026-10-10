@@ -3,12 +3,16 @@
 // an id it loads the record and saves only the fields that changed. Saving
 // goes through Record.Create / Record.Update, which the host confirms. The
 // draft is readable via component state; `saved` {sobject, id} fires after.
+// A save whose outcome is unknown (lost response, 5xx) never re-enables a
+// plain retry: an edit is re-read to see whether it landed, a create asks the
+// user to check Salesforce and retry explicitly. New inputs wait for a save.
 import { Button, Skeleton, Switch } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../shared/salesforce.css";
 import "../../shared/tangram-buttons.css";
 import { Describe, Field, SfRecord, commonFieldNames, describe, errorText, iconFor, nameField } from "../../shared/sf-describe";
 import FieldInput, { isLongText } from "./field-input";
+import { classify, notLanded } from "./save-outcome";
 
 const tangram = (window as any).tangram;
 
@@ -18,12 +22,16 @@ type Status =
   | { kind: "ready" }
   | { kind: "saving" }
   | { kind: "saved"; created: boolean }
-  | { kind: "error"; message: string; fatal?: boolean };
+  | { kind: "error"; message: string; fatal?: boolean }
+  // the write may or may not have happened; a create needs an explicit retry
+  | { kind: "unknown"; message: string; created: boolean };
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
 
+// Compound parents (address/location; Contact Name is never createable) are read-only here; their constituents
+// (Street, FirstName, LastName…) are ordinary writable fields.
 function writable(f: Field, creating: boolean): boolean {
-  if (f.calculated || f.autoNumber || f.compoundFieldName || ["id", "base64", "location", "address"].includes(f.type)) return false;
+  if (f.calculated || f.autoNumber || ["id", "base64", "location", "address"].includes(f.type)) return false;
   return creating ? !!f.createable : !!f.updateable;
 }
 
@@ -56,8 +64,12 @@ export default function RecordEditor() {
   const [ignored, setIgnored] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const [recordName, setRecordName] = useState("");
   const seq = useRef(0);
   const draft = useRef<Record<string, unknown>>({});
+  // inputs that arrive mid-save wait here, so the save's result is never dropped
+  const saving = useRef(false);
+  const queued = useRef<Record<string, unknown> | null>(null);
 
   const load = useCallback((obj: string, recId: string, prefill: Values) => {
     const mine = ++seq.current;
@@ -85,6 +97,8 @@ export default function RecordEditor() {
         const pre = Object.keys(prefill).filter((k) => editable.has(k));
         setIgnored(Object.keys(prefill).filter((k) => !editable.has(k)));
         setPrefilled(pre);
+        const nf0 = nameField(d);
+        setRecordName(nf0 && !blank(rec?.[nf0.name]) ? String(rec[nf0.name]) : "");
         setDesc(d);
         setOriginal(base);
         setValues({ ...base, ...Object.fromEntries(pre.map((k) => [k, prefill[k]])) });
@@ -96,15 +110,30 @@ export default function RecordEditor() {
       });
   }, []);
 
-  useEffect(() => {
-    const apply = (inputs: Record<string, unknown>) => {
+  const apply = useCallback(
+    (inputs: Record<string, unknown>) => {
+      if (saving.current) {
+        queued.current = inputs;
+        return;
+      }
       const fields = inputs?.fields && typeof inputs.fields === "object" && !Array.isArray(inputs.fields) ? (inputs.fields as Values) : {};
       load(String(inputs?.sobject ?? "").trim(), String(inputs?.id ?? "").trim(), fields);
-    };
-    apply(tangram.getInputs() ?? {});
+    },
+    [load],
+  );
+
+  useEffect(() => {
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
     tangram.provideState?.(() => ({ ...draft.current }));
-  }, [load]);
+  }, [apply]);
+
+  // a save settled: inputs that arrived meanwhile apply now
+  function settle() {
+    saving.current = false;
+    const next = queued.current;
+    queued.current = null;
+    if (next) apply(next);
+  }
 
   const creating = !id;
   const editable = useMemo(() => (desc ? desc.fields.filter((f) => writable(f, creating)) : []), [desc, creating]);
@@ -124,33 +153,51 @@ export default function RecordEditor() {
   const busy = status.kind === "saving" || status.kind === "loading";
   const dirty = Object.keys(body).length > 0;
 
-  function save() {
-    if (!dirty || missing.length || busy) return;
-    const mine = seq.current;
+  function save(force = false) {
+    if (!dirty || missing.length || busy || saving.current) return;
+    if (status.kind === "unknown" && !force) return;
     const sent = { ...body };
+    const target = { sobject, id, creating };
+    const fields = editable;
+    saving.current = true;
     setStatus({ kind: "saving" });
-    const call = creating
+    const call: Promise<{ id?: string; success?: boolean; errors?: unknown[] } | null> = creating
       ? tangram.performAction({ resourceType: "Record", action: "Create" }, { parameters: { sobject }, requestBody: sent })
       : tangram.performAction({ resourceType: "Record", action: "Update" }, { parameters: { sobject, id }, requestBody: sent });
+
+    const landed = (savedId: string) => {
+      // the saved values become the baseline: further saves update this record
+      const next = { ...original, ...values };
+      setOriginal(next);
+      setValues(next);
+      setPrefilled([]);
+      setId(savedId);
+      setStatus({ kind: "saved", created: target.creating });
+      tangram.emit("saved", { sobject: target.sobject, id: savedId });
+    };
+
     call
-      .then((r: { id?: string; success?: boolean; errors?: unknown[] } | null) => {
-        if (mine !== seq.current) return;
-        if (creating && r && r.success === false) throw new Error(JSON.stringify(r.errors ?? "Create failed"));
-        const savedId = creating ? String(r?.id ?? "") : id;
-        if (creating && !savedId) throw new Error("Salesforce returned no record id");
-        // the saved values become the baseline: further saves update this record
-        const next = { ...original, ...values };
-        setOriginal(next);
-        setValues(next);
-        setPrefilled([]);
-        setId(savedId);
-        setStatus({ kind: "saved", created: creating });
-        tangram.emit("saved", { sobject, id: savedId });
+      .then((r) => {
+        if (target.creating && r && r.success === false) throw new Error(`Upstream API error 400: ${JSON.stringify(r.errors ?? "Create failed")}`);
+        const savedId = target.creating ? String(r?.id ?? "") : target.id;
+        if (target.creating && !savedId)
+          return setStatus({ kind: "unknown", created: true, message: "Salesforce answered without a record id." });
+        landed(savedId);
       })
       .catch((e: unknown) => {
-        if (mine !== seq.current) return;
-        setStatus({ kind: "error", message: errorText(e) });
-      });
+        const failure = classify(e);
+        if (failure.definitive) return setStatus({ kind: "error", message: failure.message });
+        if (target.creating) return setStatus({ kind: "unknown", created: true, message: failure.message });
+        // an edit can be checked: re-read the record and see whether the change landed
+        return (tangram.performAction({ resourceType: "Record", action: "Get" }, { parameters: { sobject: target.sobject, id: target.id } }) as Promise<SfRecord>)
+          .then((now) => {
+            const missed = notLanded(fields, sent, now ?? {});
+            if (missed.length === 0) landed(target.id);
+            else setStatus({ kind: "error", message: `${failure.message} — the record shows the change did not land (${missed.join(", ")}).` });
+          })
+          .catch(() => setStatus({ kind: "unknown", created: false, message: failure.message }));
+      })
+      .finally(settle);
   }
 
   const icon = iconFor(sobject || "Record");
@@ -162,7 +209,7 @@ export default function RecordEditor() {
       <div className="meta">
         <div className="sf-eyebrow">{desc?.label ?? sobject ?? "Record"}</div>
         <h1 className="sf-title">
-          {creating ? `New ${desc?.label ?? sobject}` : `Edit ${nf && !blank(original[nf.name]) ? String(original[nf.name]) : id}`}
+          {creating ? `New ${desc?.label ?? sobject}` : `Edit ${recordName || id}`}
         </h1>
       </div>
     </div>
@@ -200,6 +247,15 @@ export default function RecordEditor() {
           <div className="sf-error" role="alert">
             <b>Couldn't save</b>
             {status.message}
+          </div>
+        ) : null}
+        {status.kind === "unknown" ? (
+          <div className="sf-error" role="alert">
+            <b>Outcome unknown — check Salesforce before retrying</b>
+            {status.created
+              ? `The ${desc.label} may have been created anyway; retrying could create a duplicate.`
+              : "The record couldn't be re-read to confirm whether the change landed."}{" "}
+            ({status.message})
           </div>
         ) : null}
         {ignored.length ? (
@@ -251,9 +307,15 @@ export default function RecordEditor() {
           <Button disabled={busy || !dirty} onClick={() => setValues({ ...original })}>
             {creating ? "Clear" : "Discard changes"}
           </Button>
-          <Button type="primary" loading={status.kind === "saving"} disabled={busy || !dirty || missing.length > 0} onClick={save}>
-            {creating ? "Create" : "Save"}
-          </Button>
+          {status.kind === "unknown" ? (
+            <Button danger disabled={busy || !dirty || missing.length > 0} onClick={() => save(true)}>
+              Retry anyway
+            </Button>
+          ) : (
+            <Button type="primary" loading={status.kind === "saving"} disabled={busy || !dirty || missing.length > 0} onClick={() => save()}>
+              {creating ? "Create" : "Save"}
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -43,6 +43,35 @@ export function describe(sobject: string): Promise<Describe> {
   return p!;
 }
 
+// Record-id key prefix (first 3 chars) → sobject, for polymorphic lookups (WhoId, WhatId, OwnerId).
+let prefixes: Promise<Map<string, string>> | null = null;
+
+export function keyPrefixes(): Promise<Map<string, string>> {
+  if (!prefixes) {
+    prefixes = tangram
+      .performAction({ resourceType: "Record", action: "ListObjects" }, {})
+      .then((r: { sobjects?: { name?: string; keyPrefix?: string | null }[] }) => {
+        const m = new Map<string, string>();
+        for (const o of r?.sobjects ?? []) if (o.name && o.keyPrefix) m.set(o.keyPrefix, o.name);
+        return m;
+      });
+    prefixes!.catch(() => (prefixes = null));
+  }
+  return prefixes!;
+}
+
+export function isPolymorphic(f: Field): boolean {
+  return f.type === "reference" && (f.referenceTo?.length ?? 0) > 1;
+}
+
+// The object a lookup value points at: its only target, or (polymorphic) the target whose key prefix the id carries.
+export function referenceTarget(f: Field, id: string, keyMap?: Map<string, string>): string | undefined {
+  const to = f.referenceTo ?? [];
+  if (to.length === 1) return to[0];
+  const byPrefix = keyMap?.get(id.slice(0, 3));
+  return byPrefix && to.includes(byPrefix) ? byPrefix : undefined;
+}
+
 export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
@@ -96,6 +125,21 @@ export function iconFor(sobject: string): { color: string; text: string } {
   return { color: ICONS[sobject] ?? "#0176d3", text: sobject.replace(/__c$/, "").slice(0, 2).toUpperCase() };
 }
 
+// Only absolute http(s) URLs leave the frame (through tangram.openUrl; the sandbox has no popups).
+export function safeHttpUrl(s: string): string {
+  try {
+    const u = new URL(s.trim());
+    return (u.protocol === "https:" || u.protocol === "http:") && u.hostname.includes(".") ? u.href : "";
+  } catch {
+    return "";
+  }
+}
+
+export function openExternal(url: string): void {
+  const safe = safeHttpUrl(url);
+  if (safe) tangram.openUrl?.(safe);
+}
+
 // Salesforce datetimes end in "+0000"; Safari's Date only takes "+00:00".
 export function parseDateTime(s: string): dayjs.Dayjs {
   return dayjs(s.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
@@ -107,20 +151,23 @@ function picklistLabel(f: Field, value: string): string {
 
 export type Display =
   | { kind: "text"; text: string; mono?: boolean }
-  | { kind: "link"; text: string; href: string }
+  | { kind: "link"; text: string; href: string } // validated http(s), opened through the host
   | { kind: "ref"; text: string; sobject: string; id: string }
   | { kind: "check"; on: boolean };
 
-// How a value reads on the record page. Currency uses the record's CurrencyIsoCode (multi-currency orgs) or USD.
-export function display(f: Field, v: unknown, rec: SfRecord): Display {
+// How a value reads on the record page. Currency uses the record's CurrencyIsoCode (multi-currency orgs); without one
+// the org currency isn't known here, so the amount shows without a symbol.
+export function display(f: Field, v: unknown, rec: SfRecord, keyMap?: Map<string, string>): Display {
   if (isEmpty(v)) return { kind: "text", text: "" };
   switch (f.type) {
     case "boolean":
       return { kind: "check", on: v === true || v === "true" };
     case "currency": {
-      const code = typeof rec.CurrencyIsoCode === "string" ? rec.CurrencyIsoCode : "USD";
+      const code = typeof rec.CurrencyIsoCode === "string" && rec.CurrencyIsoCode ? rec.CurrencyIsoCode : "";
       const n = Number(v);
       if (!Number.isFinite(n)) return { kind: "text", text: String(v) };
+      if (!code)
+        return { kind: "text", text: n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) };
       try {
         return { kind: "text", text: new Intl.NumberFormat(undefined, { style: "currency", currency: code }).format(n) };
       } catch {
@@ -144,20 +191,16 @@ export function display(f: Field, v: unknown, rec: SfRecord): Display {
     case "multipicklist":
       return { kind: "text", text: String(v).split(";").map((x) => picklistLabel(f, x)).join(", ") };
     case "reference": {
-      const target = f.referenceTo?.[0];
+      const target = referenceTarget(f, String(v), keyMap);
       return target ? { kind: "ref", text: String(v), sobject: target, id: String(v) } : { kind: "text", text: String(v), mono: true };
     }
     case "id":
       return { kind: "text", text: String(v), mono: true };
     case "url": {
       const s = String(v);
-      const href = /^https?:\/\//i.test(s) ? s : /^[\w.-]+\.[a-z]{2,}/i.test(s) ? `https://${s}` : "";
+      const href = safeHttpUrl(/^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`);
       return href ? { kind: "link", text: s, href } : { kind: "text", text: s };
     }
-    case "email":
-      return { kind: "link", text: String(v), href: `mailto:${String(v)}` };
-    case "phone":
-      return { kind: "link", text: String(v), href: `tel:${String(v).replace(/[^\d+]/g, "")}` };
     case "encryptedstring":
       return { kind: "text", text: "••••••" };
     case "address": {
