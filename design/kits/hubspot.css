@@ -1,0 +1,66 @@
+/* HubSpot look for the HubSpot connector components (record page, deal board).
+   Source of truth: design/kits/hubspot.css — run scripts/sync-ui-kits.sh after editing. */
+.hs-root {
+  --hs-font: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --hs-text: #33475b; --hs-muted: #516f90; --hs-faint: #7c98b6; --hs-line: #dfe3eb; --hs-line2: #cbd6e2;
+  --hs-bg: #f5f8fa; --hs-card: #fff; --hs-hover: #eaf0f6; --hs-accent: #ff7a59; --hs-link: #0091ae; --hs-teal-soft: #e5f5f8;
+  font-family: var(--hs-font); color: var(--hs-text); background: var(--hs-bg); font-size: 14px; line-height: 20px;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; box-sizing: border-box;
+}
+.hs-root *, .hs-root *::before, .hs-root *::after { box-sizing: border-box; }
+.hs-root .ant-btn, .hs-root .ant-select { font-family: var(--hs-font); }
+.hs-root a { color: var(--hs-link); text-decoration: none; } .hs-root a:hover { text-decoration: underline; }
+.hs-muted { color: var(--hs-muted); } .hs-faint { color: var(--hs-faint); font-size: 12px; }
+.hs-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--hs-link); cursor: pointer; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.hs-linkbtn:hover { text-decoration: underline; }
+.hs-error { margin: 12px 16px; padding: 10px 14px; border-radius: 3px; background: #fde8e9; color: #b5222b; border: 1px solid #f2545b; font-size: 13px; }
+.hs-error.inline { margin: 8px 0 0; }
+.hs-empty { padding: 32px 16px; text-align: center; color: var(--hs-muted); }
+.hs-avatar { width: 40px; height: 40px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-weight: 600; flex: none; }
+.hs-avatar.lg { width: 56px; height: 56px; font-size: 20px; }
+.hs-avatar.sm { width: 22px; height: 22px; font-size: 10px; }
+.hs-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+/* Record page: header, about card, association cards */
+.hs-record { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 16px; padding: 16px; }
+@container (max-width: 640px) { .hs-record { grid-template-columns: 1fr; } }
+.hs-record-wrap { container-type: inline-size; }
+.hs-head { display: flex; gap: 14px; align-items: center; padding: 16px 16px 0; }
+.hs-head .t { font-size: 20px; font-weight: 600; line-height: 26px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-head .s { color: var(--hs-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-head .tx { min-width: 0; flex: 1; }
+.hs-kind { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--hs-faint); }
+.hs-card { background: var(--hs-card); border: 1px solid var(--hs-line); border-radius: 4px; min-width: 0; }
+.hs-card-h { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--hs-line);
+  font-weight: 600; font-size: 13px; }
+.hs-card-h .n { margin-left: auto; color: var(--hs-faint); font-weight: 400; font-size: 12px; }
+.hs-props { padding: 4px 14px 10px; }
+.hs-prop { padding: 7px 0; border-bottom: 1px solid #eef2f6; }
+.hs-prop:last-child { border-bottom: 0; }
+.hs-prop .k { font-size: 12px; color: var(--hs-muted); }
+.hs-prop .v { word-break: break-word; white-space: pre-wrap; }
+.hs-prop .v.none { color: var(--hs-faint); }
+.hs-assoc { list-style: none; margin: 0; padding: 4px 0; }
+.hs-assoc li { display: flex; align-items: center; gap: 8px; padding: 6px 14px; min-width: 0; }
+.hs-assoc li:hover { background: var(--hs-hover); }
+.hs-assoc .sub { color: var(--hs-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-assoc .tx { min-width: 0; display: flex; flex-direction: column; }
+.hs-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* Deal board */
+.hs-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--hs-line); }
+.hs-bar .sum { flex: 1; min-width: 0; color: var(--hs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.hs-board { display: flex; gap: 10px; padding: 12px 16px 16px; overflow-x: auto; align-items: flex-start; }
+.hs-col { flex: 0 0 236px; background: #eaf0f6; border-radius: 4px; display: flex; flex-direction: column; max-height: calc(100vh - 90px); }
+.hs-col-h { padding: 10px 12px 8px; border-top: 3px solid var(--hs-line2); border-radius: 4px 4px 0 0; }
+.hs-col-h .l { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; display: flex; gap: 6px; }
+.hs-col-h .l .c { color: var(--hs-faint); font-weight: 400; }
+.hs-col-h .tot { font-size: 12px; color: var(--hs-muted); margin-top: 2px; }
+.hs-col-b { padding: 0 8px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.hs-deal { background: #fff; border: 1px solid var(--hs-line); border-radius: 3px; padding: 9px 10px; cursor: pointer; text-align: left;
+  font: inherit; color: inherit; width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.hs-deal:hover, .hs-deal:focus-visible { border-color: var(--hs-link); outline: none; box-shadow: 0 0 0 1px var(--hs-link); }
+.hs-deal .nm { font-weight: 600; color: var(--hs-link); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-deal .row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--hs-muted); }
+.hs-deal .row .sp { flex: 1; }
+.hs-col-empty { color: var(--hs-faint); font-size: 12px; text-align: center; padding: 12px 0; }
+.hs-more { font-size: 12px; color: var(--hs-faint); padding: 4px 16px 12px; }

@@ -40,7 +40,7 @@ paths:
       operationId: getContact
       summary: Get a contact
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
         - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. email, firstname, lastname, phone, company, lifecyclestage, hubspot_owner_id.", schema: {type: string}}
         - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
       responses:
@@ -50,7 +50,7 @@ paths:
       operationId: updateContact
       summary: Update a contact
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
       requestBody:
         required: true
         content:
@@ -91,7 +91,7 @@ paths:
       operationId: getCompany
       summary: Get a company
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
         - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. name, domain, industry, city, numberofemployees, annualrevenue, hubspot_owner_id.", schema: {type: string}}
         - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
       responses:
@@ -101,7 +101,7 @@ paths:
       operationId: updateCompany
       summary: Update a company
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
       requestBody:
         required: true
         content:
@@ -142,7 +142,7 @@ paths:
       operationId: getDeal
       summary: Get a deal
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
         - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. dealname, amount, dealstage, pipeline, closedate, hubspot_owner_id.", schema: {type: string}}
         - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
       responses:
@@ -152,7 +152,7 @@ paths:
       operationId: updateDeal
       summary: Update a deal
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
       requestBody:
         required: true
         content:
@@ -193,7 +193,7 @@ paths:
       operationId: getTicket
       summary: Get a ticket
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
         - {name: properties, in: query, required: false, description: "Comma-separated property names, e.g. subject, content, hs_pipeline, hs_pipeline_stage, hs_ticket_priority, hubspot_owner_id.", schema: {type: string}}
         - {name: associations, in: query, required: false, description: "Comma-separated object types whose linked ids to include, e.g. companies,deals.", schema: {type: string}}
       responses:
@@ -203,7 +203,7 @@ paths:
       operationId: updateTicket
       summary: Update a ticket
       parameters:
-        - $ref: "#/components/parameters/recordId"
+        - {name: id, in: path, required: true, description: Record id., schema: {type: string}}
       requestBody:
         required: true
         content:
@@ -269,8 +269,6 @@ paths:
 
 components:
   parameters:
-    recordId:
-      {name: id, in: path, required: true, description: Record id., schema: {type: string}}
     fromObjectType:
       {name: fromObjectType, in: path, required: true, schema: {type: string, enum: [contacts, companies, deals, tickets]}}
     toObjectType:

@@ -19,7 +19,16 @@ local function crmObject(typeName: String, plural: String, typeDoc: String, prop
     served = true
     actions = List(
       reader(searchName, "search\(typeName)", "Search \(plural): query matches default searchable text properties; filterGroups (OR of AND-ed filters: propertyName, operator EQ/NEQ/LT/LTE/GT/GTE/CONTAINS_TOKEN/HAS_PROPERTY/NOT_HAS_PROPERTY/IN/BETWEEN, value) narrow; properties picks returned fields (default only a few) — e.g. \(props). sorts by propertyName/direction. Max 200 per page, page with after; at most 10,000 results total."),
-      reader("Get", "get\(typeName)", "Read one \(typeName) by id with the listed properties (comma-separated, e.g. \(props)); associations lists linked object types (e.g. companies,deals)."),
+      (reader("Get", "get\(typeName)", "Read one \(typeName) by id with the listed properties (comma-separated, e.g. \(props)); associations lists linked object types (e.g. companies,deals).")) {
+        presentation = new resources.ComponentPresentation {
+          component = "record-viewer"
+          preferredDisplayMode = "panel"
+          inputs {
+            ["objectType"] = new resources.Literal { value = plural }
+            ["id"] = new resources.FromArg { path = List("parameters", "id") }
+          }
+        }
+      },
       new resources.Action {
         name = "Create"
         privilege = "Create"

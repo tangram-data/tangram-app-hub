@@ -4,3 +4,80 @@ logo = "static/hubspot.png"
 deployment: ui.UIDeployment = new {
   mode = "None"
 }
+
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "record-viewer"
+    kind = "sandboxed"
+    entry = "components/record-viewer/record-viewer.tsx"
+    spec = new ui.UIComponentContract {
+      title = "HubSpot record"
+      description = "Show a HubSpot contact, company, deal or ticket like its HubSpot record page: key properties (owner, stage and option labels resolved) and up to 5 associated records per type; clicking an associated record emits `open`."
+      inputs {
+        type = "object"
+        required {
+          "objectType"
+          "id"
+        }
+        properties {
+          ["objectType"] = new Dynamic {
+            type = "string"
+            description = "contacts, companies, deals or tickets."
+          }
+          ["id"] = new Dynamic {
+            type = "string"
+            description = "Record id, e.g. from hubspot_search_contact or hubspot_find_deal."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["objectType"] = new Dynamic { type = "string" }
+              ["id"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "deal-board"
+    kind = "sandboxed"
+    entry = "components/deal-board/deal-board.tsx"
+    spec = new ui.UIComponentContract {
+      title = "HubSpot deal board"
+      description = "Read-only pipeline board of HubSpot deals: a column per stage with deal count and total amount, a card per deal (name, amount, close date, owner). Up to 1000 deals; clicking a deal emits `open`."
+      inputs {
+        type = "object"
+        properties {
+          ["pipelineId"] = new Dynamic {
+            type = "string"
+            description = "Deal pipeline id (hubspot_list_pipeline with objectType deals). Defaults to the first pipeline."
+          }
+          ["ownerId"] = new Dynamic {
+            type = "string"
+            description = "Only deals owned by this owner id (hubspot_list_owner)."
+          }
+        }
+      }
+      outputs {
+        new ui.UIComponentOutput {
+          name = "open"
+          payload {
+            type = "object"
+            properties {
+              ["objectType"] = new Dynamic { type = "string" }
+              ["id"] = new Dynamic { type = "string" }
+            }
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}

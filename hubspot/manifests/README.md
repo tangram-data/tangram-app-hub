@@ -36,3 +36,13 @@ tokens; a super admin uninstalls the app under Settings → Integrations → Con
 
 Connection scope is **WorkspaceShared** only: a HubSpot token carries the app's scopes across the whole portal regardless of who connected, so
 per-user connections would not narrow access. Control who may search, read or write through Tangram's per-action permissions instead.
+
+## UI components
+
+| Component | Inputs | What it shows |
+|-----------|--------|---------------|
+| `record-viewer` | `objectType` (`contacts`/`companies`/`deals`/`tickets`), `id` | The record like HubSpot's record page: key properties with owner names, stage and option labels resolved, plus up to 5 associated records per type. Clicking one emits `open` `{objectType, id}`. `Contact.Get`, `Company.Get`, `Deal.Get` and `Ticket.Get` present their result with it. |
+| `deal-board` | `pipelineId?`, `ownerId?` | Read-only pipeline board: a column per stage (count + total amount), a card per deal (name, amount, close date, owner). Up to 1000 deals; a card emits `open`. |
+
+Both only read (`Get`, `Find`, `Property.List`, `Pipeline.List`, `Owner.List`); edits stay with the confirmation-gated actions.
+
