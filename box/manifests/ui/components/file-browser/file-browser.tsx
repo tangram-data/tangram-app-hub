@@ -21,17 +21,28 @@ const LIST_FIELDS = "id,type,name,size,modified_at,modified_by,extension,url";
 
 // A listing source: a search, or one folder's items.
 type Source = { kind: "search"; query: string } | { kind: "folder"; id: string; name: string };
-type Page = { entries?: BoxItem[]; total_count?: number; offset?: number; limit?: number };
+type Page = { entries?: BoxItem[]; total_count?: number; offset?: number; limit?: number; next_marker?: string | null };
+// Where a page starts: search pages by offset (Box caps it at 10,000); folders page by marker, which has no
+// offset limit. undefined = the first page.
+type PageRef = { offset: number } | { marker: string } | undefined;
 
-function fetchPage(src: Source, offset: number): Promise<Page> {
+function fetchPage(src: Source, page: PageRef): Promise<Page> {
   if (src.kind === "search")
     return tangram.performAction(
       { resourceType: "Item", action: "Search" },
-      { parameters: { query: src.query, limit: PAGE_SIZE, offset } },
+      { parameters: { query: src.query, limit: PAGE_SIZE, offset: page && "offset" in page ? page.offset : 0 } },
     );
   return tangram.performAction(
     { resourceType: "Folder", action: "ListItems" },
-    { parameters: { folder_id: src.id, fields: LIST_FIELDS, limit: PAGE_SIZE, offset } },
+    {
+      parameters: {
+        folder_id: src.id,
+        fields: LIST_FIELDS,
+        limit: PAGE_SIZE,
+        usemarker: true,
+        marker: page && "marker" in page ? page.marker : undefined,
+      },
+    },
   );
 }
 
@@ -44,50 +55,62 @@ export default function FileBrowser() {
   const [trail, setTrail] = useState<Extract<Source, { kind: "folder" }>[]>([]);
   const [items, setItems] = useState<BoxItem[]>([]);
   const [total, setTotal] = useState(0);
-  // Box pages by offset: the next page starts at the response's offset + limit, not at the rows we hold
-  // (search pages can come back sparse after permission filtering).
-  const [nextOffset, setNextOffset] = useState(0);
+  // The next page, or undefined at the end. Search: the response's offset + limit, not the rows we hold
+  // (search pages can come back sparse after permission filtering). Folders: the response's next_marker.
+  const [nextPage, setNextPage] = useState<PageRef>(undefined);
+  // Search stopped at Box's offset limit with more results left.
+  const [capped, setCapped] = useState(false);
   const [state, setState] = useState<"loading" | "more" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   // An http bookmark the host can't open: its URL is shown to copy instead.
   const [plainLink, setPlainLink] = useState<BoxItem | null>(null);
   // A failed "Load more" keeps the rows and offers a retry of exactly that page.
-  const [failedPage, setFailedPage] = useState<{ src: Source; offset: number } | null>(null);
+  const [failedPage, setFailedPage] = useState<{ src: Source; page: PageRef } | null>(null);
   const loadSeq = useRef(0);
   // The source the current rows came from; "Load more" pages it, not the search box.
   const active = useRef<Source>(ROOT);
 
-  const load = useCallback((src: Source, offset = 0) => {
+  const load = useCallback((src: Source, page?: PageRef) => {
     const seq = ++loadSeq.current;
-    setState(offset ? "more" : "loading");
+    setState(page ? "more" : "loading");
     setError("");
     setFailedPage(null);
-    fetchPage(src, offset)
+    fetchPage(src, page)
       .then((r) => {
         if (seq !== loadSeq.current) return;
         active.current = src;
         const entries = r?.entries ?? [];
-        const start = typeof r?.offset === "number" ? r.offset : offset;
-        const limit = typeof r?.limit === "number" && r.limit > 0 ? r.limit : PAGE_SIZE;
-        const next = start + limit;
-        setItems((prev) => (offset ? [...prev, ...entries] : entries));
-        setNextOffset(next);
-        // Without a total, a short page means the end.
-        setTotal(typeof r?.total_count === "number" ? r.total_count : entries.length < limit ? start + entries.length : next + 1);
+        setItems((prev) => (page ? [...prev, ...entries] : entries));
+        if (src.kind === "folder") {
+          setNextPage(r?.next_marker ? { marker: r.next_marker } : undefined);
+          setTotal(0);
+          setCapped(false);
+        } else {
+          const start = typeof r?.offset === "number" ? r.offset : page && "offset" in page ? page.offset : 0;
+          const limit = typeof r?.limit === "number" && r.limit > 0 ? r.limit : PAGE_SIZE;
+          const next = start + limit;
+          // Without a total, a short page means the end.
+          const tot =
+            typeof r?.total_count === "number" ? r.total_count : entries.length < limit ? start + entries.length : next + 1;
+          setTotal(tot);
+          setCapped(next < tot && next > MAX_SEARCH_OFFSET);
+          setNextPage(next < tot && next <= MAX_SEARCH_OFFSET ? { offset: next } : undefined);
+        }
         setState("ready");
       })
       .catch((e: unknown) => {
         if (seq !== loadSeq.current) return;
         setError(errorText(e));
-        if (offset) {
+        if (page) {
           // keep the loaded rows; the failed page can be retried
-          setFailedPage({ src, offset });
+          setFailedPage({ src, page });
           setState("ready");
           return;
         }
         setItems([]);
         setTotal(0);
-        setNextOffset(0);
+        setNextPage(undefined);
+        setCapped(false);
         setState("error");
       });
   }, []);
@@ -200,7 +223,7 @@ export default function FileBrowser() {
           <b>Couldn't load more</b>
           {error}
           <div style={{ marginTop: 8 }}>
-            <Button size="small" onClick={() => !busy && load(failedPage.src, failedPage.offset)}>
+            <Button size="small" onClick={() => !busy && load(failedPage.src, failedPage.page)}>
               Retry
             </Button>
           </div>
@@ -310,21 +333,21 @@ export default function FileBrowser() {
           </tbody>
         </table>
       )}
-      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
-      active.current.kind === "search" && nextOffset > MAX_SEARCH_OFFSET ? (
+      {state !== "error" && state !== "loading" && !failedPage && capped ? (
         <div className="bx-toolbar bx-faint">
           Showing the first {items.length} of {total} results — Box search stops here. Narrow the query to see more.
         </div>
       ) : null}
-      {state !== "error" && state !== "loading" && !failedPage && nextOffset < total &&
-      !(active.current.kind === "search" && nextOffset > MAX_SEARCH_OFFSET) ? (
+      {state !== "error" && state !== "loading" && !failedPage && nextPage ? (
         <div className="bx-toolbar">
-          <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, nextOffset)}>
+          <Button size="small" loading={state === "more"} onClick={() => !busy && load(active.current, nextPage)}>
             Load more
           </Button>
-          <span className="bx-faint">
-            {items.length} of {total}
-          </span>
+          {total ? (
+            <span className="bx-faint">
+              {items.length} of {total}
+            </span>
+          ) : null}
         </div>
       ) : null}
     </div>

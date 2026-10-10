@@ -44,7 +44,7 @@ types: List<resources.ResourceTypeDefinition> = List(
       served = true
       actions = List(
         reader("Get", "getFolder", "A folder's details: name, path_collection, owner, item_collection summary, shared_link."),
-        reader("ListItems", "listFolderItems", "List the files, folders and web links in a folder (0 = root); page with offset/limit."),
+        reader("ListItems", "listFolderItems", "List the files, folders and web links in a folder (0 = root). Page large folders with usemarker=true and then marker = the previous next_marker (offset paging stops at 10,000)."),
         new resources.Action {
           name = "Create"
           privilege = "Create"
