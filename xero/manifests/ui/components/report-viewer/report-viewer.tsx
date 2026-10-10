@@ -235,7 +235,8 @@ export default function ReportViewer() {
         <div className="x-empty">No figures for this period</div>
       ) : (
         <div className="x-scroll">
-          <table className="x-table">
+          {/* account names keep >= 200px; extra columns widen the table and the container scrolls */}
+          <table className="x-table" style={{ minWidth: 200 + (cols - 1) * 128 }}>
             <colgroup>
               <col />
               {Array.from({ length: cols - 1 }, (_, i) => (

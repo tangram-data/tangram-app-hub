@@ -162,7 +162,8 @@ export default function InvoiceViewer() {
           <Tooltip title="Reload">
             <Button size="small" icon={<ReloadOutlined aria-hidden="true" />} aria-label="Reload" onClick={() => load(inv.InvoiceID)} />
           </Tooltip>
-          <Button size="small" href={xeroUrl(inv)} target="_blank" rel="noopener noreferrer" icon={<ExportOutlined aria-hidden="true" />}>
+          {/* the sandbox frame blocks popups: the host opens the link */}
+          <Button size="small" icon={<ExportOutlined aria-hidden="true" />} onClick={() => tangram.openUrl(xeroUrl(inv))}>
             Open in Xero
           </Button>
         </div>

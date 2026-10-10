@@ -11,7 +11,11 @@ export function xeroDate(dateString?: string, msForm?: string): dayjs.Dayjs | nu
     if (d.isValid()) return d;
   }
   const m = msForm ? MS_DATE.exec(msForm) : null;
-  if (m) return dayjs(Number(m[1]));
+  if (m) {
+    // Xero dates are calendar days at UTC midnight: keep the UTC day, not the browser-local one.
+    const u = new Date(Number(m[1]));
+    return dayjs(new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()));
+  }
   if (msForm) {
     const d = dayjs(msForm);
     if (d.isValid()) return d;
