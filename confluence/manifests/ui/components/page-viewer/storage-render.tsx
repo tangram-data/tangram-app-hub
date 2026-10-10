@@ -1,6 +1,6 @@
 // Confluence storage format (XHTML + ac:/ri: macros) → React, without ever
 // injecting HTML: the source is parsed with DOMParser and walked; only
-// allowlisted tags become elements (links/images http(s) only, no attributes
+// allowlisted tags become elements (links/images https only, no attributes
 // beyond href/src/alt/colspan/rowspan), Confluence macros degrade to readable
 // equivalents (code → <pre>, info/note/warning/tip → callout panels, links →
 // their text), and anything else contributes only its text — except
@@ -34,7 +34,9 @@ const PANELS: Record<string, { cls: string; icon: string }> = {
   tip: { cls: "success", icon: "✓" },
 };
 
-const httpUrl = (u: string | null) => (u && /^https?:\/\//i.test(u.trim()) ? u.trim() : null);
+// The host's open-url relay (and so every link here) is https-only; http links render as plain text.
+const httpUrl = (u: string | null) => (u && /^https:\/\//i.test(u.trim()) ? u.trim() : null);
+const plainHttp = (u: string | null) => (u && /^http:\/\//i.test(u.trim()) ? u.trim() : null);
 
 function child(el: Element, tag: string): Element | undefined {
   return Array.from(el.children).find((c) => c.tagName.toLowerCase() === tag);
@@ -105,8 +107,9 @@ function confluenceLink(el: Element, key: string): React.ReactNode {
     (user ? "@user" : "") ||
     url?.getAttribute("ri:value") ||
     "link";
-  const href = httpUrl(url?.getAttribute("ri:value") ?? null);
-  return href ? link(key, href, text) : <strong key={key}>{text}</strong>;
+  const raw = url?.getAttribute("ri:value") ?? null;
+  const href = httpUrl(raw);
+  return href ? link(key, href, text) : <strong key={key} title={plainHttp(raw) ?? undefined}>{text}</strong>;
 }
 
 function link(key: string, href: string, content: React.ReactNode): React.ReactNode {
@@ -159,7 +162,13 @@ function walk(node: Node, key: string): React.ReactNode {
       return el.getAttribute("datetime") ?? el.textContent;
     case "a": {
       const href = httpUrl(el.getAttribute("href"));
-      return href ? link(key, href, kids(el, key)) : <span key={key}>{kids(el, key)}</span>;
+      return href ? (
+        link(key, href, kids(el, key))
+      ) : (
+        <span key={key} title={plainHttp(el.getAttribute("href")) ?? undefined}>
+          {kids(el, key)}
+        </span>
+      );
     }
     case "img": {
       const src = httpUrl(el.getAttribute("src"));

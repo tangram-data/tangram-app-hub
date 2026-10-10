@@ -30,6 +30,13 @@ type Comment = {
 };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Confluence pages lists by an opaque cursor carried in `_links.next`.
+function cursorOf(next?: string): string {
+  if (!next) return "";
+  const q = next.indexOf("?");
+  return q < 0 ? "" : new URLSearchParams(next.slice(q + 1)).get("cursor") ?? "";
+}
 const escapeXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // Plain text → storage paragraphs (one per non-empty line).
@@ -61,18 +68,44 @@ export default function PageViewer() {
   const [crumbs, setCrumbs] = useState<string[]>([]);
   const [url, setUrl] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentState, setCommentState] = useState<"loading" | "more" | "ready" | "error">("loading");
+  const [commentError, setCommentError] = useState("");
+  const [nextCursor, setNextCursor] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
   const seq = useRef(0);
+  // Comment loads and the comment submission are tracked apart from page loads, so a refresh mid-post never strands
+  // `posting`; `shownId` is the page the draft belongs to.
+  const commentSeq = useRef(0);
+  const postSeq = useRef(0);
+  const shownId = useRef("");
 
-  const loadComments = useCallback(async (id: string, s: number) => {
-    const r = await tangram.performAction({ resourceType: "Comment", action: "List" }, {
-      parameters: { id, "body-format": "storage", limit: 50 },
-    });
-    if (s === seq.current) setComments((r?.results as Comment[]) ?? []);
+  const loadComments = useCallback(async (id: string, cursor?: string) => {
+    const s = ++commentSeq.current;
+    setCommentState(cursor ? "more" : "loading");
+    setCommentError("");
+    if (!cursor) setNextCursor("");
+    try {
+      const r = await tangram.performAction({ resourceType: "Comment", action: "List" }, {
+        parameters: { id, "body-format": "storage", limit: 50, ...(cursor ? { cursor } : {}) },
+      });
+      if (s !== commentSeq.current) return;
+      const got = (r?.results as Comment[]) ?? [];
+      setComments((prev) => {
+        if (!cursor) return got;
+        const seen = new Set(prev.map((c) => c.id));
+        return [...prev, ...got.filter((c) => !seen.has(c.id))];
+      });
+      setNextCursor(cursorOf(r?._links?.next));
+      setCommentState("ready");
+    } catch (e) {
+      if (s !== commentSeq.current) return;
+      setCommentError(errText(e));
+      setCommentState("error");
+    }
   }, []);
 
   const load = useCallback(
@@ -81,6 +114,14 @@ export default function PageViewer() {
       setState("loading");
       setError("");
       setComments([]);
+      // A different page: its draft, post error and in-flight post result don't carry over.
+      if (id !== shownId.current) {
+        shownId.current = id;
+        setDraft("");
+        setPostError("");
+        postSeq.current++;
+        setPosting(false);
+      }
       if (!id) {
         setError("No page id given.");
         setState("error");
@@ -107,7 +148,7 @@ export default function PageViewer() {
         if (s !== seq.current) return;
         setCrumbs([space?.name, parent?.title].filter(Boolean) as string[]);
         setUrl(base && p._links?.webui ? base + p._links.webui : "");
-        await loadComments(p.id, s).catch(() => undefined);
+        loadComments(p.id);
       } catch (e) {
         if (s !== seq.current) return;
         setPage(null);
@@ -124,26 +165,33 @@ export default function PageViewer() {
       setPageId(id);
       load(id);
     };
-    apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
   function postComment() {
     if (!page || !draft.trim()) return;
-    const s = seq.current;
+    const s = ++postSeq.current;
+    const value = toStorage(draft);
     setPosting(true);
     setPostError("");
     tangram
       .performAction({ resourceType: "Comment", action: "Create" }, {
-        requestBody: { pageId: page.id, body: { representation: "storage", value: toStorage(draft) } },
+        requestBody: { pageId: page.id, body: { representation: "storage", value } },
       })
-      .then(() => {
-        if (s !== seq.current) return;
+      .then((c: Comment) => {
+        if (s !== postSeq.current) return;
         setDraft("");
-        return loadComments(page.id, s);
+        // Show it now, whatever page of comments is loaded; the response may omit the body.
+        const posted: Comment = {
+          ...c,
+          id: c?.id ?? `posted-${s}`,
+          body: c?.body?.storage?.value ? c.body : { storage: { value } },
+          version: c?.version ?? { createdAt: new Date().toISOString() },
+        };
+        setComments((prev) => [...prev.filter((x) => x.id !== posted.id), posted]);
       })
-      .catch((e: unknown) => s === seq.current && setPostError(errText(e)))
-      .finally(() => s === seq.current && setPosting(false));
+      .catch((e: unknown) => s === postSeq.current && setPostError(errText(e)))
+      .finally(() => s === postSeq.current && setPosting(false));
   }
 
   return (
@@ -199,7 +247,19 @@ export default function PageViewer() {
               <div className="a-empty">This page is empty.</div>
             )}
             <section className="a-section" aria-label="Comments">
-              <h2>{comments.length ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : "Comments"}</h2>
+              <h2>Comments</h2>
+              {commentState === "loading" ? (
+                <Skeleton active title={false} paragraph={{ rows: 2 }} />
+              ) : commentState === "error" ? (
+                <div className="a-error">
+                  Couldn't load comments{commentError ? `: ${commentError}` : ""}{" "}
+                  <Button size="small" type="text" onClick={() => loadComments(page.id)}>
+                    Retry
+                  </Button>
+                </div>
+              ) : comments.length === 0 ? (
+                <p className="a-hint">No comments yet.</p>
+              ) : null}
               {comments.map((c) => (
                 <div key={c.id} className="a-comment">
                   <span className="a-avatar" aria-hidden="true">
@@ -213,6 +273,16 @@ export default function PageViewer() {
                   </div>
                 </div>
               ))}
+              {nextCursor && commentState !== "error" ? (
+                <Button
+                  size="small"
+                  type="text"
+                  loading={commentState === "more"}
+                  onClick={() => loadComments(page.id, nextCursor)}
+                >
+                  Load more comments
+                </Button>
+              ) : null}
               <textarea
                 className="a-textarea sm"
                 aria-label="Add a comment"

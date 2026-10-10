@@ -8,7 +8,7 @@
 // gated by the host. The draft is readable via provideState; a successful
 // save emits `saved` {pageId, title, url}.
 import { Button, Select, Skeleton } from "antd";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
 import { draftToStorage, storageToDraft } from "./storage-draft";
@@ -33,6 +33,12 @@ type Status =
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+function cursorOf(next?: string): string {
+  if (!next) return "";
+  const q = next.indexOf("?");
+  return q < 0 ? "" : new URLSearchParams(next.slice(q + 1)).get("cursor") ?? "";
+}
+
 function openExternal(url: string) {
   if (!/^https:\/\//i.test(url)) return;
   if (tangram?.openUrl) tangram.openUrl(url);
@@ -56,67 +62,103 @@ export default function PageComposer() {
   const [body, setBody] = useState("");
   const [version, setVersion] = useState(0);
   const [lossy, setLossy] = useState<string[]>([]);
+  // Edit mode: the page as loaded. An unedited body is saved back byte-for-byte, so a title-only save never
+  // rewrites content; `loaded` gates Update until the page (and its version) arrived.
+  const [loaded, setLoaded] = useState(false);
+  const original = useRef({ storage: "", draft: "" });
+  // New pages without a spaceId input keep the space picker visible.
+  const [pickSpace, setPickSpace] = useState(false);
   const [spaces, setSpaces] = useState<Space[] | null>(null);
   const [spaceError, setSpaceError] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const seq = useRef(0);
+  const inputsRef = useRef<Record<string, unknown>>({});
   const draftRef = useRef({ spaceId, parentId, pageId, title, body });
   draftRef.current = { spaceId, parentId, pageId, title, body };
+
+  const loadPage = useCallback((id: string, inputs: Record<string, unknown>) => {
+    const s = ++seq.current;
+    setLoaded(false);
+    setStatus({ kind: "loading" });
+    tangram
+      .performAction({ resourceType: "Page", action: "Get" }, { parameters: { id, "body-format": "storage" } })
+      .then((p: Page) => {
+        if (s !== seq.current) return;
+        const storage = p.body?.storage?.value ?? "";
+        const conv = storageToDraft(storage);
+        original.current = { storage, draft: conv.draft };
+        setVersion(p.version?.number ?? 0);
+        setSpaceId(p.spaceId ?? "");
+        // Inputs that are present (even empty) win over the page's values.
+        if (inputs.title == null) setTitle(p.title ?? "");
+        if (inputs.body == null) setBody(conv.draft);
+        setLossy(conv.lossy);
+        setLoaded(true);
+        setStatus({ kind: "idle" });
+      })
+      .catch((e: unknown) => s === seq.current && setStatus({ kind: "error", message: errText(e) }));
+  }, []);
 
   useEffect(() => {
     tangram.provideState?.(() => ({ ...draftRef.current }));
     const apply = (inputs: Record<string, unknown>) => {
-      const s = ++seq.current;
+      inputsRef.current = inputs;
       const id = String(inputs?.pageId ?? "");
       setPageId(id);
       setSpaceId(String(inputs?.spaceId ?? ""));
+      setPickSpace(!id && !inputs?.spaceId);
       setParentId(String(inputs?.parentId ?? ""));
       setTitle(String(inputs?.title ?? ""));
       setBody(String(inputs?.body ?? ""));
       setLossy([]);
       setVersion(0);
-      if (!id) {
+      original.current = { storage: "", draft: "" };
+      if (id) loadPage(id, inputs);
+      else {
+        ++seq.current;
+        setLoaded(false);
         setStatus({ kind: "idle" });
-        return;
       }
-      // Edit mode: the page supplies version, space and (unless the input overrides it) title and body.
-      setStatus({ kind: "loading" });
-      tangram
-        .performAction({ resourceType: "Page", action: "Get" }, { parameters: { id, "body-format": "storage" } })
-        .then((p: Page) => {
-          if (s !== seq.current) return;
-          setVersion(p.version?.number ?? 0);
-          setSpaceId(p.spaceId ?? "");
-          if (!inputs?.title) setTitle(p.title ?? "");
-          if (!inputs?.body) {
-            const conv = storageToDraft(p.body?.storage?.value ?? "");
-            setBody(conv.draft);
-            setLossy(conv.lossy);
-          }
-          setStatus({ kind: "idle" });
-        })
-        .catch((e: unknown) => s === seq.current && setStatus({ kind: "error", message: errText(e) }));
     };
-    apply(tangram.getInputs() ?? {});
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
-  }, []);
+  }, [loadPage]);
 
-  // A new page needs a space: offer the account's spaces when none was given.
-  const needsSpace = !pageId && !spaceId;
+  // All spaces, cursor by cursor (bounded), with retry on failure.
+  const loadSpaces = useCallback(async () => {
+    setSpaces(null);
+    setSpaceError("");
+    try {
+      const all: Space[] = [];
+      let cursor = "";
+      for (let n = 0; n < 20; n++) {
+        const r = await tangram.performAction({ resourceType: "Space", action: "List" }, {
+          parameters: { limit: 250, status: "current", ...(cursor ? { cursor } : {}) },
+        });
+        all.push(...((r?.results as Space[]) ?? []));
+        cursor = cursorOf(r?._links?.next);
+        if (!cursor) break;
+      }
+      setSpaces(all);
+    } catch (e) {
+      setSpaceError(errText(e));
+    }
+  }, []);
+  const spacesRequested = useRef(false);
   useEffect(() => {
-    if (!needsSpace || spaces) return;
-    tangram
-      .performAction({ resourceType: "Space", action: "List" }, { parameters: { limit: 100, status: "current" } })
-      .then((r: { results?: Space[] }) => setSpaces(r?.results ?? []))
-      .catch((e: unknown) => setSpaceError(errText(e)));
-  }, [needsSpace, spaces]);
+    if (pickSpace && !spacesRequested.current) {
+      spacesRequested.current = true;
+      loadSpaces();
+    }
+  }, [pickSpace, loadSpaces]);
 
   const editing = pageId !== "";
   const busy = status.kind === "busy" || status.kind === "loading";
 
+  const bodyEdited = !editing || body !== original.current.draft;
+
   function save() {
     const s = seq.current;
-    const value = draftToStorage(body);
+    const value = bodyEdited ? draftToStorage(body) : original.current.storage;
     setStatus({ kind: "busy" });
     const call = editing
       ? tangram.performAction({ resourceType: "Page", action: "Update" }, {
@@ -144,14 +186,15 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         setVersion(p.version?.number ?? version + 1);
         if (!editing && p.id) setPageId(p.id);
-        setLossy([]);
+        original.current = { storage: value, draft: body };
+        if (bodyEdited) setLossy([]);
         setStatus({ kind: "saved", title: p.title ?? title, url });
         tangram.emit("saved", { pageId: p.id, title: p.title ?? title, url });
       })
       .catch((e: unknown) => s === seq.current && setStatus({ kind: "error", message: errText(e) }));
   }
 
-  const canSave = !busy && title.trim() !== "" && (editing || spaceId !== "");
+  const canSave = !busy && title.trim() !== "" && (editing ? loaded : spaceId !== "");
 
   return (
     <div className="a-root">
@@ -168,7 +211,7 @@ export default function PageComposer() {
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : (
           <>
-            {needsSpace ? (
+            {pickSpace && !editing ? (
               <div className="a-field">
                 <label htmlFor="cf-space">Space</label>
                 <Select
@@ -184,12 +227,31 @@ export default function PageComposer() {
                 />
               </div>
             ) : null}
-            {spaceError ? <div className="a-error">{spaceError}</div> : null}
-            {lossy.length ? (
-              <div className="a-error" role="alert">
-                This page has {lossy.join(", ")} that this editor can't keep. Updating replaces the whole body, so they would
-                be lost — edit those parts in Confluence instead.
+            {spaceError ? (
+              <div className="a-error">
+                Couldn't load spaces: {spaceError}{" "}
+                <Button size="small" type="text" onClick={loadSpaces}>
+                  Retry
+                </Button>
               </div>
+            ) : null}
+            {editing && !loaded && status.kind === "error" ? (
+              <div className="a-error">
+                Couldn't load the page: {status.message}{" "}
+                <Button size="small" type="text" onClick={() => loadPage(pageId, inputsRef.current)}>
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+            {editing && lossy.length && bodyEdited ? (
+              <div className="a-error" role="alert">
+                This page has {lossy.join(", ")} that this editor can't keep. Saving your edited body replaces the whole page
+                body, so they would be lost — undo your body edits to keep them, or edit in Confluence.
+              </div>
+            ) : editing && lossy.length ? (
+              <p className="a-hint">
+                This page has {lossy.join(", ")}; they're kept as long as you only change the title.
+              </p>
             ) : null}
             <input
               className="a-input a-titleinput"
@@ -211,7 +273,7 @@ export default function PageComposer() {
               {editing ? "Update replaces the page's title and body; earlier versions stay in page history." : "Publishing notifies space watchers."}{" "}
               You'll confirm before anything is saved.
             </p>
-            {status.kind === "error" ? <div className="a-error">{status.message}</div> : null}
+            {status.kind === "error" && (!editing || loaded) ? <div className="a-error">{status.message}</div> : null}
             {status.kind === "saved" ? (
               <div className="a-ok">
                 Saved “{status.title}”.{" "}
