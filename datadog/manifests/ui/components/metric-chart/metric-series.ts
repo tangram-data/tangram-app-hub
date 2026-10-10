@@ -23,9 +23,18 @@ export type Series = {
 export type QueryResult = { status?: string; error?: string; series?: Series[]; from_date?: number; to_date?: number };
 
 
+// "metric {scope}": two metrics sharing a scope stay distinguishable.
 export function seriesLabel(s: Series, i: number): string {
   const scope = s.scope && s.scope !== "*" ? s.scope : "";
-  return scope || s.display_name || s.expression || s.metric || `series ${i + 1}`;
+  const name = s.metric || s.display_name || s.expression || "";
+  if (name && scope) return `${name} {${scope}}`;
+  return name || scope || `series ${i + 1}`;
+}
+
+// A valid point with no valid neighbour is drawn as a dot — the line can't reach it.
+export function isIsolated(points: Point[], index: number): boolean {
+  const ok = (j: number) => j >= 0 && j < points.length && points[j].v !== null;
+  return ok(index) && !ok(index - 1) && !ok(index + 1);
 }
 
 // Datadog sends unit = [unit, per_unit]: bytes + second → "B/s".

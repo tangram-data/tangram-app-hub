@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CartesianGrid, Line as ChartLine, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "../../shared/datadog.css";
 import "../../shared/tangram-buttons.css";
-import { axisUnit, compact, fullTime, hasData, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toLines } from "./metric-series";
+import { axisUnit, compact, fullTime, hasData, isIsolated, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toLines } from "./metric-series";
 
 const tangram = (window as any).tangram;
 
@@ -189,7 +189,13 @@ export default function MetricChart() {
                     dataKey="v"
                     stroke={l.color}
                     strokeWidth={1.5}
-                    dot={false}
+                    dot={(p: { cx?: number; cy?: number; index?: number }) =>
+                      p.index !== undefined && p.cx !== undefined && p.cy !== undefined && isIsolated(l.points, p.index) ? (
+                        <circle key={`${l.key}-${p.index}`} cx={p.cx} cy={p.cy} r={2.5} fill={l.color} />
+                      ) : (
+                        <g key={`${l.key}-${p.index}`} />
+                      )
+                    }
                     isAnimationActive={false}
                     hide={hidden.has(l.key)}
                     connectNulls={false}
