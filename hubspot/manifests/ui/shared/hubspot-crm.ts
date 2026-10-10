@@ -56,7 +56,9 @@ export function properties(type: ObjectType): Promise<Map<string, PropertyDef>> 
   );
 }
 
-export function pipelines(type: "deals" | "tickets"): Promise<Pipeline[]> {
+// fresh = drop the cached copy first (Refresh must see newly added stages).
+export function pipelines(type: "deals" | "tickets", fresh = false): Promise<Pipeline[]> {
+  if (fresh) cache.delete(`pipelines:${type}`);
   return once(`pipelines:${type}`, () =>
     call<{ results?: Pipeline[] }>("Pipeline", "List", { parameters: { objectType: type } }).then((r) =>
       [...(r?.results ?? [])]

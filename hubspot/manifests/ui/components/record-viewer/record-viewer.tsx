@@ -37,7 +37,8 @@ const ABOUT: Record<ObjectType, string[]> = {
 const EXTRA_PROPS = ["deal_currency_code", ...new Set(Object.values(TITLE_PROPS).flat())];
 const ASSOC_LIMIT = 5;
 
-type Linked = { type: ObjectType; total: number; items: { id: string; title: string; sub: string }[]; error?: string };
+// more = HubSpot has further association pages, so total is a lower bound.
+type Linked = { type: ObjectType; total: number; more?: boolean; items: { id: string; title: string; sub: string }[]; error?: string };
 type Loaded = {
   type: ObjectType;
   record: CrmRecord;
@@ -60,7 +61,7 @@ function subtitle(type: ObjectType, p: Record<string, string | null> | undefined
   return "";
 }
 
-async function loadLinked(type: ObjectType, ids: string[]): Promise<Linked> {
+async function loadLinked(type: ObjectType, ids: string[], more: boolean): Promise<Linked> {
   const items = await Promise.all(
     ids.slice(0, ASSOC_LIMIT).map((id) =>
       call<CrmRecord>(RESOURCE[type], "Get", { parameters: { id, properties: TITLE_PROPS[type].join(",") } }).then(
@@ -69,7 +70,7 @@ async function loadLinked(type: ObjectType, ids: string[]): Promise<Linked> {
       ),
     ),
   );
-  return { type, total: ids.length, items };
+  return { type, total: ids.length, more, items };
 }
 
 async function load(type: ObjectType, id: string): Promise<Loaded> {
@@ -93,10 +94,10 @@ async function load(type: ObjectType, id: string): Promise<Loaded> {
   // Association keys can be the plural type or a labelled variant ("contact_to_company"): match by prefix.
   const linked = await Promise.all(
     others.map((t) => {
-      const ids = Object.entries(record?.associations ?? {})
-        .filter(([k]) => k === t || k.startsWith(t))
-        .flatMap(([, v]) => (v?.results ?? []).map((r) => String(r.id)));
-      return loadLinked(t, [...new Set(ids)]).catch((e) => ({ type: t, total: 0, items: [], error: errorText(e) }));
+      const groups = Object.entries(record?.associations ?? {}).filter(([k]) => k === t || k.startsWith(t));
+      const ids = groups.flatMap(([, v]) => (v?.results ?? []).map((r) => String(r.id)));
+      const more = groups.some(([, v]) => Boolean((v as { paging?: { next?: unknown } })?.paging?.next));
+      return loadLinked(t, [...new Set(ids)], more).catch((e) => ({ type: t, total: 0, items: [], error: errorText(e) }));
     }),
   );
   return { type, record, defs, owners: ownerMap, stages, pipelineLabels, linked };
@@ -187,7 +188,7 @@ export default function RecordViewer() {
           {linked.map((l) => (
             <section className="hs-card" key={l.type} aria-label={`Associated ${l.type}`}>
               <div className="hs-card-h">
-                {SINGULAR[l.type]}s<span className="n">{l.total}</span>
+                {SINGULAR[l.type]}s<span className="n">{l.more ? `${l.total}+` : l.total}</span>
               </div>
               {l.error ? (
                 <div className="hs-error inline" style={{ margin: 10 }}>
@@ -217,8 +218,11 @@ export default function RecordViewer() {
                       </span>
                     </li>
                   ))}
-                  {l.total > l.items.length ? (
-                    <li className="hs-faint">and {l.total - l.items.length} more</li>
+                  {l.total > l.items.length || l.more ? (
+                    <li className="hs-faint">
+                      and {l.total - l.items.length}
+                      {l.more ? "+" : ""} more
+                    </li>
                   ) : null}
                 </ul>
               )}

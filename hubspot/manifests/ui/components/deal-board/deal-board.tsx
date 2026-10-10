@@ -1,7 +1,8 @@
 // HubSpot deals as a read-only pipeline board: one column per stage (pipeline display order) with
 // deal count and total amount, a card per deal (name, amount, close date, owner). Deals come from
 // Deal.Find filtered to the pipeline (and optional owner), paged up to 1000. A card emits `open`.
-import { Button, Select, Skeleton } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
+import { Button, Select, Skeleton, Tooltip } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/hubspot.css";
 import "../../shared/tangram-buttons.css";
@@ -18,6 +19,7 @@ import {
   owners,
   Pipeline,
   pipelines,
+  Stage,
   recordTitle,
 } from "../../shared/hubspot-crm";
 
@@ -26,6 +28,8 @@ const tangram = (window as any).tangram;
 const PROPS = ["dealname", "amount", "dealstage", "closedate", "hubspot_owner_id", "deal_currency_code"];
 const PAGE = 200;
 const MAX_DEALS = 1000;
+// Column for deals whose stage isn't in the (possibly stale) pipeline definition.
+const OTHER = "__other__";
 
 type Board = { pipeline: Pipeline; all: Pipeline[]; deals: CrmRecord[]; capped: boolean; owners: Map<string, Owner> };
 
@@ -66,11 +70,11 @@ export default function DealBoard() {
   });
   const seq = useRef(0);
 
-  const load = useCallback((pipelineId: string, ownerId: string) => {
+  const load = useCallback((pipelineId: string, ownerId: string, fresh = false) => {
     const n = ++seq.current;
     setState({ kind: "loading" });
     (async () => {
-      const [all, ownerMap] = await Promise.all([pipelines("deals"), owners().catch(() => new Map<string, Owner>())]);
+      const [all, ownerMap] = await Promise.all([pipelines("deals", fresh), owners().catch(() => new Map<string, Owner>())]);
       if (all.length === 0) throw new Error("This portal has no deal pipelines.");
       const pipeline = all.find((p) => p.id === pipelineId) ?? (pipelineId ? null : all[0]);
       if (!pipeline) throw new Error(`No deal pipeline with id ${pipelineId}.`);
@@ -94,6 +98,7 @@ export default function DealBoard() {
 
   const busy = state.kind === "loading";
   const board = state.kind === "ready" ? state.board : null;
+  const known = new Set((board?.pipeline.stages ?? []).map((s) => s.id));
   const ownerLabel = inputs.ownerId && board ? ownerName(board.owners.get(inputs.ownerId), inputs.ownerId) : "";
 
   return (
@@ -120,9 +125,15 @@ export default function DealBoard() {
         ) : board ? (
           <span className="hs-faint">{board.pipeline.label}</span>
         ) : null}
-        <Button size="small" disabled={busy} onClick={() => load(board?.pipeline.id ?? inputs.pipelineId, inputs.ownerId)}>
-          Refresh
-        </Button>
+        <Tooltip title="Refresh">
+          <Button
+            size="small"
+            aria-label="Refresh"
+            icon={<ReloadOutlined aria-hidden="true" />}
+            disabled={busy}
+            onClick={() => load(board?.pipeline.id ?? inputs.pipelineId, inputs.ownerId, true)}
+          />
+        </Tooltip>
       </div>
       {state.kind === "error" ? (
         <div className="hs-error">
@@ -136,8 +147,15 @@ export default function DealBoard() {
       ) : (
         <>
           <div className="hs-board" role="list" aria-label={`${board.pipeline.label} stages`}>
-            {(board.pipeline.stages ?? []).map((stage) => {
-              const deals = board.deals.filter((d) => d.properties?.dealstage === stage.id);
+            {[
+              ...(board.pipeline.stages ?? []),
+              ...(board.deals.some((d) => !known.has(d.properties?.dealstage ?? ""))
+                ? [{ id: OTHER, label: "Other stage", displayOrder: 1e9 }]
+                : []),
+            ].map((stage: Stage) => {
+              const deals = board.deals.filter((d) =>
+                stage.id === OTHER ? !known.has(d.properties?.dealstage ?? "") : d.properties?.dealstage === stage.id,
+              );
               const closed = stage.metadata?.isClosed === "true";
               const won = closed && Number(stage.metadata?.probability) >= 1;
               return (
