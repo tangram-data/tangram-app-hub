@@ -4,7 +4,8 @@ Tangram OS ConnectorApp for the Xero Accounting API. Xero serves every organisat
 `xero-tenant-id` header. The install setting **`organisationName`** (e.g. `Acme Ltd`, matched case-insensitively) says which one: when an account
 connects, the platform looks that organisation up in Xero's `GET /connections`, stores its tenant id on the connection, and injects the header on
 every call. Connecting fails for an account without access to that organisation, or when two organisations it authorised share the name (rename one in
-Xero). Names containing an apostrophe aren't supported yet.
+Xero). The organisation is install-wide: every connection must resolve to the same one, so to switch organisations change the setting and
+disconnect the existing connections first. Names containing an apostrophe aren't supported yet.
 
 ## Agent tools
 

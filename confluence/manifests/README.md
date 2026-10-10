@@ -3,7 +3,8 @@
 Tangram OS ConnectorApp for Confluence Cloud (REST v2, plus v1 CQL search) through Atlassian's OAuth 2.0 (3LO) gateway. Upstream calls go to
 `https://api.atlassian.com/ex/confluence/{cloudId}/wiki/...`; the install setting **`siteUrl`** (e.g. `https://acme.atlassian.net`) picks the site. Each
 connection looks that site up in Atlassian's `accessible-resources` when the account connects, stores its `cloudId`, and the platform injects
-it — so no action takes it. Connecting fails for an account without access to that site.
+it — so no action takes it. Connecting fails for an account without access to that site. The site is install-wide: to switch sites, change
+`siteUrl` and disconnect the existing connections first.
 
 Searchable from Tangram's cross-app search: `Content.Search` declares `x-tangram-search` (the words become
 `siteSearch ~ '<words>' and type = page`), and each page hit opens with `Page.Get`.
