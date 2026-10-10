@@ -331,7 +331,8 @@ export default function CustomerViewer() {
                   tabIndex={0}
                   onClick={() => openInvoice(inv)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") openInvoice(inv);
+                    // only the row itself: Enter on the View link inside opens the page, not the invoice
+                    if (e.key === "Enter" && e.target === e.currentTarget) openInvoice(inv);
                   }}
                 >
                   <td title={inv.number ?? inv.id}>
