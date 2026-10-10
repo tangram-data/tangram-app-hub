@@ -248,12 +248,13 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         if (stored) {
           const storedBody = stored.body?.storage?.value ?? "";
-          if (isOurSave(stored, p, value, editing ? original.current.version : null))
+          if (isOurSave(stored, p, { title: title.trim(), body: value }, editing ? original.current.version : null))
             return landed(stored, storedBody, link, sentDraft);
           // Someone saved after us: the editor follows the newer page, so nothing of theirs gets overwritten.
           const latestDraft = storageToDraft(storedBody).draft;
           landed(stored, storedBody, link, latestDraft, `Saved — but the page changed since your save (now v${stored.version?.number ?? "?"}); the editor shows the latest.`);
           if (mode !== "append") setBody(latestDraft);
+          setTitle(stored.title ?? ""); // their rename too (adopt() set the title baseline)
           return;
         }
         // Saved, but the stored body is unknown: no further saves until the stored page is re-read. The committed
@@ -317,6 +318,7 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         const conv = adopt(p);
         if (mode !== "append") (setBody(conv.draft), (bodyBase.current = original.current.storage));
+        setTitle(p.title ?? ""); // the stored title is the baseline too
         rereadOnly.current = false;
         setLoaded(true);
         setStatus({ kind: "idle" });

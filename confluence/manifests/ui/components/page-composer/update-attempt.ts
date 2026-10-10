@@ -40,8 +40,10 @@ export function retryBody(a: UpdateAttempt, latestStorage: string, appended: str
 }
 
 // The page read right after a successful save is exactly that save: the version the save produced (the response's,
-// else base + 1; 1 for a new page) and a body that reads as sent. Otherwise someone saved in between.
-export function isOurSave(read: Page, response: Page, sentBody: string, baseVersion: number | null): boolean {
+// else base + 1; 1 for a new page), the sent title and a body that reads as sent. Otherwise someone saved in between.
+export function isOurSave(read: Page, response: Page, sent: { title: string; body: string }, baseVersion: number | null): boolean {
   const expected = response.version?.number ?? (baseVersion == null ? 1 : baseVersion + 1);
-  return (read.version?.number ?? -1) === expected && sameStorage(read.body?.storage?.value ?? "", sentBody);
+  return (
+    (read.version?.number ?? -1) === expected && (read.title ?? "") === sent.title && sameStorage(read.body?.storage?.value ?? "", sent.body)
+  );
 }
