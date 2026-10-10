@@ -22,8 +22,6 @@ export type Series = {
 };
 export type QueryResult = { status?: string; error?: string; series?: Series[]; from_date?: number; to_date?: number };
 
-export type Line = { key: string; label: string; color: string; unit: string };
-export type Row = { t: number } & Record<string, number | null>;
 
 export function seriesLabel(s: Series, i: number): string {
   const scope = s.scope && s.scope !== "*" ? s.scope : "";
@@ -43,24 +41,24 @@ export function axisUnit(series: Series[]): string {
   return units.size === 1 ? Array.from(units)[0] : "";
 }
 
-// Merge every series' points onto one timestamp axis; missing points stay null (line gaps).
-export function toRows(series: Series[]): { rows: Row[]; lines: Line[] } {
-  const lines = series.map((s, i) => ({
+// Each series keeps its own timestamps (sampling differs between series); a null point stays a gap.
+export type Point = { t: number; v: number | null };
+export type Line = { key: string; label: string; color: string; unit: string; points: Point[] };
+
+export function toLines(series: Series[]): Line[] {
+  return series.map((s, i) => ({
     key: `s${i}`,
     label: seriesLabel(s, i),
     color: COLORS[i % COLORS.length],
     unit: unitOf(s),
+    points: (s.pointlist ?? [])
+      .map(([t, v]) => ({ t, v: typeof v === "number" && Number.isFinite(v) ? v : null }))
+      .sort((a, b) => a.t - b.t),
   }));
-  const byTime = new Map<number, Row>();
-  series.forEach((s, i) => {
-    for (const [t, v] of s.pointlist ?? []) {
-      const row = byTime.get(t) ?? ({ t } as Row);
-      row[`s${i}`] = typeof v === "number" && Number.isFinite(v) ? v : null;
-      byTime.set(t, row);
-    }
-  });
-  const rows = Array.from(byTime.values()).sort((a, b) => a.t - b.t);
-  return { rows, lines };
+}
+
+export function hasData(lines: Line[]): boolean {
+  return lines.some((l) => l.points.some((p) => p.v !== null));
 }
 
 export function tickTime(ms: number, spanSeconds: number): string {

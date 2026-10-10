@@ -67,8 +67,8 @@ export function MonitorDetail({ id, name, onOpen }: { id: number; name: string; 
       </div>
     );
 
-  const groups = Object.entries(data.state?.groups ?? {})
-    .map(([key, g]) => ({ key: g.name ?? key, ...g }))
+  const allGroups = Object.entries(data.state?.groups ?? {}).map(([key, g]) => ({ key: g.name ?? key, ...g }));
+  const groups = allGroups
     .filter((g) => (g.status ?? "").toLowerCase() !== "ok")
     .sort((a, b) => statusRank(a.status) - statusRank(b.status) || (b.last_triggered_ts ?? 0) - (a.last_triggered_ts ?? 0));
   const thresholds = thresholdText(data.options?.thresholds);
@@ -100,7 +100,7 @@ export function MonitorDetail({ id, name, onOpen }: { id: number; name: string; 
         <span className="k">Groups</span>
         <span className="v">
           {groups.length === 0 ? (
-            <span className="dd-faint">All groups OK</span>
+            <span className="dd-faint">{allGroups.length ? "All groups OK" : "No group state available"}</span>
           ) : (
             <span className="dd-groups">
               {groups.slice(0, MAX_GROUPS).map((g) => {

@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CartesianGrid, Line as ChartLine, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "../../shared/datadog.css";
 import "../../shared/tangram-buttons.css";
-import { axisUnit, compact, fullTime, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toRows } from "./metric-series";
+import { axisUnit, compact, fullTime, hasData, MAX_SERIES, QueryResult, RANGES, Series, tickTime, toLines } from "./metric-series";
 
 const tangram = (window as any).tangram;
 
@@ -81,7 +81,7 @@ export default function MetricChart() {
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
-  const { rows, lines } = useMemo(() => toRows(series.slice(0, MAX_SERIES)), [series]);
+  const lines = useMemo(() => toLines(series.slice(0, MAX_SERIES)), [series]);
   const unit = axisUnit(series.slice(0, MAX_SERIES));
   const spanSeconds = span.to - span.from;
   const busy = state === "loading";
@@ -143,17 +143,18 @@ export default function MetricChart() {
         <div style={{ padding: "14px" }}>
           <Skeleton active title={false} paragraph={{ rows: 6 }} />
         </div>
-      ) : rows.length === 0 ? (
+      ) : !hasData(lines) ? (
         <div className="dd-empty">No data points in this time range</div>
       ) : (
         <>
           <div className="dd-chart" aria-busy={busy}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rows} margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
+              <LineChart margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                 <CartesianGrid stroke="#eef1f3" vertical={false} />
                 <XAxis
                   dataKey="t"
                   type="number"
+                  allowDuplicatedCategory={false}
                   scale="time"
                   domain={["dataMin", "dataMax"]}
                   tickFormatter={(ms: number) => tickTime(ms, spanSeconds)}
@@ -174,16 +175,18 @@ export default function MetricChart() {
                 />
                 <Tooltip
                   labelFormatter={(ms: number) => fullTime(ms)}
-                  formatter={(v: number, key: string) => {
-                    const line = lines.find((l) => l.key === key);
-                    return [`${compact(v)}${line?.unit ? ` ${line.unit}` : ""}`, line?.label ?? key];
+                  formatter={(v: number, name: string) => {
+                    const line = lines.find((l) => l.key === name);
+                    return [`${compact(v)}${line?.unit ? ` ${line.unit}` : ""}`, line?.label ?? name];
                   }}
                   contentStyle={{ fontSize: 12, borderRadius: 4, borderColor: "#e3e7ea" }}
                 />
                 {lines.map((l) => (
                   <ChartLine
                     key={l.key}
-                    dataKey={l.key}
+                    name={l.key}
+                    data={l.points}
+                    dataKey="v"
                     stroke={l.color}
                     strokeWidth={1.5}
                     dot={false}
