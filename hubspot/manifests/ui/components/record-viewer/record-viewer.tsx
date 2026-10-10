@@ -1,7 +1,7 @@
 // A HubSpot CRM record (contact, company, deal or ticket) laid out like HubSpot's record page:
 // header, an "About" card of key properties (option labels, owner names, stage labels resolved),
 // and association cards listing up to 5 linked records each. A linked record emits `open`.
-import { Skeleton } from "antd";
+import { Button, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/hubspot.css";
 import "../../shared/tangram-buttons.css";
@@ -11,6 +11,7 @@ import {
   CrmRecord,
   displayValue,
   errorText,
+  formatMoney,
   initials,
   OBJECT_TYPES,
   ObjectType,
@@ -57,7 +58,8 @@ function asType(v: unknown): ObjectType | null {
 function subtitle(type: ObjectType, p: Record<string, string | null> | undefined): string {
   if (type === "contacts") return [p?.jobtitle, p?.company].filter(Boolean).join(" · ") || p?.email || "";
   if (type === "companies") return p?.domain ?? "";
-  if (type === "deals") return p?.amount ? `Amount ${new Intl.NumberFormat().format(Number(p.amount))}` : "";
+  if (type === "deals")
+    return p?.amount ? `Amount ${formatMoney(Number(p.amount), p.deal_currency_code ?? undefined)}` : "";
   return "";
 }
 
@@ -108,9 +110,12 @@ export default function RecordViewer() {
     kind: "loading",
   });
   const seq = useRef(0);
+  // The inputs on screen, so Retry reloads them after a transient failure.
+  const current = useRef<{ type: unknown; id: unknown }>({ type: undefined, id: undefined });
 
   const open = useCallback((rawType: unknown, rawId: unknown) => {
     const n = ++seq.current;
+    current.current = { type: rawType, id: rawId };
     const type = asType(rawType);
     const id = String(rawId ?? "").trim();
     if (!type || !id) {
@@ -141,6 +146,9 @@ export default function RecordViewer() {
         <div className="hs-error">
           <b>Couldn't load the record</b>
           <div>{state.message}</div>
+          <Button size="small" style={{ marginTop: 8 }} onClick={() => open(current.current.type, current.current.id)}>
+            Retry
+          </Button>
         </div>
       </div>
     );

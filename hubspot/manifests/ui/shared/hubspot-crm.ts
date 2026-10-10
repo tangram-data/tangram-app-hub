@@ -129,12 +129,12 @@ export function formatMoney(value: number, currency?: string): string {
   if (!Number.isFinite(value)) return "";
   if (currency) {
     try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+      return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value);
     } catch {
       // unknown currency code: plain number below
     }
   }
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
 }
 
 // HubSpot sends dates as YYYY-MM-DD, ISO datetimes, or epoch milliseconds.
