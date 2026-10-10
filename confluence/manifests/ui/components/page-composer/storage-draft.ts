@@ -1,3 +1,5 @@
+import { lossReasons } from "./storage-loss";
+
 // Plain-text draft ⇄ Confluence storage format for the page composer.
 // Draft syntax: #/##/### headings, - or * bullets, "1." numbered items,
 // > quotes, --- rules, ``` fenced code (→ code macro); inline **bold**,
@@ -83,20 +85,7 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))
     .replace(/<((?:ac|ri):[\w-]+)((?:\s[^<>]*?)?)\s*\/>/g, "<$1$2></$1>");
   const doc = new DOMParser().parseFromString(`<body>${src}</body>`, "text/html");
-  const has = (sel: string) => doc.body.querySelector(sel) !== null;
-  const lossy: string[] = [];
-  if (has("table")) lossy.push("tables");
-  if (has("img, ac\\:image")) lossy.push("images");
-  if (has("a, ac\\:link")) lossy.push("links");
-  if (has("li ul, li ol")) lossy.push("nested lists");
-  if (Array.from(doc.body.querySelectorAll("ac\\:structured-macro, ac\\:macro")).some((m) => m.getAttribute("ac:name") !== "code"))
-    lossy.push("macros");
-  if (has("u, s, del, sub, sup, span[style], ac\\:task-list, ac\\:emoticon, time")) lossy.push("other formatting");
-  if (has("pre")) lossy.push("preformatted blocks (saved as code blocks)");
-  if (has("br")) lossy.push("line breaks inside paragraphs");
-  if (has("h4, h5, h6")) lossy.push("level 4–6 headings (saved as level 3)");
-  if (Array.from(doc.body.querySelectorAll("ol[start]")).some((o) => o.getAttribute("start") !== "1"))
-    lossy.push("numbered lists not starting at 1");
+  const lossy = lossReasons(doc.body);
 
   const text = (n: Node): string => {
     if (n.nodeType === Node.TEXT_NODE) return escInline((n.textContent ?? "").replace(/\s+/g, " "));

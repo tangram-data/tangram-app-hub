@@ -177,6 +177,13 @@ function walk(node: Node, key: string): React.ReactNode {
   }
   if (SIMPLE.has(tag)) {
     const props: Record<string, unknown> = { key };
+    // List numbering survives, positive integers only.
+    const num = (name: string) => {
+      const v = el.getAttribute(name)?.trim() ?? "";
+      return /^[1-9]\d{0,6}$/.test(v) ? Number(v) : undefined;
+    };
+    if (tag === "ol" && num("start")) props.start = num("start");
+    if (tag === "li" && num("value")) props.value = num("value");
     if (tag === "td" || tag === "th") {
       const cs = Number(el.getAttribute("colspan"));
       const rs = Number(el.getAttribute("rowspan"));
