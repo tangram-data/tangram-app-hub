@@ -10,7 +10,17 @@ import { Button, Skeleton, Switch } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../shared/salesforce.css";
 import "../../shared/tangram-buttons.css";
-import { Describe, Field, SfRecord, commonFieldNames, describe, errorText, iconFor, nameField } from "../../shared/sf-describe";
+import {
+  Describe,
+  Field,
+  SfRecord,
+  commonFieldNames,
+  describe,
+  errorText,
+  iconFor,
+  nameField,
+  stableJson,
+} from "../../shared/sf-describe";
 import FieldInput, { isLongText } from "./field-input";
 import { classify, notLanded } from "./save-outcome";
 
@@ -40,15 +50,17 @@ function required(f: Field): boolean {
   return !f.nillable && !f.defaultedOnCreate && f.type !== "boolean";
 }
 
-// The body to send: on create, every value the user set or prefilled (untouched fields, checkboxes included, keep
-// Salesforce's defaults — formula defaults too); on edit only changed fields, a cleared one as null.
+// The body to send: on create, every value the user set plus every prefilled field — an explicit null prefill is sent
+// as null, overriding the field's default (untouched fields, checkboxes included, keep Salesforce's defaults —
+// formula defaults too); on edit only changed fields, a cleared one as null.
 function changes(fields: Field[], values: Values, original: Values, creating: boolean, prefilled: string[]): Values {
   const out: Values = {};
   for (const f of fields) {
     const v = values[f.name];
     const differs = (blank(v) ? null : v) !== (blank(original[f.name]) ? null : original[f.name]);
     if (creating) {
-      if (!blank(v) && (differs || prefilled.includes(f.name))) out[f.name] = v;
+      if (prefilled.includes(f.name)) out[f.name] = blank(v) ? null : v;
+      else if (!blank(v) && differs) out[f.name] = v;
     } else if (differs) {
       out[f.name] = blank(v) ? null : v;
     }
@@ -73,6 +85,7 @@ export default function RecordEditor() {
   const saving = useRef(false);
   const queued = useRef<Record<string, unknown> | null>(null);
   const lastInputs = useRef<Record<string, unknown>>({});
+  const lastSeen = useRef<string | null>(null);
   // writes with an unknown outcome, by "sobject|id" ("sobject|" = a create): they survive input updates and stay
   // unresolved until a save of the same target settles definitively or the user retries anyway
   const unresolved = useRef(new Map<string, { created: boolean; message: string }>());
@@ -122,8 +135,13 @@ export default function RecordEditor() {
       });
   }, []);
 
+  // `force` (the Retry button) reloads the same inputs; an input event equal to the last one seen (the shell
+  // re-sends init on token renewal) changes nothing — no reset, no queueing
   const apply = useCallback(
-    (inputs: Record<string, unknown>) => {
+    (inputs: Record<string, unknown>, force = false) => {
+      const key = stableJson(inputs);
+      if (!force && key === lastSeen.current) return;
+      lastSeen.current = key;
       if (saving.current) {
         queued.current = inputs;
         return;
@@ -145,7 +163,7 @@ export default function RecordEditor() {
     saving.current = false;
     const next = queued.current;
     queued.current = null;
-    if (next) apply(next);
+    if (next) apply(next, true);
   }
 
   const creating = !id;
@@ -271,7 +289,7 @@ export default function RecordEditor() {
               {status.message}
               <div style={{ marginTop: 8 }}>
                 {/* reloads the same target with the same prefill */}
-                <Button size="small" onClick={() => apply(lastInputs.current)}>
+                <Button size="small" onClick={() => apply(lastInputs.current, true)}>
                   Retry
                 </Button>
               </div>

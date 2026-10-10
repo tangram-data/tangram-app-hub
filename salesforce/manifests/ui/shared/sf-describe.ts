@@ -73,6 +73,17 @@ export function referenceTarget(f: Field, id: string, keyMap?: Map<string, strin
   return byPrefix && to.includes(byPrefix) ? byPrefix : undefined;
 }
 
+// Key-order-independent JSON, to recognise repeated inputs (the shell re-sends init on token renewal).
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
+
 export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
@@ -88,7 +99,8 @@ const SYSTEM = new Set([
 ]);
 
 export function isSystem(f: Field): boolean {
-  return SYSTEM.has(f.name) || !!f.compoundFieldName || f.type === "base64" || f.type === "location";
+  // compound constituents (FirstName, BillingStreet, Location__Latitude__s…) show through their parent field
+  return SYSTEM.has(f.name) || !!f.compoundFieldName || f.type === "base64";
 }
 
 // The values a rep looks at first, in priority order; the first four present become the highlights.
@@ -205,6 +217,14 @@ export function display(f: Field, v: unknown, rec: SfRecord, keyMap?: Map<string
     }
     case "encryptedstring":
       return { kind: "text", text: "••••••" };
+    case "location": {
+      const g = v as Record<string, unknown>;
+      const lat = Number(g.latitude);
+      const lon = Number(g.longitude);
+      return Number.isFinite(lat) && Number.isFinite(lon)
+        ? { kind: "text", text: `${lat.toFixed(6)}, ${lon.toFixed(6)}` }
+        : { kind: "text", text: JSON.stringify(v) };
+    }
     case "address": {
       const a = v as Record<string, unknown>;
       const parts = [a.street, [a.city, a.state].filter(Boolean).join(", "), [a.postalCode, a.country].filter(Boolean).join(" ")];

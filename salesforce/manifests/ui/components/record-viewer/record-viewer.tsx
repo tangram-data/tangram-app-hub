@@ -24,6 +24,7 @@ import {
   keyPrefixes,
   nameField,
   openExternal,
+  stableJson,
 } from "../../shared/sf-describe";
 
 const tangram = (window as any).tangram;
@@ -105,7 +106,14 @@ export default function RecordViewer() {
   }, []);
 
   useEffect(() => {
-    const apply = (inputs: Record<string, unknown>) => load(String(inputs?.sobject ?? "").trim(), String(inputs?.id ?? "").trim());
+    // the shell re-sends the same inputs on token renewal: only a real change reloads
+    let last: string | null = null;
+    const apply = (inputs: Record<string, unknown>) => {
+      const key = stableJson(inputs);
+      if (key === last) return;
+      last = key;
+      load(String(inputs?.sobject ?? "").trim(), String(inputs?.id ?? "").trim());
+    };
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
