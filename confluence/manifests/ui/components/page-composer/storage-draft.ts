@@ -93,6 +93,10 @@ export function storageToDraft(xhtml: string): { draft: string; lossy: string[] 
     lossy.push("macros");
   if (has("u, s, del, sub, sup, span[style], ac\\:task-list, ac\\:emoticon, time")) lossy.push("other formatting");
   if (has("pre")) lossy.push("preformatted blocks (saved as code blocks)");
+  if (has("br")) lossy.push("line breaks inside paragraphs");
+  if (has("h4, h5, h6")) lossy.push("level 4–6 headings (saved as level 3)");
+  if (Array.from(doc.body.querySelectorAll("ol[start]")).some((o) => o.getAttribute("start") !== "1"))
+    lossy.push("numbered lists not starting at 1");
 
   const text = (n: Node): string => {
     if (n.nodeType === Node.TEXT_NODE) return escInline((n.textContent ?? "").replace(/\s+/g, " "));

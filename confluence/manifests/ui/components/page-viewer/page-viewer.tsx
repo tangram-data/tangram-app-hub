@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
+import { definiteFailure, sameText, since } from "../../shared/write-outcome";
 import { StorageBody, openExternal } from "./storage-render";
 
 const tangram = (window as any).tangram;
@@ -76,6 +77,8 @@ export default function PageViewer() {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
+  // A post whose outcome is unknown (network/timeout/5xx): never re-enabled until it is found or the user insists.
+  const [uncertain, setUncertain] = useState<{ value: string; at: number } | null>(null);
   const seq = useRef(0);
   // Comment loads and the comment submission are tracked apart from page loads, so a refresh mid-post never strands
   // `posting`; `shownId` is the page the draft belongs to.
@@ -133,6 +136,7 @@ export default function PageViewer() {
         setPostError("");
         postSeq.current++;
         setPosting(false);
+        setUncertain(null);
       }
       if (!id) {
         setError("No page id given.");
@@ -180,35 +184,79 @@ export default function PageViewer() {
     tangram.onInput((inputs: Record<string, unknown>) => apply(inputs ?? {}));
   }, [load]);
 
+  function showPosted(c: Comment) {
+    posted.current = [...posted.current.filter((x) => x.id !== c.id), c];
+    setComments((prev) => [...prev.filter((x) => x.id !== c.id), c]);
+  }
+
+  // After an uncertain post: did Confluence record it? Newest comments, same text, created since the attempt.
+  async function findPosted(pageId: string, value: string, at: number): Promise<Comment | undefined> {
+    const r = await tangram.performAction({ resourceType: "Comment", action: "List" }, {
+      parameters: { id: pageId, "body-format": "storage", sort: "-created-date", limit: 25 },
+    });
+    return ((r?.results as Comment[]) ?? []).find(
+      (c) => since(c.version?.createdAt, at) && sameText(c.body?.storage?.value ?? "", value),
+    );
+  }
+
+  async function checkUncertain(pageId: string, u: { value: string; at: number }, s: number) {
+    setPosting(true);
+    try {
+      const found = await findPosted(pageId, u.value, u.at);
+      if (s !== postSeq.current) return;
+      if (found) {
+        setUncertain(null);
+        setDraft("");
+        setPostError("");
+        showPosted(found);
+        loadComments(pageId);
+      } else {
+        setPostError("Not visible yet — Confluence may still have it. Check again, or post again anyway.");
+      }
+    } catch (e) {
+      if (s === postSeq.current) setPostError(`Couldn't check whether it was posted: ${errText(e)}`);
+    } finally {
+      if (s === postSeq.current) setPosting(false);
+    }
+  }
+
   function postComment() {
     if (!page || !draft.trim()) return;
     const s = ++postSeq.current;
     const value = toStorage(draft);
+    const at = Date.now();
     setPosting(true);
     setPostError("");
+    setUncertain(null);
     tangram
       .performAction({ resourceType: "Comment", action: "Create" }, {
         requestBody: { pageId: page.id, body: { representation: "storage", value } },
       })
-      .then((resp: Comment) => {
+      .then((c: Comment) => {
         if (s !== postSeq.current) return;
-        let c: Comment = resp;
         setDraft("");
+        setPosting(false);
         // Show it now, whatever page of comments is loaded; the response may omit the body.
-        c = {
+        showPosted({
           ...c,
           id: c?.id ?? `posted-${s}`,
           body: c?.body?.storage?.value ? c.body : { storage: { value } },
           version: c?.version ?? { createdAt: new Date().toISOString() },
-        };
-        const shown = c;
-        posted.current = [...posted.current.filter((x) => x.id !== shown.id), shown];
-        setComments((prev) => [...prev.filter((x) => x.id !== shown.id), shown]);
+        });
         // Any list request in flight predates this post: drop it and reload, merging the post in.
         loadComments(page.id);
       })
-      .catch((e: unknown) => s === postSeq.current && setPostError(errText(e)))
-      .finally(() => s === postSeq.current && setPosting(false));
+      .catch((e: unknown) => {
+        if (s !== postSeq.current) return;
+        if (definiteFailure(e)) {
+          setPostError(errText(e));
+          setPosting(false);
+          return;
+        }
+        const u = { value, at };
+        setUncertain(u);
+        checkUncertain(page.id, u, s);
+      });
   }
 
   return (
@@ -305,15 +353,26 @@ export default function PageViewer() {
                 aria-label="Add a comment"
                 placeholder="Add a comment…"
                 value={draft}
-                disabled={posting}
+                disabled={posting || uncertain !== null}
                 onChange={(e) => setDraft(e.target.value)}
               />
               {postError ? <div className="a-error">{postError}</div> : null}
               <div className="a-bar" style={{ marginTop: 8 }}>
                 <span className="sp" />
-                <Button type="primary" size="small" loading={posting} disabled={!draft.trim()} onClick={postComment}>
-                  Comment
-                </Button>
+                {uncertain ? (
+                  <>
+                    <Button size="small" disabled={posting} onClick={() => checkUncertain(page.id, uncertain, postSeq.current)}>
+                      Check again
+                    </Button>
+                    <Button size="small" disabled={posting} onClick={postComment}>
+                      Post again anyway
+                    </Button>
+                  </>
+                ) : (
+                  <Button type="primary" size="small" loading={posting} disabled={!draft.trim()} onClick={postComment}>
+                    Comment
+                  </Button>
+                )}
               </div>
               <p className="a-hint">Posts as you; page watchers are notified. You'll confirm before it's sent.</p>
             </section>

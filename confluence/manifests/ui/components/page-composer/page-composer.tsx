@@ -11,6 +11,7 @@ import { Button, Select, Skeleton } from "antd";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "../../shared/atlassian.css";
 import "../../shared/tangram-buttons.css";
+import { definiteFailure, since } from "../../shared/write-outcome";
 import { draftToStorage, storageToDraft } from "./storage-draft";
 
 const tangram = (window as any).tangram;
@@ -30,7 +31,8 @@ type Status =
   | { kind: "busy" }
   | { kind: "saved"; title: string; url: string }
   | { kind: "error"; message: string }
-  | { kind: "conflict"; message: string };
+  | { kind: "conflict"; message: string }
+  | { kind: "uncertain"; message: string };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -74,6 +76,8 @@ export default function PageComposer() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const seq = useRef(0);
   const inputsRef = useRef<Record<string, unknown>>({});
+  // The create whose outcome is unknown: its title and start time.
+  const createAttempt = useRef({ title: "", at: 0 });
   const draftRef = useRef({ spaceId, parentId, pageId, title, body });
   draftRef.current = { spaceId, parentId, pageId, title, body };
 
@@ -159,6 +163,7 @@ export default function PageComposer() {
 
   function save() {
     const s = seq.current;
+    const at = Date.now();
     const value = bodyEdited ? draftToStorage(body) : original.current.storage;
     setStatus({ kind: "busy" });
     const call = editing
@@ -197,8 +202,37 @@ export default function PageComposer() {
         if (s !== seq.current) return;
         const message = errText(e);
         // Someone else saved meanwhile: the stored version is stale until the page is reloaded.
-        setStatus(editing && /409|conflict|version/i.test(message) ? { kind: "conflict", message } : { kind: "error", message });
+        if (editing && /409|conflict|version/i.test(message)) setStatus({ kind: "conflict", message });
+        // A create that may have landed: look for it before ever offering Create again.
+        else if (!editing && !definiteFailure(e)) {
+          createAttempt.current = { title: title.trim(), at };
+          findCreated(s);
+        }
+        else setStatus({ kind: "error", message });
       });
+  }
+
+  // Uncertain create: a current page with this exact title in the space, created since the attempt, is ours — switch
+  // to editing it (the draft is kept); otherwise stay uncertain until the user checks again or insists.
+  function findCreated(s: number) {
+    const { title: wanted, at } = createAttempt.current;
+    setStatus({ kind: "busy" });
+    tangram
+      .performAction({ resourceType: "Page", action: "List" }, {
+        parameters: { "space-id": spaceId, title: wanted, status: "current", limit: 5 },
+      })
+      .then((r: { results?: (Page & { createdAt?: string })[] }) => {
+        if (s !== seq.current) return;
+        const p = (r?.results ?? []).find((x) => since(x.createdAt, at));
+        if (!p) {
+          setStatus({ kind: "uncertain", message: "Not visible yet — Confluence may still have created it." });
+          return;
+        }
+        setPageId(p.id);
+        loadPage(p.id, { title, body });
+        tangram.emit("saved", { pageId: p.id, title: p.title ?? wanted, url: "" });
+      })
+      .catch((err: unknown) => s === seq.current && setStatus({ kind: "uncertain", message: `Couldn't check: ${errText(err)}` }));
   }
 
   // Conflict recovery: take the latest version and body as the new baseline, keep the user's title and body edits
@@ -232,7 +266,11 @@ export default function PageComposer() {
   }
 
   const canSave =
-    !busy && status.kind !== "conflict" && title.trim() !== "" && (editing ? loaded : spaceId !== "");
+    !busy &&
+    status.kind !== "conflict" &&
+    status.kind !== "uncertain" &&
+    title.trim() !== "" &&
+    (editing ? loaded : spaceId !== "");
 
   return (
     <div className="a-root">
@@ -312,6 +350,17 @@ export default function PageComposer() {
               You'll confirm before anything is saved.
             </p>
             {status.kind === "error" && (!editing || loaded) ? <div className="a-error">{status.message}</div> : null}
+            {status.kind === "uncertain" ? (
+              <div className="a-error" role="alert">
+                The page may already exist: {status.message}{" "}
+                <Button size="small" onClick={() => findCreated(seq.current)}>
+                  Check again
+                </Button>{" "}
+                <Button size="small" onClick={save}>
+                  Create again anyway
+                </Button>
+              </div>
+            ) : null}
             {status.kind === "conflict" ? (
               <div className="a-error" role="alert">
                 Someone changed this page since you opened it ({status.message}).{" "}

@@ -341,6 +341,13 @@ paths:
             type: string
             enum: [storage, atlas_doc_format]
             default: storage
+        - name: sort
+          in: query
+          required: false
+          description: Order, e.g. -created-date for newest first.
+          schema:
+            type: string
+            enum: [created-date, -created-date, modified-date, -modified-date]
         - $ref: "#/components/parameters/limit"
         - $ref: "#/components/parameters/cursor"
       responses:
