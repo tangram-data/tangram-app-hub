@@ -162,7 +162,7 @@ export default function FunnelView() {
             loading={listState === "loading"}
             notFoundContent={listState === "loading" ? "Loading funnels…" : "No saved funnels"}
             onDropdownVisibleChange={(open) => open && loadList(q.extra.workspaceId)}
-            onChange={(id: number) => load({ ...q, funnelId: id, extra: id === q.funnelId ? q.extra : { ...NO_EXTRA, workspaceId: q.extra.workspaceId } })}
+            onChange={(id: number) => load({ ...q, funnelId: id, extra: q.funnelId === null || id === q.funnelId ? q.extra : { ...NO_EXTRA, workspaceId: q.extra.workspaceId } })}
             disabled={busy}
             aria-label="Funnel"
           />
