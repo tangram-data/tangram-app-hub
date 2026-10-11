@@ -103,7 +103,8 @@ export default function EventChart() {
 
   useEffect(() => {
     onNewInputs((inputs) => {
-      const unit = unitFromInputs(inputs.unit, inputs.interval);
+      const type = MEASURES.find((m) => m.key === inputs.type)?.key ?? "general";
+      const unit = unitFromInputs(inputs.unit, inputs.interval, type);
       load({
         // event names are exact — "Purchase " is a different event
         event: typeof inputs.event === "string" && inputs.event.trim() ? inputs.event : "",
@@ -112,7 +113,7 @@ export default function EventChart() {
         win: windowFromInputs(inputs),
         unit,
         units: unitsFor(unit),
-        type: MEASURES.find((m) => m.key === inputs.type)?.key ?? "general",
+        type,
         limit: posInt(inputs.limit),
         workspaceId: posInt(inputs.workspace_id),
       });

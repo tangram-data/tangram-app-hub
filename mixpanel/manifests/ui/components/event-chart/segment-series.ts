@@ -20,10 +20,10 @@ export const BASE_UNITS: Unit[] = [
 ];
 
 // The call's own bucket (hour, minute, or an N-day interval) stays selectable next to day/week/month.
-export function unitFromInputs(unit: unknown, interval: unknown): Unit {
-  // an explicit interval replaces unit (month included) in Mixpanel
+export function unitFromInputs(unit: unknown, interval: unknown, type: string): Unit {
+  // an explicit interval replaces unit (month included) — but Mixpanel ignores it for general (total) queries
   const n = Number(interval);
-  if (Number.isSafeInteger(n) && n >= 1) return n === 1 ? BASE_UNITS[0] : n === 7 ? BASE_UNITS[1] : { key: `${n}d`, label: `${n} days` };
+  if (type !== "general" && Number.isSafeInteger(n) && n >= 1) return n === 1 ? BASE_UNITS[0] : n === 7 ? BASE_UNITS[1] : { key: `${n}d`, label: `${n} days` };
   if (unit === "hour") return { key: "hour", label: "Hour" };
   if (unit === "minute") return { key: "minute", label: "Minute" };
   return BASE_UNITS.find((u) => u.key === unit) ?? BASE_UNITS[0];
