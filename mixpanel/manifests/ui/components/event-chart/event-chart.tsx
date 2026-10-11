@@ -105,7 +105,8 @@ export default function EventChart() {
     onNewInputs((inputs) => {
       const unit = unitFromInputs(inputs.unit, inputs.interval);
       load({
-        event: str(inputs.event),
+        // event names are exact — "Purchase " is a different event
+        event: typeof inputs.event === "string" && inputs.event.trim() ? inputs.event : "",
         on: str(inputs.on),
         where: str(inputs.where),
         win: windowFromInputs(inputs),

@@ -52,9 +52,10 @@ export function rollUp(r: SegmentResult, from: string, days: number): SegmentRes
     return new Date(start + i * days * 86400000).toISOString().slice(0, 10);
   };
   const series = Array.from(new Set((r.data?.series ?? []).map(bucketOf))).sort();
-  const values: Record<string, Record<string, number | null>> = {};
+  // null-prototype maps: a series named "__proto__" is data, not a prototype
+  const values: Record<string, Record<string, number | null>> = Object.create(null);
   Object.entries(r.data?.values ?? {}).forEach(([name, byDate]) => {
-    const out: Record<string, number | null> = {};
+    const out: Record<string, number | null> = Object.create(null);
     series.forEach((d) => (out[d] = 0));
     Object.entries(byDate ?? {}).forEach(([d, v]) => {
       if (typeof v === "number" && Number.isFinite(v)) out[bucketOf(d)] = (out[bucketOf(d)] ?? 0) + v;
