@@ -59,9 +59,11 @@ export default function EventChart() {
   const [error, setError] = useState("");
   const seq = useRef(0);
 
-  const load = useCallback((next: Query) => {
+  // A refresh keeps the current chart on screen; any other change clears it so nothing shows under the wrong label.
+  const load = useCallback((next: Query, refresh = false) => {
     const mine = ++seq.current;
     setQ(next);
+    if (!refresh) setResult(null);
     if (!next.event) {
       setResult(null);
       setState("idle");
@@ -98,8 +100,6 @@ export default function EventChart() {
 
   useEffect(() => {
     onNewInputs((inputs) => {
-      // a new event never shows the previous event's chart under its heading
-      setResult(null);
       const unit = unitFromInputs(inputs.unit, inputs.interval);
       load({
         event: str(inputs.event),
@@ -156,7 +156,7 @@ export default function EventChart() {
           {q.event ? <span className="sub">{windowLabel(shown)}</span> : null}
         </div>
         <AntTooltip title="Refresh">
-          <Button size="small" icon={<ReloadOutlined />} aria-label="Refresh" disabled={busy || !q.event} onClick={() => load(q)} />
+          <Button size="small" icon={<ReloadOutlined />} aria-label="Refresh" disabled={busy || !q.event} onClick={() => load(q, true)} />
         </AntTooltip>
       </div>
       <div className="mp-controls">
