@@ -47,12 +47,16 @@ export default function FunnelView() {
   const seq = useRef(0);
   // workspace the funnel list was fetched for ("" = none); null = not fetched
   const listedFor = useRef<string | null>(null);
+  const listSeq = useRef(0);
 
   // A refresh keeps the current figures on screen; any other change clears them so nothing shows under the wrong label.
   const load = useCallback((next: Query, refresh = false) => {
     const mine = ++seq.current;
     setQ(next);
-    if (!refresh) setSteps(null);
+    if (!refresh) {
+      setSteps(null);
+      setSpan({ from: "", to: "" });
+    }
     if (next.funnelId === null) {
       setSteps(null);
       setState("idle");
@@ -87,17 +91,18 @@ export default function FunnelView() {
     const key = workspaceId ? String(workspaceId) : "";
     if (listedFor.current === key) return;
     listedFor.current = key;
+    const mine = ++listSeq.current;
     setFunnels(null);
     setListState("loading");
     tangram
       .performAction({ resourceType: "Funnel", action: "List" }, { parameters: workspaceId ? { workspace_id: workspaceId } : {} })
       .then((r: FunnelRef[]) => {
-        if (listedFor.current !== key) return;
+        if (mine !== listSeq.current) return;
         setFunnels(Array.isArray(r) ? r.filter((f) => parseFunnelId(f?.funnel_id) !== null) : []);
         setListState("idle");
       })
       .catch(() => {
-        if (listedFor.current !== key) return;
+        if (mine !== listSeq.current) return;
         listedFor.current = null;
         setListState("error");
       });
@@ -123,7 +128,9 @@ export default function FunnelView() {
       // a list fetched for another data view no longer applies
       if (listedFor.current !== null && listedFor.current !== (workspaceId ? String(workspaceId) : "")) {
         listedFor.current = null;
+        listSeq.current++;
         setFunnels(null);
+        setListState("idle");
       }
       if (funnelId === null) loadList(workspaceId);
     });

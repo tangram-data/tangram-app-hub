@@ -63,7 +63,10 @@ export default function EventChart() {
   const load = useCallback((next: Query, refresh = false) => {
     const mine = ++seq.current;
     setQ(next);
-    if (!refresh) setResult(null);
+    if (!refresh) {
+      setResult(null);
+      setSpan({ from: "", to: "" });
+    }
     if (!next.event) {
       setResult(null);
       setState("idle");
