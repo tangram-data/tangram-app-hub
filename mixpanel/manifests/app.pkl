@@ -1,0 +1,10 @@
+manifestSpecVersion = "v1"
+group = "com.mixpanel"
+name = "mixpanel"
+version = "0.1.0"
+appType = "Connector"
+providerWebsite = "https://developer.mixpanel.com/reference/overview"
+category = "analytics"
+tags = List("mixpanel", "product analytics", "analytics", "events", "funnels", "retention", "cohorts")
+description = "Mixpanel connector: run saved Insights reports, funnels and retention, segment and count events, explore event properties, look up user profiles and activity, list cohorts, and annotate charts."
+readme      = read("README.md").text

@@ -1,0 +1,101 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+// Stateless read bound to one operation.
+local function reader(actionName: String, op: String, text: String) = new resources.Action {
+  name = actionName
+  privilege = "Read"
+  effect = "Stateless"
+  idempotent = true
+  doc = text
+  openApiMapping = new resources.OpenApiMapping { operationId = op }
+}
+
+local function readOnly(typeName: String, typeDoc: String, acts: List<resources.Action>) = new resources.ResourceTypeDefinition {
+  name = typeName
+  activeVersion = "v1"
+  doc = typeDoc
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"
+    served = true
+    actions = acts
+    presetRoles = List(new resources.Role {
+      name = "user"
+      permissions = List("Read")
+      description = "Read \(typeName) data through the Mixpanel connector."
+    })
+  })
+}
+
+// Query API budget: 60 queries/hour and 5 concurrent per project.
+local budget = " Counts against Mixpanel's 60 queries/hour project limit — ask once with a tight date range."
+
+types: List<resources.ResourceTypeDefinition> = List(
+  readOnly("Project", "A Mixpanel project the service account can read.", List(
+    reader("List", "getMe", "The service account and the projects (id, name, timezone) and data views it can access. Start here: every other action needs a project_id from this list.")
+  )),
+  readOnly("Schema", "Lexicon — the project's data dictionary.", List(
+    reader("List", "listSchemas", "Documented events (entity_type=event) or profile properties (entity_type=profile) with descriptions and property types. Use it to find exact event and property names before querying.")
+  )),
+  readOnly("Report", "A saved Insights report.", List(
+    reader("Run", "queryInsights", "Run a saved Insights report by bookmark_id and return its series as currently defined in Mixpanel." + budget)
+  )),
+  readOnly("Funnel", "A saved funnel.", List(
+    reader("List", "listFunnels", "Saved funnels (funnel_id, name)."),
+    reader("Query", "queryFunnel", "Step counts and conversion for a saved funnel between from_date and to_date (YYYY-MM-DD), optionally broken down with on or filtered with where." + budget)
+  )),
+  readOnly("Retention", "Cohort retention.", List(
+    reader("Query", "queryRetention", "How many users who did born_event come back to do event in later days/weeks/months, per cohort, between from_date and to_date." + budget)
+  )),
+  readOnly("Event", "Tracked events.", List(
+    reader("Names", "listEventNames", "Most common event names over the last 31 days — discover what is tracked."),
+    reader("Top", "topEventsToday", "Today's top events with counts and change versus yesterday."),
+    reader("Segment", "querySegmentation", "Counts of one event over time between from_date and to_date, optionally broken down by a property (on) and filtered (where), as totals, unique users or per-user averages." + budget),
+    reader("Count", "queryEventCounts", "Totals for several events (event = JSON array of names) per unit between from_date and to_date." + budget),
+    reader("TopProperties", "topEventProperties", "The most common property names on an event."),
+    reader("PropertyValues", "topEventPropertyValues", "The most common values of a property, optionally for one event."),
+    reader("PropertyTrend", "queryEventProperty", "One event property's values over time (unit) between from_date and to_date, optionally limited to values." + budget)
+  )),
+  readOnly("Profile", "A user profile (People).", List(
+    reader("Query", "queryProfiles", "Look up user profiles by distinct_id(s), a where filter (e.g. properties[\"$email\"] == \"jo@acme.com\") or a cohort (filter_by_cohort). 1000 per page; pass session_id from the previous page with page > 0." + budget),
+    reader("Activity", "queryActivityStream", "Event-by-event history of up to a few users (distinct_ids JSON array) between from_date and to_date." + budget)
+  )),
+  readOnly("Cohort", "A saved cohort.", List(
+    reader("List", "listCohorts", "Saved cohorts (id, name, count, description). Use an id with Profile.Query filter_by_cohort.")
+  )),
+  new resources.ResourceTypeDefinition {
+    name = "Annotation"
+    activeVersion = "v1"
+    doc = "A note pinned to a date on every chart in the project (releases, campaigns, incidents)."
+    versions = List(new resources.ResourceTypeVersion {
+      version = "v1"
+      served = true
+      actions = List(
+        reader("List", "listAnnotations", "Annotations between fromDate and toDate (YYYY-MM-DD) — check them when explaining a spike or drop."),
+        new resources.Action {
+          name = "Create"
+          privilege = "Create"
+          // Visible on every chart of the project; deletable afterwards.
+          effect = "Reversible"
+          idempotent = false
+          requiresConfirmation = true
+          doc = "Pin a note (description) to a date (YYYY-MM-DD HH:mm:ss, project time) on every chart in the project. Confirmation-gated: everyone in the project sees it."
+          openApiMapping = new resources.OpenApiMapping { operationId = "createAnnotation" }
+        },
+        new resources.Action {
+          name = "Delete"
+          privilege = "Delete"
+          effect = "Irreversible"
+          idempotent = true
+          requiresConfirmation = true
+          doc = "Delete an annotation by id. Confirmation-gated."
+          openApiMapping = new resources.OpenApiMapping { operationId = "deleteAnnotation" }
+        }
+      )
+      presetRoles = List(new resources.Role {
+        name = "user"
+        permissions = List("Read", "Create", "Delete")
+        description = "Read, add and remove chart annotations through the Mixpanel connector."
+      })
+    })
+  }
+)

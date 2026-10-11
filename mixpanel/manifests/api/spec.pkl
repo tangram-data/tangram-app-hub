@@ -1,0 +1,22 @@
+import "@tangram-app-manifest/connector.pkl" as connector
+
+// Mixpanel serves the Query + App APIs per data residency region: US by
+// default; EU / India projects set the install's endpoint override.
+endpoint = "https://mixpanel.com"
+endpointOverridable = true
+endpointRequired = false
+endpointHostAllowlist = List("mixpanel.com", "eu.mixpanel.com", "in.mixpanel.com")
+
+apiSpecFile = "open_api.yml"
+
+// Service account HTTP Basic auth — Mixpanel has no third-party OAuth.
+auth = new connector.ConnectorAuth {
+  httpHeaders = Map(
+    "Authorization",
+    new connector.HeaderTemplate {
+      template = "Basic {{ (secrets.mixpanelServiceAccountUsername ~ ':' ~ secrets.mixpanelServiceAccountSecret) | b64encode }}"
+    },
+    "Accept",
+    new connector.HeaderTemplate { template = "application/json" }
+  )
+}

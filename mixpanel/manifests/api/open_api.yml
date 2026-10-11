@@ -1,0 +1,312 @@
+openapi: 3.0.3
+info:
+  title: Mixpanel API
+  version: "1.0"
+  description: >-
+    Subset of the Mixpanel Query API (/api/query) and App API (/api/app), authenticated with a service
+    account over HTTP Basic. Query API calls name the project with project_id and are rate limited by
+    Mixpanel to 60 queries per hour and 5 concurrent queries per project.
+servers:
+  - url: https://mixpanel.com
+
+paths:
+  /api/app/me:
+    get:
+      operationId: getMe
+      summary: Service account and its projects
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "401": {description: Invalid service account credentials.}
+
+  /api/app/projects/{project_id}/schemas/{entity_type}:
+    get:
+      operationId: listSchemas
+      summary: Lexicon schemas (data dictionary)
+      parameters:
+        - $ref: "#/components/parameters/projectIdPath"
+        - {name: entity_type, in: path, required: true, description: "event or profile.", schema: {type: string, enum: [event, profile]}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/insights:
+    get:
+      operationId: queryInsights
+      summary: Run a saved Insights report
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: bookmark_id, in: query, required: true, description: Saved Insights report id (the number in the report URL)., schema: {type: integer}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Unknown report or unsupported report type.}
+
+  /api/query/funnels/list:
+    get:
+      operationId: listFunnels
+      summary: List saved funnels
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "200": {$ref: "#/components/responses/OkArray"}
+
+  /api/query/funnels:
+    get:
+      operationId: queryFunnel
+      summary: Query a saved funnel
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: funnel_id, in: query, required: true, schema: {type: integer}}
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+        - {name: length, in: query, required: false, description: Conversion window length (default the funnel's own)., schema: {type: integer, minimum: 1}}
+        - {name: length_unit, in: query, required: false, schema: {type: string, enum: [day, hour, minute, second]}}
+        - {name: interval, in: query, required: false, description: Days per bucket., schema: {type: integer, minimum: 1}}
+        - {name: unit, in: query, required: false, description: Overrides interval., schema: {type: string, enum: [day, week, month]}}
+        - $ref: "#/components/parameters/breakdown"
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/retention:
+    get:
+      operationId: queryRetention
+      summary: Retention (cohort) analysis
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+        - {name: retention_type, in: query, required: false, description: "birth (first-time, default) or compounded (recurring).", schema: {type: string, enum: [birth, compounded]}}
+        - {name: born_event, in: query, required: false, description: "Event that puts a user in a cohort (required for birth retention).", schema: {type: string}}
+        - {name: event, in: query, required: false, description: Event that counts as coming back (default any event)., schema: {type: string}}
+        - {name: born_where, in: query, required: false, description: Filter expression on born_event properties., schema: {type: string}}
+        - $ref: "#/components/parameters/where"
+        - {name: interval, in: query, required: false, schema: {type: integer, minimum: 1}}
+        - {name: interval_count, in: query, required: false, description: Number of intervals to follow each cohort., schema: {type: integer, minimum: 1}}
+        - {name: unit, in: query, required: false, schema: {type: string, enum: [day, week, month]}}
+        - {name: unbounded_retention, in: query, required: false, description: Count a user as retained in every earlier bucket too., schema: {type: boolean}}
+        - $ref: "#/components/parameters/breakdown"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/segmentation:
+    get:
+      operationId: querySegmentation
+      summary: Segment one event over time
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: event, in: query, required: true, description: One event name., schema: {type: string}}
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+        - $ref: "#/components/parameters/breakdown"
+        - {name: unit, in: query, required: false, description: Bucket size (default day)., schema: {type: string, enum: [minute, hour, day, month]}}
+        - {name: interval, in: query, required: false, description: Days per bucket; overrides unit., schema: {type: integer, minimum: 1}}
+        - $ref: "#/components/parameters/where"
+        - $ref: "#/components/parameters/limit"
+        - {name: type, in: query, required: false, description: "general = total events (default), unique = unique users, average = events per user.", schema: {type: string, enum: [general, unique, average]}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/events:
+    get:
+      operationId: queryEventCounts
+      summary: Totals for several events over time
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: event, in: query, required: true, description: "JSON array of event names, e.g. [\"Sign Up\",\"Purchase\"].", schema: {type: string}}
+        - $ref: "#/components/parameters/countType"
+        - {name: unit, in: query, required: true, schema: {type: string, enum: [minute, hour, day, week, month]}}
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/events/top:
+    get:
+      operationId: topEventsToday
+      summary: Today's top events
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/countType"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/events/names:
+    get:
+      operationId: listEventNames
+      summary: Most common event names (last 31 days)
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/countType"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/OkArray"}
+
+  /api/query/events/properties:
+    get:
+      operationId: queryEventProperty
+      summary: One event property's values over time
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: event, in: query, required: true, schema: {type: string}}
+        - {name: name, in: query, required: true, description: Property name., schema: {type: string}}
+        - {name: values, in: query, required: false, description: "JSON array of property values to keep, e.g. [\"US\",\"CA\"].", schema: {type: string}}
+        - $ref: "#/components/parameters/countType"
+        - {name: unit, in: query, required: true, schema: {type: string, enum: [minute, hour, day, week, month]}}
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/events/properties/top:
+    get:
+      operationId: topEventProperties
+      summary: Top property names of an event
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: event, in: query, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/events/properties/values:
+    get:
+      operationId: topEventPropertyValues
+      summary: Top values of a property
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: event, in: query, required: false, description: Limit to this event., schema: {type: string}}
+        - {name: name, in: query, required: true, description: Property name., schema: {type: string}}
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": {$ref: "#/components/responses/OkArray"}
+
+  /api/query/engage:
+    post:
+      operationId: queryProfiles
+      summary: Query user profiles
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                distinct_id: {type: string, description: One user's distinct_id.}
+                distinct_ids: {type: string, description: "JSON array of distinct_ids, e.g. [\"u1\",\"u2\"]."}
+                where: {type: string, description: "Profile filter, e.g. properties[\"$email\"] == \"jo@acme.com\"."}
+                output_properties: {type: string, description: "JSON array of profile properties to return, e.g. [\"$email\",\"plan\"] (default all)."}
+                filter_by_cohort: {type: string, description: "JSON object, e.g. {\"id\": 12345}."}
+                session_id: {type: string, description: session_id of the previous page (required with page > 0).}
+                page: {type: integer, minimum: 0, description: Zero-based page; 1000 profiles per page.}
+                include_all_users: {type: boolean, description: "With filter_by_cohort, include cohort members without a profile."}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/stream/query:
+    get:
+      operationId: queryActivityStream
+      summary: Event history of users
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+        - {name: distinct_ids, in: query, required: true, description: "JSON array of distinct_ids, e.g. [\"u1\"].", schema: {type: string}}
+        - $ref: "#/components/parameters/fromDate"
+        - $ref: "#/components/parameters/toDate"
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+
+  /api/query/cohorts/list:
+    post:
+      operationId: listCohorts
+      summary: List saved cohorts
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "200": {$ref: "#/components/responses/OkArray"}
+
+  /api/app/projects/{project_id}/annotations:
+    get:
+      operationId: listAnnotations
+      summary: List chart annotations
+      parameters:
+        - $ref: "#/components/parameters/projectIdPath"
+        - {name: fromDate, in: query, required: false, description: YYYY-MM-DD., schema: {type: string}}
+        - {name: toDate, in: query, required: false, description: YYYY-MM-DD., schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+    post:
+      operationId: createAnnotation
+      summary: Annotate charts
+      parameters:
+        - $ref: "#/components/parameters/projectIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [date, description]
+              properties:
+                date: {type: string, description: "When, in project time: YYYY-MM-DD HH:mm:ss."}
+                description: {type: string, description: Text shown on every chart covering that date.}
+                tags: {type: array, items: {type: integer}, description: Annotation tag ids.}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "400": {description: Invalid annotation.}
+
+  /api/app/projects/{project_id}/annotations/{annotation_id}:
+    delete:
+      operationId: deleteAnnotation
+      summary: Delete an annotation
+      parameters:
+        - $ref: "#/components/parameters/projectIdPath"
+        - {name: annotation_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {$ref: "#/components/responses/Ok"}
+        "404": {description: Not found.}
+
+components:
+  parameters:
+    projectId: {name: project_id, in: query, required: true, description: Mixpanel project id (Project.List)., schema: {type: integer}}
+    projectIdPath: {name: project_id, in: path, required: true, description: Mixpanel project id (Project.List)., schema: {type: integer}}
+    workspaceId: {name: workspace_id, in: query, required: false, description: Data view (workspace) id — only for projects with data views., schema: {type: integer}}
+    fromDate: {name: from_date, in: query, required: true, description: "Start date YYYY-MM-DD, inclusive, project timezone.", schema: {type: string}}
+    toDate: {name: to_date, in: query, required: true, description: "End date YYYY-MM-DD, inclusive, project timezone.", schema: {type: string}}
+    breakdown: {name: "on", in: query, required: false, description: "Property to break down by, e.g. properties[\"$country_code\"].", schema: {type: string}}
+    where: {name: where, in: query, required: false, description: "Filter expression, e.g. properties[\"plan\"] == \"pro\" and properties[\"$browser\"] != \"Safari\".", schema: {type: string}}
+    limit: {name: limit, in: query, required: false, description: Max values or rows returned., schema: {type: integer, minimum: 1}}
+    countType: {name: type, in: query, required: true, description: "general = total events, unique = unique users, average = events per user.", schema: {type: string, enum: [general, unique, average]}}
+  responses:
+    Ok:
+      description: Mixpanel JSON response.
+      content:
+        application/json:
+          schema:
+            type: object
+    OkArray:
+      description: Mixpanel JSON array response.
+      content:
+        application/json:
+          schema:
+            type: array
+            items: {}
