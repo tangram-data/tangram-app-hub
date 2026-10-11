@@ -44,7 +44,8 @@ export function compact(v: number | null | undefined): string {
   if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
   if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
   if (a >= 1e4) return `${(v / 1e3).toFixed(1)}k`;
-  return Number.isInteger(v) ? v.toLocaleString() : String(Number(v.toPrecision(3)));
+  if (Number.isInteger(v) || a >= 100) return Math.round(v).toLocaleString();
+  return String(Number(v.toPrecision(3)));
 }
 
 export function percent(ratio: number | null | undefined): string {

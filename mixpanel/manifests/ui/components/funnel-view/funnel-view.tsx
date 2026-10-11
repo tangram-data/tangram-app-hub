@@ -1,5 +1,6 @@
 // A saved Mixpanel funnel through the connector's read-only Funnel.Query: step counts, conversion from the first
-// step, drop-off and average time between steps. Inputs: funnelId (or pick one), range or from_date/to_date.
+// step, drop-off and average time between steps. Inputs: funnelId (or pick one), range or from_date/to_date, and the
+// call's where, workspace_id, length/length_unit (conversion window) kept as asked; a breakdown (on) is not drawn.
 import { ReloadOutlined } from "@ant-design/icons";
 import { Button, Select, Skeleton, Tooltip as AntTooltip } from "antd";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,10 +12,25 @@ import { FunnelRef, FunnelResult, parseFunnelId, ratio, Step, toSteps } from "./
 
 const tangram = (window as any).tangram;
 
-type Query = { funnelId: number | null; win: DateWindow };
+// The originating call's own filters, carried into every reload.
+type Extra = { where: string; on: string; workspaceId: number | null; length: number | null; lengthUnit: string };
+type Query = { funnelId: number | null; win: DateWindow; extra: Extra };
+
+const NO_EXTRA: Extra = { where: "", on: "", workspaceId: null, length: null, lengthUnit: "" };
+const LENGTH_UNITS = ["day", "hour", "minute", "second"];
+const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
+function funnelParams(q: Query, from: string, to: string, days: number): Record<string, unknown> {
+  const p: Record<string, unknown> = { funnel_id: q.funnelId, from_date: from, to_date: to, interval: days };
+  if (q.extra.where) p.where = q.extra.where;
+  if (q.extra.workspaceId) p.workspace_id = q.extra.workspaceId;
+  if (q.extra.length) p.length = q.extra.length;
+  if (q.extra.length && q.extra.lengthUnit) p.length_unit = q.extra.lengthUnit;
+  return p;
+}
 
 export default function FunnelView() {
-  const [q, setQ] = useState<Query>({ funnelId: null, win: { range: "30d" } });
+  const [q, setQ] = useState<Query>({ funnelId: null, win: { range: "30d" }, extra: NO_EXTRA });
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [span, setSpan] = useState({ from: "", to: "" });
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -39,7 +55,7 @@ export default function FunnelView() {
     tangram
       .performAction(
         { resourceType: "Funnel", action: "Query" },
-        { parameters: { funnel_id: next.funnelId, from_date: from, to_date: to, interval: days } },
+        { parameters: funnelParams(next, from, to, days) },
       )
       .then((r: FunnelResult) => {
         if (mine !== seq.current) return;
@@ -76,8 +92,19 @@ export default function FunnelView() {
   useEffect(() => {
     onNewInputs((inputs) => {
       const funnelId = parseFunnelId(inputs.funnelId ?? inputs.funnel_id);
+      const lengthUnit = str(inputs.length_unit);
       setSteps(null);
-      load({ funnelId, win: windowFromInputs(inputs) });
+      load({
+        funnelId,
+        win: windowFromInputs(inputs),
+        extra: {
+          where: str(inputs.where),
+          on: str(inputs.on),
+          workspaceId: parseFunnelId(inputs.workspace_id),
+          length: parseFunnelId(inputs.length),
+          lengthUnit: LENGTH_UNITS.includes(lengthUnit) ? lengthUnit : "",
+        },
+      });
       if (funnelId === null) loadList();
     });
   }, [load, loadList]);
@@ -108,7 +135,7 @@ export default function FunnelView() {
             loading={listState === "loading"}
             notFoundContent={listState === "loading" ? "Loading funnels…" : "No saved funnels"}
             onDropdownVisibleChange={(open) => open && loadList()}
-            onChange={(id: number) => load({ ...q, funnelId: id })}
+            onChange={(id: number) => load({ ...q, funnelId: id, extra: id === q.funnelId ? q.extra : NO_EXTRA })}
             disabled={busy}
             aria-label="Funnel"
           />
@@ -133,7 +160,15 @@ export default function FunnelView() {
             </button>
           ))}
         </div>
+        {q.extra.where ? <span className="mp-chip" title={q.extra.where}>where {q.extra.where}</span> : null}
+        {q.extra.length ? (
+          <span className="mp-chip">
+            within {q.extra.length} {q.extra.lengthUnit || "day"}
+            {q.extra.length === 1 ? "" : "s"}
+          </span>
+        ) : null}
       </div>
+      {q.extra.on ? <div className="mp-note" style={{ paddingTop: 10 }}>The breakdown by {q.extra.on} isn't drawn here — these are all users.</div> : null}
       {state === "idle" ? (
         <div className="mp-empty">Pick a saved funnel to see its conversion</div>
       ) : state === "error" ? (

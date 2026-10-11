@@ -48,6 +48,11 @@ types: List<resources.ResourceTypeDefinition> = List(
           ["funnelId"] = new resources.FromArg { path = List("parameters", "funnel_id") }
           ["from_date"] = new resources.FromArg { path = List("parameters", "from_date") }
           ["to_date"] = new resources.FromArg { path = List("parameters", "to_date") }
+          ["where"] = new resources.FromArg { path = List("parameters", "where") }
+          ["on"] = new resources.FromArg { path = List("parameters", "on") }
+          ["workspace_id"] = new resources.FromArg { path = List("parameters", "workspace_id") }
+          ["length"] = new resources.FromArg { path = List("parameters", "length") }
+          ["length_unit"] = new resources.FromArg { path = List("parameters", "length_unit") }
         }
       }
     }
@@ -69,6 +74,9 @@ types: List<resources.ResourceTypeDefinition> = List(
           ["type"] = new resources.FromArg { path = List("parameters", "type") }
           ["on"] = new resources.FromArg { path = List("parameters", "on") }
           ["where"] = new resources.FromArg { path = List("parameters", "where") }
+          ["interval"] = new resources.FromArg { path = List("parameters", "interval") }
+          ["limit"] = new resources.FromArg { path = List("parameters", "limit") }
+          ["workspace_id"] = new resources.FromArg { path = List("parameters", "workspace_id") }
         }
       }
     },

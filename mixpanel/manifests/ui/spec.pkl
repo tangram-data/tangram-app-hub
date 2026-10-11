@@ -38,11 +38,11 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           }
           ["unit"] = new Dynamic {
             type = "string"
-            description = "Bucket: day (default), week or month."
+            description = "Bucket: day (default), week, month, hour or minute."
           }
           ["type"] = new Dynamic {
             type = "string"
-            description = "general (total events, default) or unique (unique users)."
+            description = "general (total events, default), unique (unique users) or average (events per user)."
           }
           ["on"] = new Dynamic {
             type = "string"
@@ -51,6 +51,18 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           ["where"] = new Dynamic {
             type = "string"
             description = "Filter expression, e.g. properties[\"plan\"] == \"pro\"."
+          }
+          ["interval"] = new Dynamic {
+            type = "integer"
+            description = "Days per bucket (overrides unit)."
+          }
+          ["limit"] = new Dynamic {
+            type = "integer"
+            description = "Max breakdown values requested (default 50)."
+          }
+          ["workspace_id"] = new Dynamic {
+            type = "integer"
+            description = "Data view (workspace) id, for projects with data views."
           }
         }
       }
@@ -82,6 +94,26 @@ components: Listing<ui.AppUIComponentSpec> = new Listing {
           ["to_date"] = new Dynamic {
             type = "string"
             description = "End date YYYY-MM-DD (with from_date)."
+          }
+          ["where"] = new Dynamic {
+            type = "string"
+            description = "Filter expression on the funnel's events."
+          }
+          ["on"] = new Dynamic {
+            type = "string"
+            description = "The call's breakdown property — not drawn; noted above the steps."
+          }
+          ["workspace_id"] = new Dynamic {
+            type = "integer"
+            description = "Data view (workspace) id, for projects with data views."
+          }
+          ["length"] = new Dynamic {
+            type = "integer"
+            description = "Conversion window length."
+          }
+          ["length_unit"] = new Dynamic {
+            type = "string"
+            description = "Conversion window unit: day, hour, minute or second."
           }
         }
       }

@@ -4,9 +4,12 @@ import { Args, missing, UpstreamError } from "../mock-tangram";
 export const previews = [
   { component: "event-chart", title: "Sign Up, daily totals, last 30 days", inputs: { event: "Sign Up" }, height: 520 },
   { component: "event-chart", title: "Purchase uniques by country, weekly, 90 days (12 values → top 10)", inputs: { event: "Purchase", on: 'properties["$country_code"]', unit: "week", type: "unique", range: "90d" }, height: 560 },
+  { component: "event-chart", title: "Sign Up weekly totals (daily data rolled up locally), 90 days", inputs: { event: "Sign Up", unit: "week", range: "90d" }, height: 520 },
+  { component: "event-chart", title: "Hourly, per-user average, from the call's own unit", inputs: { event: "Sign Up", unit: "hour", type: "average", range: "7d" }, height: 480 },
   { component: "event-chart", title: "Empty — no events in range", inputs: { event: "Legacy Export" }, height: 260 },
   { component: "event-chart", title: "Error — hourly query limit (429)", inputs: { event: "Rate Limited" }, height: 260 },
   { component: "funnel-view", title: "Saved funnel by id (name filled in when the picker opens)", inputs: { funnelId: 7012 }, height: 560 },
+  { component: "funnel-view", title: "Checkout with the call's where, 1-hour window and a breakdown it can't draw", inputs: { funnelId: 7013, where: 'properties["plan"] == "pro"', length: 1, length_unit: "hour", on: 'properties["$browser"]' }, height: 560 },
   { component: "funnel-view", title: "No funnelId — pick a saved funnel", inputs: {}, height: 420 },
 ];
 
@@ -31,6 +34,11 @@ function buckets(from: string, to: string, unit: string, interval?: number): str
     }
     return out;
   }
+  if (unit === "hour") {
+    for (let t = Date.parse(from); t <= Date.parse(to) + 23 * 3600000; t += 3600000)
+      out.push(`${iso(t)} ${String(new Date(t).getUTCHours()).padStart(2, "0")}:00:00`);
+    return out;
+  }
   const step = (interval ?? 1) * DAY;
   for (let t = start; t <= end; t += step) out.push(iso(t));
   return out;
@@ -46,7 +54,7 @@ function segmentation(p: Record<string, unknown>) {
   const unit = String(p.unit ?? "day");
   const interval = typeof p.interval === "number" ? p.interval : undefined;
   const dates = buckets(from, to, unit, interval);
-  const scale = (unit === "month" ? 30 : interval ?? 1) * (p.type === "unique" ? 0.4 : 1);
+  const scale = (unit === "month" ? 30 : unit === "hour" ? 1 / 24 : interval ?? 1) * (p.type === "unique" ? 0.4 : p.type === "average" ? 0.006 : 1);
   const base = event === "Purchase" ? 180 : 420;
   const names = typeof p.on === "string" ? COUNTRIES : [event];
   const values: Record<string, Record<string, number>> = {};
@@ -57,7 +65,8 @@ function segmentation(p: Record<string, unknown>) {
       const weekday = new Date(d).getUTCDay();
       const weekend = unit === "day" && (weekday === 0 || weekday === 6) ? 0.7 : 1;
       const growth = 1 + (Date.parse(d) - (TODAY - 90 * DAY)) / (400 * DAY);
-      values[name][d] = event === "Legacy Export" ? 0 : Math.round(base * share * scale * weekend * growth * (0.85 + 0.3 * noise(i + 1, j)));
+      const v = base * share * scale * weekend * growth * (0.85 + 0.3 * noise(i + 1, j));
+      values[name][d] = event === "Legacy Export" ? 0 : p.type === "average" ? Number(v.toFixed(2)) : Math.round(v);
     });
   });
   return { data: { series: dates, values }, legend_size: names.length };

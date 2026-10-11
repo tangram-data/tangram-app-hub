@@ -1,6 +1,6 @@
 // One Mixpanel event over time through the connector's read-only Event.Segment: totals or uniques per day/week/month,
 // optionally broken down by a property (top 10 values). Inputs: event (required), range or from_date/to_date, unit,
-// type, on, where.
+// interval, type, on, where, limit, workspace_id — the call's own query, kept as asked.
 import { ReloadOutlined } from "@ant-design/icons";
 import { Button, Skeleton, Tooltip as AntTooltip } from "antd";
 import dayjs from "dayjs";
@@ -10,16 +10,48 @@ import "../../shared/mixpanel.css";
 import "../../shared/tangram-buttons.css";
 import { compact, DateWindow, errorText, RANGES, resolveWindow, windowFromInputs, windowLabel } from "../../shared/mp-format";
 import { onNewInputs } from "../../shared/sandbox-inputs";
-import { hasData, normalizeUnit, SegmentResult, toChart, unitParams, UNITS } from "./segment-series";
+import { hasData, rollUp, SegmentResult, toChart, Unit, unitFromInputs, unitParams, unitsFor } from "./segment-series";
 
 const tangram = (window as any).tangram;
 
-type Query = { event: string; on: string; where: string; win: DateWindow; unit: string; type: "general" | "unique" };
+type Measure = "general" | "unique" | "average";
+const MEASURES: { key: Measure; label: string }[] = [
+  { key: "general", label: "Total" },
+  { key: "unique", label: "Uniques" },
+  { key: "average", label: "Per user" },
+];
+
+type Query = {
+  event: string;
+  on: string;
+  where: string;
+  win: DateWindow;
+  unit: Unit;
+  units: Unit[];
+  type: Measure;
+  limit: number | null;
+  workspaceId: number | null;
+};
+
+const posInt = (v: unknown) => {
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+};
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 export default function EventChart() {
-  const [q, setQ] = useState<Query>({ event: "", on: "", where: "", win: { range: "30d" }, unit: "day", type: "general" });
+  const [q, setQ] = useState<Query>({
+    event: "",
+    on: "",
+    where: "",
+    win: { range: "30d" },
+    unit: { key: "day", label: "Day" },
+    units: [],
+    type: "general",
+    limit: null,
+    workspaceId: null,
+  });
   const [result, setResult] = useState<SegmentResult | null>(null);
   const [span, setSpan] = useState({ from: "", to: "" });
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -36,18 +68,14 @@ export default function EventChart() {
       return;
     }
     const { from, to } = resolveWindow(next.win);
-    const parameters: Record<string, unknown> = {
-      event: next.event,
-      from_date: from,
-      to_date: to,
-      type: next.type,
-      ...unitParams(next.unit),
-    };
+    const { params, rollUpDays } = unitParams(next.unit.key, next.type);
+    const parameters: Record<string, unknown> = { event: next.event, from_date: from, to_date: to, type: next.type, ...params };
     if (next.on) {
       parameters.on = next.on;
-      parameters.limit = 50;
-    }
+      parameters.limit = next.limit ?? 50;
+    } else if (next.limit) parameters.limit = next.limit;
     if (next.where) parameters.where = next.where;
+    if (next.workspaceId) parameters.workspace_id = next.workspaceId;
     setState("loading");
     setError("");
     tangram
@@ -55,7 +83,7 @@ export default function EventChart() {
       .then((r: SegmentResult) => {
         if (mine !== seq.current) return;
         if (r?.error) throw new Error(r.error);
-        setResult(r ?? {});
+        setResult(rollUpDays ? rollUp(r ?? {}, from, rollUpDays) : r ?? {});
         setSpan({ from, to });
         setHidden(new Set());
         setState("ready");
@@ -72,13 +100,17 @@ export default function EventChart() {
     onNewInputs((inputs) => {
       // a new event never shows the previous event's chart under its heading
       setResult(null);
+      const unit = unitFromInputs(inputs.unit, inputs.interval);
       load({
         event: str(inputs.event),
         on: str(inputs.on),
         where: str(inputs.where),
         win: windowFromInputs(inputs),
-        unit: normalizeUnit(inputs.unit),
-        type: inputs.type === "unique" ? "unique" : "general",
+        unit,
+        units: unitsFor(unit),
+        type: MEASURES.find((m) => m.key === inputs.type)?.key ?? "general",
+        limit: posInt(inputs.limit),
+        workspaceId: posInt(inputs.workspace_id),
       });
     });
   }, [load]);
@@ -99,7 +131,19 @@ export default function EventChart() {
     });
   }
 
-  const tick = (d: string) => (q.unit === "month" ? dayjs(d).format("MMM YYYY") : dayjs(d).format("MMM D"));
+  // per-bucket figures are only exact without a breakdown (values beyond the top ones, users in several values)
+  const kpis = !q.on && q.type !== "average";
+  const unitWord = q.unit.label.toLowerCase().replace(/^(\d+) days$/, "$1-day period");
+  const tick = (d: string) =>
+    ["hour", "minute"].includes(q.unit.key) ? dayjs(d).format("MMM D HH:mm") : q.unit.key === "month" ? dayjs(d).format("MMM YYYY") : dayjs(d).format("MMM D");
+  const tipLabel = (d: string) =>
+    ["hour", "minute"].includes(q.unit.key)
+      ? dayjs(d).format("ddd, MMM D, HH:mm")
+      : q.unit.key === "month"
+        ? dayjs(d).format("MMMM YYYY")
+        : q.unit.key === "day"
+          ? dayjs(d).format("ddd, MMM D, YYYY")
+          : `${q.unit.label} from ${dayjs(d).format("MMM D, YYYY")}`;
 
   return (
     <div className="mp-root">
@@ -131,30 +175,30 @@ export default function EventChart() {
           ))}
         </div>
         <div className="mp-seg" role="group" aria-label="Interval">
-          {UNITS.map((u) => (
+          {q.units.map((u) => (
             <button
               type="button"
               key={u.key}
-              className={q.unit === u.key ? "on" : ""}
-              aria-pressed={q.unit === u.key}
+              className={q.unit.key === u.key ? "on" : ""}
+              aria-pressed={q.unit.key === u.key}
               disabled={busy || !q.event}
-              onClick={() => load({ ...q, unit: u.key })}
+              onClick={() => load({ ...q, unit: u })}
             >
               {u.label}
             </button>
           ))}
         </div>
         <div className="mp-seg" role="group" aria-label="Measure">
-          {(["general", "unique"] as const).map((t) => (
+          {MEASURES.map((m) => (
             <button
               type="button"
-              key={t}
-              className={q.type === t ? "on" : ""}
-              aria-pressed={q.type === t}
+              key={m.key}
+              className={q.type === m.key ? "on" : ""}
+              aria-pressed={q.type === m.key}
               disabled={busy || !q.event}
-              onClick={() => load({ ...q, type: t })}
+              onClick={() => load({ ...q, type: m.key })}
             >
-              {t === "general" ? "Total" : "Uniques"}
+              {m.label}
             </button>
           ))}
         </div>
@@ -176,26 +220,30 @@ export default function EventChart() {
         <div className="mp-empty">No {q.event} events in this date range</div>
       ) : (
         <div aria-busy={busy}>
-          <div className="mp-kpis">
-            {q.type === "general" ? (
+          {kpis ? (
+            <div className="mp-kpis">
+              {q.type === "general" ? (
+                <div className="mp-kpi">
+                  <div className="k">Total events</div>
+                  <div className="v">{compact(total)}</div>
+                </div>
+              ) : null}
               <div className="mp-kpi">
-                <div className="k">Total events</div>
-                <div className="v">{compact(total)}</div>
+                <div className="k">
+                  {q.type === "general" ? "Average" : "Average uniques"} per {unitWord}
+                </div>
+                <div className="v">{compact(average)}</div>
               </div>
-            ) : null}
-            <div className="mp-kpi">
-              <div className="k">{q.type === "general" ? "Average" : "Average uniques"} per {UNITS.find((u) => u.key === q.unit)?.label.toLowerCase()}</div>
-              <div className="v">{compact(average)}</div>
             </div>
-          </div>
+          ) : null}
           <div className="mp-chart">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows} margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                 <CartesianGrid stroke="#f0eff4" vertical={false} />
                 <XAxis dataKey="date" tickFormatter={tick} tick={{ fontSize: 11, fill: "#8d8a9c" }} stroke="#e9e8ef" minTickGap={28} />
-                <YAxis tickFormatter={(v: number) => compact(v)} tick={{ fontSize: 11, fill: "#8d8a9c" }} stroke="#e9e8ef" width={48} allowDecimals={false} />
+                <YAxis tickFormatter={(v: number) => compact(v)} tick={{ fontSize: 11, fill: "#8d8a9c" }} stroke="#e9e8ef" width={48} allowDecimals={q.type === "average"} />
                 <Tooltip
-                  labelFormatter={(d: string) => (q.unit === "month" ? dayjs(d).format("MMMM YYYY") : q.unit === "week" ? `Week of ${dayjs(d).format("MMM D, YYYY")}` : dayjs(d).format("ddd, MMM D, YYYY"))}
+                  labelFormatter={tipLabel}
                   formatter={(v: number, name: string) => [compact(v), lines.find((l) => l.key === name)?.label ?? name]}
                   contentStyle={{ fontSize: 12, borderRadius: 6, borderColor: "#e9e8ef" }}
                 />
