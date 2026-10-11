@@ -15,7 +15,7 @@ install's endpoint override to `eu.mixpanel.com` or `in.mixpanel.com`.
 | `mixpanel_query_retention` | `Retention.Query` | Birth or compounded retention. |
 | `mixpanel_names_event` / `mixpanel_top_event` | `Event.Names` / `Event.Top` | What is tracked (31 days) / today's top events. |
 | `mixpanel_segment_event` / `mixpanel_count_event` | `Event.Segment` / `Event.Count` | One event broken down by a property / totals for several events. |
-| `mixpanel_topproperties_event` / `mixpanel_propertyvalues_event` / `mixpanel_propertytrend_event` | `Event.*` | Property names, top values, values over time. |
+| `mixpanel_topproperties_event` / `mixpanel_propertyvalues_event` / `mixpanel_propertytrend_event` | `Event.*` | Property names, top values of an event property, values over time. |
 | `mixpanel_query_profile` / `mixpanel_activity_profile` | `Profile.Query` / `Profile.Activity` | Profiles by id, `where` filter or cohort; a user's event history. |
 | `mixpanel_list_cohort` | `Cohort.List` | Saved cohorts. |
 | `mixpanel_list_annotation` | `Annotation.List` | Chart annotations in a date range. |

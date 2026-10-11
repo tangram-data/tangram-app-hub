@@ -48,7 +48,7 @@ paths:
         - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
       responses:
-        "200": {$ref: "#/components/responses/OkArray"}
+        "200": {$ref: "#/components/responses/OkObjects"}
 
   /api/query/funnels:
     get:
@@ -149,7 +149,7 @@ paths:
         - $ref: "#/components/parameters/countType"
         - $ref: "#/components/parameters/limit"
       responses:
-        "200": {$ref: "#/components/responses/OkArray"}
+        "200": {$ref: "#/components/responses/OkStrings"}
 
   /api/query/events/properties:
     get:
@@ -188,11 +188,11 @@ paths:
       parameters:
         - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
-        - {name: event, in: query, required: false, description: Limit to this event., schema: {type: string}}
+        - {name: event, in: query, required: true, schema: {type: string}}
         - {name: name, in: query, required: true, description: Property name., schema: {type: string}}
         - $ref: "#/components/parameters/limit"
       responses:
-        "200": {$ref: "#/components/responses/OkArray"}
+        "200": {$ref: "#/components/responses/OkStrings"}
 
   /api/query/engage:
     post:
@@ -241,7 +241,7 @@ paths:
         - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
       responses:
-        "200": {$ref: "#/components/responses/OkArray"}
+        "200": {$ref: "#/components/responses/OkObjects"}
 
   /api/app/projects/{project_id}/annotations:
     get:
@@ -303,10 +303,17 @@ components:
         application/json:
           schema:
             type: object
-    OkArray:
-      description: Mixpanel JSON array response.
+    OkObjects:
+      description: Mixpanel JSON array of objects.
       content:
         application/json:
           schema:
             type: array
-            items: {}
+            items: {type: object}
+    OkStrings:
+      description: Mixpanel JSON array of strings.
+      content:
+        application/json:
+          schema:
+            type: array
+            items: {type: string}
