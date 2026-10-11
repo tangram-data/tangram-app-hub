@@ -20,7 +20,7 @@ ESBUILD = UI / "node_modules/.bin/esbuild"
 NODE_PATH = f"{UI}/node_modules:/tmp/connector-reviews/deps/node_modules"
 # One React for the whole bundle: a stray ~/node_modules/react would otherwise win for files under the repo.
 PIN = [f"--alias:{p}={UI}/node_modules/{p}" for p in ("react", "react-dom")]
-APPS = ["confluence", "pagerduty", "datadog", "salesforce", "hubspot", "stripe", "box", "xero"]
+APPS = ["confluence", "pagerduty", "datadog", "salesforce", "hubspot", "stripe", "box", "xero", "mixpanel"]
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>{title}</title>
 <link rel="stylesheet" href="{id}.css"><style>

@@ -41,7 +41,16 @@ types: List<resources.ResourceTypeDefinition> = List(
   )),
   readOnly("Funnel", "A saved funnel.", List(
     reader("List", "listFunnels", "Saved funnels (funnel_id, name)."),
-    reader("Query", "queryFunnel", "Step counts and conversion for a saved funnel between from_date and to_date (YYYY-MM-DD), optionally broken down with on or filtered with where." + budget)
+    (reader("Query", "queryFunnel", "Step counts and conversion for a saved funnel between from_date and to_date (YYYY-MM-DD), optionally broken down with on or filtered with where." + budget)) {
+      presentation = new resources.ComponentPresentation {
+        component = "funnel-view"
+        inputs {
+          ["funnelId"] = new resources.FromArg { path = List("parameters", "funnel_id") }
+          ["from_date"] = new resources.FromArg { path = List("parameters", "from_date") }
+          ["to_date"] = new resources.FromArg { path = List("parameters", "to_date") }
+        }
+      }
+    }
   )),
   readOnly("Retention", "Cohort retention.", List(
     reader("Query", "queryRetention", "How many users who did born_event come back to do event in later days/weeks/months, per cohort, between from_date and to_date." + budget)
@@ -49,7 +58,20 @@ types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Event", "Tracked events.", List(
     reader("Names", "listEventNames", "Most common event names over the last 31 days — discover what is tracked."),
     reader("Top", "topEventsToday", "Today's top events with counts and change versus yesterday."),
-    reader("Segment", "querySegmentation", "Counts of one event over time between from_date and to_date, optionally broken down by a property (on) and filtered (where), as totals, unique users or per-user averages." + budget),
+    (reader("Segment", "querySegmentation", "Counts of one event over time between from_date and to_date, optionally broken down by a property (on) and filtered (where), as totals, unique users or per-user averages." + budget)) {
+      presentation = new resources.ComponentPresentation {
+        component = "event-chart"
+        inputs {
+          ["event"] = new resources.FromArg { path = List("parameters", "event") }
+          ["from_date"] = new resources.FromArg { path = List("parameters", "from_date") }
+          ["to_date"] = new resources.FromArg { path = List("parameters", "to_date") }
+          ["unit"] = new resources.FromArg { path = List("parameters", "unit") }
+          ["type"] = new resources.FromArg { path = List("parameters", "type") }
+          ["on"] = new resources.FromArg { path = List("parameters", "on") }
+          ["where"] = new resources.FromArg { path = List("parameters", "where") }
+        }
+      }
+    },
     reader("Count", "queryEventCounts", "Totals for several events (event = JSON array of names) per unit between from_date and to_date." + budget),
     reader("TopProperties", "topEventProperties", "The most common property names on an event."),
     reader("PropertyValues", "topEventPropertyValues", "The most common values of one property of an event."),

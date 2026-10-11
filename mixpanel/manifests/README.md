@@ -21,6 +21,15 @@ install's endpoint override to `eu.mixpanel.com` or `in.mixpanel.com`.
 | `mixpanel_list_annotation` | `Annotation.List` | Chart annotations in a date range. |
 | `mixpanel_create_annotation` / `mixpanel_delete_annotation` | `Annotation.Create` / `Annotation.Delete` | **Confirmation-gated.** Visible on every chart of the project. |
 
+## UI components
+
+| Component | Shows | Opened by |
+|---|---|---|
+| `event-chart` | One event over time: totals or uniques per day/week/month, 7D/30D/90D range, optional breakdown by a property (top 10 values, click a legend entry to hide it). | `Event.Segment` results; or render with `event` (+ `range`/`from_date`/`to_date`, `unit`, `type`, `on`, `where`) |
+| `funnel-view` | A saved funnel: users per step as bars, conversion from the first step, drop-off and average time between steps; a picker switches funnels. | `Funnel.Query` results; or render with `funnelId` (or none, to pick one) |
+
+Both are read-only and call the connector's own actions as the viewer. Every range or option change is one Query API call.
+
 Dates are `YYYY-MM-DD` in the project's timezone. Filters (`where`, `on`) use Mixpanel expressions, e.g.
 `properties["plan"] == "pro"`. List-valued parameters (`event` of `Event.Count`, `distinct_ids`, `output_properties`) are JSON arrays
 passed as strings.

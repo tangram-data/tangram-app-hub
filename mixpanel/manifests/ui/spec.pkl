@@ -1,0 +1,91 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+logo = "static/mixpanel.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "None"
+}
+
+// Connector identity implies no local workload; components are UI declarations.
+components: Listing<ui.AppUIComponentSpec> = new Listing {
+  new ui.AppUIComponentSpec {
+    name = "event-chart"
+    kind = "sandboxed"
+    entry = "components/event-chart/event-chart.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Mixpanel event chart"
+      description = "Chart one Mixpanel event over time: totals or unique users per day, week or month over the last 7, 30 or 90 days (or given dates), optionally broken down by a property into its top 10 values (click a legend entry to hide it)."
+      inputs {
+        type = "object"
+        required {
+          "event"
+        }
+        properties {
+          ["event"] = new Dynamic {
+            type = "string"
+            description = "Event name, e.g. Sign Up."
+          }
+          ["range"] = new Dynamic {
+            type = "string"
+            description = "Date range ending today: 7d, 30d (default) or 90d."
+          }
+          ["from_date"] = new Dynamic {
+            type = "string"
+            description = "Start date YYYY-MM-DD (with to_date; overrides range)."
+          }
+          ["to_date"] = new Dynamic {
+            type = "string"
+            description = "End date YYYY-MM-DD (with from_date)."
+          }
+          ["unit"] = new Dynamic {
+            type = "string"
+            description = "Bucket: day (default), week or month."
+          }
+          ["type"] = new Dynamic {
+            type = "string"
+            description = "general (total events, default) or unique (unique users)."
+          }
+          ["on"] = new Dynamic {
+            type = "string"
+            description = "Property to break down by, e.g. properties[\"$country_code\"]."
+          }
+          ["where"] = new Dynamic {
+            type = "string"
+            description = "Filter expression, e.g. properties[\"plan\"] == \"pro\"."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+  new ui.AppUIComponentSpec {
+    name = "funnel-view"
+    kind = "sandboxed"
+    entry = "components/funnel-view/funnel-view.tsx"
+    spec = new ui.UIComponentContract {
+      title = "Mixpanel funnel"
+      description = "Show a saved Mixpanel funnel: each step's users as a bar, conversion from the first step, drop-off and average time between steps, over the last 7, 30 or 90 days (or given dates). Without a funnelId, pick a saved funnel."
+      inputs {
+        type = "object"
+        properties {
+          ["funnelId"] = new Dynamic {
+            type = "integer"
+            description = "Saved funnel id (Funnel.List)."
+          }
+          ["range"] = new Dynamic {
+            type = "string"
+            description = "Date range ending today: 7d, 30d (default) or 90d."
+          }
+          ["from_date"] = new Dynamic {
+            type = "string"
+            description = "Start date YYYY-MM-DD (with to_date; overrides range)."
+          }
+          ["to_date"] = new Dynamic {
+            type = "string"
+            description = "End date YYYY-MM-DD (with from_date)."
+          }
+        }
+      }
+    }
+    surfaces { "chat"; "app-page" }
+  }
+}
