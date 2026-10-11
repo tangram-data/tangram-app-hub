@@ -1,0 +1,10 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+
+settings: List<manifest.ConfigField> = List(
+  new manifest.ConfigField {
+    name        = "projectId"
+    required    = true
+    description = "Mixpanel project id (Project Settings → Overview). Every call runs against this project."
+    example     = "3141592"
+  }
+)

@@ -4,8 +4,8 @@ info:
   version: "1.0"
   description: >-
     Subset of the Mixpanel Query API (/api/query) and App API (/api/app), authenticated with a service
-    account over HTTP Basic. Query API calls name the project with project_id and are rate limited by
-    Mixpanel to 60 queries per hour and 5 concurrent queries per project.
+    account over HTTP Basic. Every call is pinned upstream to the install's projectId setting. Query API
+    calls are rate limited by Mixpanel to 60 queries per hour and 5 concurrent queries per project.
 servers:
   - url: https://mixpanel.com
 
@@ -18,12 +18,13 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "401": {description: Invalid service account credentials.}
 
-  /api/app/projects/{project_id}/schemas/{entity_type}:
+  /api/app/schemas/{entity_type}:
     get:
       operationId: listSchemas
+      x-tangram-upstream:
+        path: "/api/app/projects/{{settings.projectId}}/schemas/{entity_type}"
       summary: Lexicon schemas (data dictionary)
       parameters:
-        - $ref: "#/components/parameters/projectIdPath"
         - {name: entity_type, in: path, required: true, description: "event or profile.", schema: {type: string, enum: [event, profile]}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
@@ -31,9 +32,10 @@ paths:
   /api/query/insights:
     get:
       operationId: queryInsights
+      x-tangram-upstream:
+        path: "/api/query/insights?project_id={{settings.projectId}}"
       summary: Run a saved Insights report
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: bookmark_id, in: query, required: true, description: Saved Insights report id (the number in the report URL)., schema: {type: integer}}
       responses:
@@ -43,9 +45,10 @@ paths:
   /api/query/funnels/list:
     get:
       operationId: listFunnels
+      x-tangram-upstream:
+        path: "/api/query/funnels/list?project_id={{settings.projectId}}"
       summary: List saved funnels
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
       responses:
         "200": {$ref: "#/components/responses/OkObjects"}
@@ -53,9 +56,10 @@ paths:
   /api/query/funnels:
     get:
       operationId: queryFunnel
+      x-tangram-upstream:
+        path: "/api/query/funnels?project_id={{settings.projectId}}"
       summary: Query a saved funnel
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: funnel_id, in: query, required: true, schema: {type: integer}}
         - $ref: "#/components/parameters/fromDate"
@@ -73,9 +77,10 @@ paths:
   /api/query/retention:
     get:
       operationId: queryRetention
+      x-tangram-upstream:
+        path: "/api/query/retention?project_id={{settings.projectId}}"
       summary: Retention (cohort) analysis
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - $ref: "#/components/parameters/fromDate"
         - $ref: "#/components/parameters/toDate"
@@ -96,9 +101,10 @@ paths:
   /api/query/segmentation:
     get:
       operationId: querySegmentation
+      x-tangram-upstream:
+        path: "/api/query/segmentation?project_id={{settings.projectId}}"
       summary: Segment one event over time
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: event, in: query, required: true, description: One event name., schema: {type: string}}
         - $ref: "#/components/parameters/fromDate"
@@ -115,9 +121,10 @@ paths:
   /api/query/events:
     get:
       operationId: queryEventCounts
+      x-tangram-upstream:
+        path: "/api/query/events?project_id={{settings.projectId}}"
       summary: Totals for several events over time
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: event, in: query, required: true, description: "JSON array of event names, e.g. [\"Sign Up\",\"Purchase\"].", schema: {type: string}}
         - $ref: "#/components/parameters/countType"
@@ -130,9 +137,10 @@ paths:
   /api/query/events/top:
     get:
       operationId: topEventsToday
+      x-tangram-upstream:
+        path: "/api/query/events/top?project_id={{settings.projectId}}"
       summary: Today's top events
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - $ref: "#/components/parameters/countType"
         - $ref: "#/components/parameters/limit"
@@ -142,9 +150,10 @@ paths:
   /api/query/events/names:
     get:
       operationId: listEventNames
+      x-tangram-upstream:
+        path: "/api/query/events/names?project_id={{settings.projectId}}"
       summary: Most common event names (last 31 days)
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - $ref: "#/components/parameters/countType"
         - $ref: "#/components/parameters/limit"
@@ -154,9 +163,10 @@ paths:
   /api/query/events/properties:
     get:
       operationId: queryEventProperty
+      x-tangram-upstream:
+        path: "/api/query/events/properties?project_id={{settings.projectId}}"
       summary: One event property's values over time
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: event, in: query, required: true, schema: {type: string}}
         - {name: name, in: query, required: true, description: Property name., schema: {type: string}}
@@ -172,9 +182,10 @@ paths:
   /api/query/events/properties/top:
     get:
       operationId: topEventProperties
+      x-tangram-upstream:
+        path: "/api/query/events/properties/top?project_id={{settings.projectId}}"
       summary: Top property names of an event
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: event, in: query, required: true, schema: {type: string}}
         - $ref: "#/components/parameters/limit"
@@ -184,9 +195,10 @@ paths:
   /api/query/events/properties/values:
     get:
       operationId: topEventPropertyValues
+      x-tangram-upstream:
+        path: "/api/query/events/properties/values?project_id={{settings.projectId}}"
       summary: Top values of a property
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: event, in: query, required: true, schema: {type: string}}
         - {name: name, in: query, required: true, description: Property name., schema: {type: string}}
@@ -197,9 +209,10 @@ paths:
   /api/query/engage:
     post:
       operationId: queryProfiles
+      x-tangram-upstream:
+        path: "/api/query/engage?project_id={{settings.projectId}}"
       summary: Query user profiles
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
       requestBody:
         required: false
@@ -223,9 +236,10 @@ paths:
   /api/query/stream/query:
     get:
       operationId: queryActivityStream
+      x-tangram-upstream:
+        path: "/api/query/stream/query?project_id={{settings.projectId}}"
       summary: Event history of users
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
         - {name: distinct_ids, in: query, required: true, description: "JSON array of distinct_ids, e.g. [\"u1\"].", schema: {type: string}}
         - $ref: "#/components/parameters/fromDate"
@@ -236,28 +250,30 @@ paths:
   /api/query/cohorts/list:
     post:
       operationId: listCohorts
+      x-tangram-upstream:
+        path: "/api/query/cohorts/list?project_id={{settings.projectId}}"
       summary: List saved cohorts
       parameters:
-        - $ref: "#/components/parameters/projectId"
         - $ref: "#/components/parameters/workspaceId"
       responses:
         "200": {$ref: "#/components/responses/OkObjects"}
 
-  /api/app/projects/{project_id}/annotations:
+  /api/app/annotations:
     get:
       operationId: listAnnotations
+      x-tangram-upstream:
+        path: "/api/app/projects/{{settings.projectId}}/annotations"
       summary: List chart annotations
       parameters:
-        - $ref: "#/components/parameters/projectIdPath"
         - {name: fromDate, in: query, required: false, description: YYYY-MM-DD., schema: {type: string}}
         - {name: toDate, in: query, required: false, description: YYYY-MM-DD., schema: {type: string}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
     post:
       operationId: createAnnotation
+      x-tangram-upstream:
+        path: "/api/app/projects/{{settings.projectId}}/annotations"
       summary: Annotate charts
-      parameters:
-        - $ref: "#/components/parameters/projectIdPath"
       requestBody:
         required: true
         content:
@@ -274,12 +290,13 @@ paths:
         "200": {$ref: "#/components/responses/Ok"}
         "400": {description: Invalid annotation.}
 
-  /api/app/projects/{project_id}/annotations/{annotation_id}:
+  /api/app/annotations/{annotation_id}:
     delete:
       operationId: deleteAnnotation
+      x-tangram-upstream:
+        path: "/api/app/projects/{{settings.projectId}}/annotations/{annotation_id}"
       summary: Delete an annotation
       parameters:
-        - $ref: "#/components/parameters/projectIdPath"
         - {name: annotation_id, in: path, required: true, schema: {type: integer}}
       responses:
         "200": {$ref: "#/components/responses/Ok"}
@@ -287,8 +304,6 @@ paths:
 
 components:
   parameters:
-    projectId: {name: project_id, in: query, required: true, description: Mixpanel project id (Project.List)., schema: {type: integer}}
-    projectIdPath: {name: project_id, in: path, required: true, description: Mixpanel project id (Project.List)., schema: {type: integer}}
     workspaceId: {name: workspace_id, in: query, required: false, description: Data view (workspace) id — only for projects with data views., schema: {type: integer}}
     fromDate: {name: from_date, in: query, required: true, description: "Start date YYYY-MM-DD, inclusive, project timezone.", schema: {type: string}}
     toDate: {name: to_date, in: query, required: true, description: "End date YYYY-MM-DD, inclusive, project timezone.", schema: {type: string}}

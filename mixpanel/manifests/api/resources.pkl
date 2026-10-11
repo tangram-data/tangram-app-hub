@@ -31,7 +31,7 @@ local budget = " Counts against Mixpanel's 60 queries/hour project limit — ask
 
 types: List<resources.ResourceTypeDefinition> = List(
   readOnly("Project", "A Mixpanel project the service account can read.", List(
-    reader("List", "getMe", "The service account and the projects (id, name, timezone) and data views it can access. Start here: every other action needs a project_id from this list.")
+    reader("List", "getMe", "The service account, its projects and data views (workspace_id). Every other action runs against the install's pinned project — use this to check the connection or find a data view.")
   )),
   readOnly("Schema", "Lexicon — the project's data dictionary.", List(
     reader("List", "listSchemas", "Documented events (entity_type=event) or profile properties (entity_type=profile) with descriptions and property types. Use it to find exact event and property names before querying.")

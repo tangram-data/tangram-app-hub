@@ -1,14 +1,14 @@
 # Mixpanel connector
 
 Tangram OS ConnectorApp for the Mixpanel Query API and App API. Authenticates with a **service account** (username + secret, sent as HTTP
-Basic) entered at install — Mixpanel has no third-party OAuth. US (`mixpanel.com`) by default; EU and India residency projects set the
+Basic) entered at install — Mixpanel has no third-party OAuth. Each install is pinned to one project (`projectId` setting). US (`mixpanel.com`) by default; EU and India residency projects set the
 install's endpoint override to `eu.mixpanel.com` or `in.mixpanel.com`.
 
 ## Agent tools
 
 | Tool | Action | Notes |
 |------|--------|-------|
-| `mixpanel_list_project` | `Project.List` | Projects + data views the service account can read. Every other action takes `project_id` from here. |
+| `mixpanel_list_project` | `Project.List` | Connection check; the account's projects and data views (`workspace_id`). |
 | `mixpanel_list_schema` | `Schema.List` | Lexicon: documented events / profile properties. |
 | `mixpanel_run_report` | `Report.Run` | Saved Insights report by `bookmark_id`. |
 | `mixpanel_list_funnel` / `mixpanel_query_funnel` | `Funnel.List` / `Funnel.Query` | Step counts + conversion over `from_date`..`to_date`. |
@@ -33,6 +33,8 @@ not repeat queries. Raw event export and ingestion (`data.mixpanel.com`, `api.mi
 1. Organization Settings → **Service Accounts** → Add. Give it the **Analyst** role (or Consumer for read-only — annotations then fail)
    on only the projects Tangram should see. The connection is shared by the workspace, so every call runs with this account's roles.
 2. Enter the username and secret as the install secrets `mixpanelServiceAccountUsername` / `mixpanelServiceAccountSecret`.
-3. EU / India data residency: set the endpoint override to `https://eu.mixpanel.com` / `https://in.mixpanel.com`.
+3. Set the `projectId` install setting. Every call goes to this project — callers cannot pick another one. Change the setting to switch
+   projects.
+4. EU / India data residency: set the endpoint override to `https://eu.mixpanel.com` / `https://in.mixpanel.com`.
 
 To keep the connector read-only, withhold `Annotation.Create` / `Annotation.Delete` through Tangram action permissions.
