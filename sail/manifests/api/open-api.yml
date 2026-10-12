@@ -44,12 +44,12 @@ paths:
     get:
       operationId: getSailCluster
       tags: [SailService]
-      summary: Get the Sail cluster by name, including its lifecycle status.
+      summary: Get the Sail cluster by name, including its lifecycle status (404 when absent).
       parameters:
         - $ref: '#/components/parameters/name'
       responses:
         '200':
-          description: Cluster record, or null when absent
+          description: Cluster record
           content:
             application/json:
               schema:
@@ -213,8 +213,6 @@ components:
         image:
           type: string
           nullable: true
-        catalogName:
-          type: string
     SailClusterInfo:
       type: object
       required: [name, workspace, spec, status, createdAt]
