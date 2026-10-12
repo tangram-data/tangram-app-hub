@@ -1,0 +1,45 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType    = "ai.tangram/iceberg/Table/v1"
+local viewType     = "ai.tangram/iceberg/View/v1"
+local databaseType = "ai.tangram/iceberg/Database/v1"
+
+// The Sail engine runs Spark SQL (proxy dialect "spark") and addresses this app's REST catalog
+// directly as `iceberg.<database>.<table>`, so reads, writes and DDL are all write-through.
+local sailInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/spark"
+  version = "v1"
+}
+
+local sailLib = new Dynamic { name = "iceberg-sail"; version = "1.0.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = sailInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.sail.IcebergSailSqlQuerySupport"
+    lib       = sailLib
+  }
+}
+
+viewQueryable = new integration.IntegrationImplementation {
+  interface          = sailInterface
+  implementationType = viewType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.sail.IcebergViewSailSqlQuerySupport"
+    lib       = sailLib
+  }
+}
+
+// CREATE/DROP DATABASE write-through (namespace DDL runs inside the REST catalog server).
+databaseQueryable = new integration.IntegrationImplementation {
+  interface          = sailInterface
+  implementationType = databaseType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.sail.IcebergSailSqlQuerySupport"
+    lib       = sailLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, viewQueryable, databaseQueryable)
