@@ -1,0 +1,11 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+// The Kubernetes Service inside the App's installation namespace that implements this API
+// (produced by the sail-service component's AppComponentServiceSpec).
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "sail-service"
+  port = 9898
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open-api.yml"

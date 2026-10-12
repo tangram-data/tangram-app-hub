@@ -1,0 +1,20 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/sail.svg"
+
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
+
+deployment: ui.UIDeployment = new {
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
+}
+
+resourceTypeIcons {
+  ["SailCluster"] = "static/sail.svg"
+}
+
+resourceTypeUri {
+  ["SailCluster"] = "/clusters/{{names[1]}}"
+}

@@ -1,0 +1,6 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+// App state (the cluster record) lives in a platform-managed PostgreSQL database.
+databaseClaim: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "db"
+}

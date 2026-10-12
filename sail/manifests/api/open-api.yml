@@ -1,0 +1,319 @@
+openapi: 3.0.3
+info:
+  title: Sail Service
+  version: 1.0.0
+paths:
+  /api/v1/clusters:
+    post:
+      operationId: initializeSailCluster
+      tags: [SailService]
+      summary: >-
+        Initialize the workspace's single Sail cluster asynchronously; poll GET /clusters/{name}
+        for progress.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializeClusterRequest'
+      responses:
+        '200':
+          description: Cluster record in status Creating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listSailClusters
+      tags: [SailService]
+      summary: List Sail clusters (at most one per app deployment).
+      responses:
+        '200':
+          description: Clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SailClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}:
+    get:
+      operationId: getSailCluster
+      tags: [SailService]
+      summary: Get the Sail cluster by name, including its lifecycle status.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Cluster record, or null when absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailClusterInfo'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteSailCluster
+      tags: [SailService]
+      summary: Decommission the Sail cluster asynchronously (driver, workers, service account, SQL engine).
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Deletion started
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/resources:
+    post:
+      operationId: configureSailCluster
+      tags: [SailService]
+      summary: Update driver resources and the worker pool sizing of an active cluster; the driver is rolled.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourcesRequest'
+      responses:
+        '200':
+          description: Update applied
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/endpoints:
+    get:
+      operationId: getSailClusterEndpoints
+      tags: [SailService]
+      summary: Flight SQL endpoint, SQL engine FN and the engine's service account.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Endpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterEndpoints'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/connection-details:
+    get:
+      operationId: getSailClusterConnectionDetails
+      tags: [SailService]
+      summary: Flight SQL host/port for the SQL proxy (GetConnectionDetails action).
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterConnectionDetails'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances:
+    get:
+      operationId: getSailClusterInstances
+      tags: [SailService]
+      summary: Status of the cluster's driver and worker pods.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Pods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterInstance'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/instances/{pod}/logs:
+    get:
+      operationId: getSailClusterInstanceLogs
+      tags: [SailService]
+      summary: Tail of one driver/worker pod's logs (default 500 lines, capped at 5000).
+      parameters:
+        - $ref: '#/components/parameters/name'
+        - name: pod
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tailLines
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log tail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceLogs'
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    name:
+      name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Error:
+      description: Service error
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    PodResources:
+      type: object
+      required: [cpuMilli, memoryMi]
+      properties:
+        cpuMilli:
+          type: integer
+        memoryMi:
+          type: integer
+    WorkerSpec:
+      type: object
+      required: [maxCount, resources]
+      properties:
+        maxCount:
+          type: integer
+          description: Maximum worker pods spawned on demand; workers are removed when idle.
+        resources:
+          $ref: '#/components/schemas/PodResources'
+        idleSeconds:
+          type: integer
+          default: 60
+        taskSlots:
+          type: integer
+          default: 8
+    SailClusterSpec:
+      type: object
+      required: [name, driver, worker]
+      properties:
+        name:
+          type: string
+        driver:
+          $ref: '#/components/schemas/PodResources'
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+        image:
+          type: string
+          nullable: true
+        catalogName:
+          type: string
+    SailClusterInfo:
+      type: object
+      required: [name, workspace, spec, status, createdAt]
+      properties:
+        name:
+          type: string
+        workspace:
+          type: string
+        spec:
+          $ref: '#/components/schemas/SailClusterSpec'
+        status:
+          type: string
+          enum: [Creating, DeployingSail, Active, Degraded, CreationFailed, Deleting, DeletionFailed]
+        statusMessage:
+          type: string
+          nullable: true
+        serviceAccount:
+          type: string
+          nullable: true
+          description: Tangram service account the engine runs as; admins grant it Iceberg data roles.
+        sqlEngineFn:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    InitializeClusterRequest:
+      type: object
+      required: [driver, worker]
+      properties:
+        driver:
+          $ref: '#/components/schemas/PodResources'
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+        image:
+          type: string
+          nullable: true
+    UpdateResourcesRequest:
+      type: object
+      required: [driver, worker]
+      properties:
+        driver:
+          $ref: '#/components/schemas/PodResources'
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+    ClusterEndpoints:
+      type: object
+      required: [flightSqlPort]
+      properties:
+        flightSqlHost:
+          type: string
+          nullable: true
+        flightSqlPort:
+          type: integer
+        sqlEngineFn:
+          type: string
+          nullable: true
+        serviceAccount:
+          type: string
+          nullable: true
+    ClusterConnectionDetails:
+      type: object
+      required: [host, flightSqlPort, catalog]
+      properties:
+        host:
+          type: string
+        flightSqlPort:
+          type: integer
+        catalog:
+          type: string
+        status:
+          type: string
+          nullable: true
+    ClusterInstance:
+      type: object
+      required: [name, role, phase, ready, restarts]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        phase:
+          type: string
+        ready:
+          type: boolean
+        restarts:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        message:
+          type: string
+          nullable: true
+    InstanceLogs:
+      type: object
+      required: [pod, log]
+      properties:
+        pod:
+          type: string
+        log:
+          type: string

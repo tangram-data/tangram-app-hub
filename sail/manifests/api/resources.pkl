@@ -1,0 +1,116 @@
+import "@tangram-app-manifest/resources.pkl" as resources
+
+local Stateless = resources.Effect.Stateless
+local Reversible = resources.Effect.Reversible
+local Irreversible = resources.Effect.Irreversible
+
+// ---------------------------------------------------------------------------
+// SailCluster (workspace-scoped). superType SQLEngine: the core server registers the cluster as a
+// SQL engine and the SQL proxy fetches its Flight SQL endpoint through GetConnectionDetails.
+// ---------------------------------------------------------------------------
+
+SailCluster = new resources.ResourceTypeDefinition {
+  name = "SailCluster"
+  doc  = "Sail (LakeSail) engine cluster on Kubernetes: one Flight SQL driver with on-demand workers"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  superType = resources.SQL_ENGINE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Initialize the workspace's single Sail cluster (asynchronous, fixed name)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "initializeSailCluster"
+          resourceNameTemplate = "[sail]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get the Sail cluster by name, including lifecycle status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List Sail clusters (at most one per deployment)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listSailClusters"
+          resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Decommission the Sail cluster (asynchronous): driver, workers, engine service account and SQL engine registration."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSailCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Configure"
+        effect = Reversible
+        idempotent = true
+        doc = "Update the driver resources and worker pool sizing of an active cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "configureSailCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetEndpoints"
+        effect = Stateless
+        idempotent = true
+        doc = "Flight SQL endpoint, SQL engine FN and the engine's service account."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailClusterEndpoints"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstances"
+        effect = Stateless
+        idempotent = true
+        doc = "Status of the cluster's driver and worker pods."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailClusterInstances"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetInstanceLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Tail of one driver/worker pod's logs (debugging aid)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailClusterInstanceLogs"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetConnectionDetails"
+        effect = Stateless
+        idempotent = true
+        doc = "Flight SQL host/port — used by the SQL proxy to connect."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailClusterConnectionDetails"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(SailCluster)
