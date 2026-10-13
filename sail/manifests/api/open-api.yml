@@ -161,8 +161,328 @@ paths:
                 $ref: '#/components/schemas/InstanceLogs'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/applications:
+    post:
+      operationId: createSailApplication
+      tags: [SailService]
+      summary: Create a PySpark application (a Tangram folder for its files and a service account for its runs).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SailApplicationSpec'
+      responses:
+        '200':
+          description: The application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailApplication'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listSailApplications
+      tags: [SailService]
+      summary: List the workspace's PySpark applications.
+      responses:
+        '200':
+          description: Applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SailApplication'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}:
+    get:
+      operationId: getSailApplication
+      tags: [SailService]
+      summary: Get an application.
+      parameters:
+        - $ref: '#/components/parameters/app'
+      responses:
+        '200':
+          description: The application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailApplication'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteSailApplication
+      tags: [SailService]
+      summary: Delete an application, its files and its service account (refused while a run is active).
+      parameters:
+        - $ref: '#/components/parameters/app'
+      responses:
+        '200':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/libs:
+    get:
+      operationId: listSailApplicationLibs
+      tags: [SailService]
+      summary: All uploaded lib versions of an application.
+      parameters:
+        - $ref: '#/components/parameters/app'
+      responses:
+        '200':
+          description: Libs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SailAppLib'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/libs/{lib}:
+    delete:
+      operationId: deleteSailApplicationLib
+      tags: [SailService]
+      summary: Delete every version of a lib.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/lib'
+      responses:
+        '200':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/libs/{lib}/versions/{version}:
+    post:
+      operationId: uploadSailApplicationLib
+      tags: [SailService]
+      summary: Upload a new version of a lib (versions are MAJOR.MINOR.PATCH and only increase).
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/lib'
+        - $ref: '#/components/parameters/version'
+        - name: libType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PyFile, Wheel, File]
+        - name: gitRepo
+          in: query
+          schema:
+            type: string
+        - name: gitBranch
+          in: query
+          schema:
+            type: string
+        - name: gitCommit
+          in: query
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: The stored lib version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailAppLib'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteSailApplicationLibVersion
+      tags: [SailService]
+      summary: Delete one version of a lib.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/lib'
+        - $ref: '#/components/parameters/version'
+      responses:
+        '200':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs:
+    post:
+      operationId: runSailApplication
+      tags: [SailService]
+      summary: Submit a run of the application's latest libs as a Kubernetes Job.
+      parameters:
+        - $ref: '#/components/parameters/app'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+      responses:
+        '200':
+          description: The submitted run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailRun'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listSailApplicationRuns
+      tags: [SailService]
+      summary: Runs of an application, newest first (default 50).
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SailRun'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/stats:
+    get:
+      operationId: getSailApplicationRunStats
+      tags: [SailService]
+      summary: Run counts by status and the latest run's status.
+      parameters:
+        - $ref: '#/components/parameters/app'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStats'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/{runId}:
+    get:
+      operationId: getSailApplicationRun
+      tags: [SailService]
+      summary: Get a run.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/runId'
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SailRun'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/{runId}/status:
+    get:
+      operationId: getSailApplicationRunStatus
+      tags: [SailService]
+      summary: Status of a run.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/runId'
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStatus'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/{runId}/cancel:
+    post:
+      operationId: cancelSailApplicationRun
+      tags: [SailService]
+      summary: Cancel a pending or running run.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/runId'
+      responses:
+        '200':
+          description: Cancelled
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/{runId}/logs:
+    get:
+      operationId: getSailApplicationRunLogs
+      tags: [SailService]
+      summary: Logs of a run's pods from the platform log pipeline.
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/runId'
+        - name: component
+          in: query
+          description: run (the driver pod) or run-worker
+          schema:
+            type: string
+        - name: startTimestamp
+          in: query
+          description: epoch seconds
+          schema:
+            type: integer
+            format: int64
+        - name: endTimestamp
+          in: query
+          description: epoch seconds
+          schema:
+            type: integer
+            format: int64
+        - name: maxHits
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunLogs'
+        default:
+          $ref: '#/components/responses/Error'
 components:
   parameters:
+    app:
+      name: app
+      in: path
+      required: true
+      schema:
+        type: string
+    lib:
+      name: lib
+      in: path
+      required: true
+      schema:
+        type: string
+    version:
+      name: version
+      in: path
+      required: true
+      schema:
+        type: string
+    runId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
     name:
       name: name
       in: path
@@ -315,3 +635,180 @@ components:
           type: string
         log:
           type: string
+    LibType:
+      type: string
+      enum: [PyFile, Wheel, File]
+    RunStatus:
+      type: string
+      enum: [Pending, Running, Succeeded, Failed, Cancelled]
+    SailApplicationSpec:
+      type: object
+      required: [name, mainFile]
+      properties:
+        name:
+          type: string
+        mainFile:
+          type: string
+          description: File name of one of the application's PyFile libs
+        args:
+          type: array
+          items:
+            type: string
+        env:
+          type: object
+          additionalProperties:
+            type: string
+        driver:
+          $ref: '#/components/schemas/PodResources'
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+        maxDurationMinutes:
+          type: integer
+        description:
+          type: string
+    SailApplication:
+      type: object
+      required: [name, workspace, spec, folder, createdAt]
+      properties:
+        name:
+          type: string
+        workspace:
+          type: string
+        spec:
+          $ref: '#/components/schemas/SailApplicationSpec'
+        serviceAccount:
+          type: string
+        folder:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    SailAppLib:
+      type: object
+      required: [name, version, fileName, libType, sizeBytes, createdAt]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        fileName:
+          type: string
+        libType:
+          $ref: '#/components/schemas/LibType'
+        sizeBytes:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        gitRepo:
+          type: string
+        gitBranch:
+          type: string
+        gitCommit:
+          type: string
+    RunRequest:
+      type: object
+      properties:
+        args:
+          type: array
+          items:
+            type: string
+        env:
+          type: object
+          additionalProperties:
+            type: string
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+    RunLib:
+      type: object
+      required: [name, version, fileName, libType]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        fileName:
+          type: string
+        libType:
+          $ref: '#/components/schemas/LibType'
+    SailRunSpec:
+      type: object
+      required: [mainFile, args, env, driver, maxDurationMinutes, libs, image]
+      properties:
+        mainFile:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+        env:
+          type: object
+          additionalProperties:
+            type: string
+        driver:
+          $ref: '#/components/schemas/PodResources'
+        worker:
+          $ref: '#/components/schemas/WorkerSpec'
+        maxDurationMinutes:
+          type: integer
+        libs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunLib'
+        image:
+          type: string
+    SailRun:
+      type: object
+      required: [appName, runId, status, spec, submittedAt]
+      properties:
+        appName:
+          type: string
+        runId:
+          type: string
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        spec:
+          $ref: '#/components/schemas/SailRunSpec'
+        submittedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        statusMessage:
+          type: string
+    RunStats:
+      type: object
+      required: [counts]
+      properties:
+        lastRunStatus:
+          $ref: '#/components/schemas/RunStatus'
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+    RunLogEntry:
+      type: object
+      required: [log]
+      properties:
+        timestamp:
+          type: integer
+          format: int64
+        pod:
+          type: string
+        container:
+          type: string
+        log:
+          type: string
+    RunLogs:
+      type: object
+      required: [logs]
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunLogEntry'
