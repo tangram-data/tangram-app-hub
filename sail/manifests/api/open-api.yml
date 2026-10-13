@@ -8,8 +8,7 @@ paths:
       operationId: initializeSailCluster
       tags: [SailService]
       summary: >-
-        Initialize the workspace's single Sail cluster asynchronously; poll GET /clusters/{name}
-        for progress.
+        Create a Sail cluster asynchronously; poll GET /clusters/{name} for progress.
       requestBody:
         required: true
         content:
@@ -28,7 +27,7 @@ paths:
     get:
       operationId: listSailClusters
       tags: [SailService]
-      summary: List Sail clusters (at most one per app deployment).
+      summary: List the workspace's Sail clusters.
       responses:
         '200':
           description: Clusters
@@ -561,15 +560,15 @@ components:
           format: date-time
     InitializeClusterRequest:
       type: object
-      required: [driver, worker]
+      required: [name, driver, worker]
       properties:
+        name:
+          type: string
+          description: DNS-1035 label (lowercase, starts with a letter), at most 40 characters, unique in the workspace.
         driver:
           $ref: '#/components/schemas/PodResources'
         worker:
           $ref: '#/components/schemas/WorkerSpec'
-        image:
-          type: string
-          nullable: true
     UpdateResourcesRequest:
       type: object
       required: [driver, worker]

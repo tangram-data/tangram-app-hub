@@ -39,10 +39,10 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "Create"
         effect = Reversible
         idempotent = false
-        doc = "Initialize the workspace's single Sail cluster (asynchronous, fixed name)."
+        doc = "Create a Sail cluster (asynchronous); the name is the caller's."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "initializeSailCluster"
-          resourceNameTemplate = "[sail]"
+          resourceNameTemplate = "[{{requestBody.name}}]"
         }
       },
       new resources.Action {
@@ -59,7 +59,7 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "List"
         effect = Stateless
         idempotent = true
-        doc = "List Sail clusters (at most one per deployment)."
+        doc = "List the workspace's Sail clusters."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "listSailClusters"
           resourceNameTemplate = "[]"

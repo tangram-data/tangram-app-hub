@@ -6,8 +6,9 @@ deploys one Flight SQL driver that starts worker pods on demand and removes them
 registers the cluster as a SQL engine so it is queryable through the Tangram SQL proxy with any
 PostgreSQL client, from SQL notebooks, dashboards and flows.
 
-The app manages **one cluster per workspace deployment** (fixed name `sail`), deployed into the app's
-own Kubernetes namespace. An idle cluster costs only the driver pod.
+A workspace can run **several clusters**, each with its own name and sizing, all deployed into the
+app's own Kubernetes namespace and each registered as its own SQL engine. An idle cluster costs
+only its driver pod.
 
 ---
 
@@ -29,20 +30,21 @@ these states:
 
 ### What you can do
 
-- **Initialize the cluster** — driver CPU/memory, worker pool sizing (max workers, per-worker
-  CPU/memory, idle timeout, task slots) and optionally a Sail image override.
+- **Create a cluster** — a name (lowercase, starts with a letter, at most 40 characters, unique in
+  the workspace), driver CPU/memory and worker pool sizing (max workers, per-worker CPU/memory,
+  idle timeout, task slots). The engine image is the app's pinned Sail version.
 - **Get the cluster** — including lifecycle status and status messages.
 - **Update resources** — change driver and worker sizing of an Active cluster; the driver is rolled.
 - **Get endpoints** — the Flight SQL endpoint (port 32010, cluster-internal) and the registered SQL
   engine name.
 - **Inspect instances** — status and log tails of the driver and worker pods.
-- **Delete the cluster** — removes the driver, workers, the engine's service account and the SQL
-  engine registration.
+- **Delete a cluster** — removes its driver, workers, service account and SQL engine
+  registration.
 
-### Engine identity and data access
+### Cluster service account and data access
 
-The engine runs as a Tangram **service account** owned by the cluster (shown in the endpoints). It
-is the identity Sail presents to the workspace's Iceberg REST catalog. Before the engine can read or
+Each cluster runs as its own Tangram **service account** (shown on the cluster page). It is the
+identity Sail presents to the workspace's Iceberg REST catalog. Before the engine can read or
 write Iceberg tables, a workspace admin grants that service account the Iceberg app's `reader`
 and/or `writer` roles on the databases it may touch. Users never act as this identity directly:
 every statement goes through the SQL proxy, which checks the user's own dataset privileges before
