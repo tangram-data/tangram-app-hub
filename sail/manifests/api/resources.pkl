@@ -17,6 +17,30 @@ SailCluster = new resources.ResourceTypeDefinition {
   superType = resources.SQL_ENGINE_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true; superTypeVersion = "v1"
+    // Grantable per-cluster roles (same shape as the Iceberg app's owner / maintainer / viewer).
+    // `viewer` is what a SQL user needs: the proxy connects through GetConnectionDetails.
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List(
+          "Create", "Get", "List", "Delete", "Configure",
+          "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
+        )
+        description = "Full control over the cluster — initialize, configure, decommission, inspect."
+      },
+      new resources.Role {
+        name = "maintainer"
+        permissions = List(
+          "Get", "List", "Configure", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
+        )
+        description = "Configure sizing and inspect pods and logs. Cannot initialize or decommission the cluster."
+      },
+      new resources.Role {
+        name = "viewer"
+        permissions = List("Get", "List", "GetEndpoints", "GetInstances", "GetConnectionDetails")
+        description = "Read-only — see the cluster, its endpoints and pods, and query it through the SQL proxy."
+      }
+    )
     actions = List(
       new resources.Action {
         name = "Create"
@@ -126,6 +150,36 @@ SailApplication = new resources.ResourceTypeDefinition {
   scopeType = resources.WORKSPACE_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true
+    // Grantable per-application roles: owner / maintainer (code + runs) / runner (runs only) / viewer.
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List(
+          "Create", "Get", "List", "Delete",
+          "UpdateLib", "ListLib", "DeleteLib", "DeleteLibVersion",
+          "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs"
+        )
+        description = "Full control over the application — files, runs, deletion."
+      },
+      new resources.Role {
+        name = "maintainer"
+        permissions = List(
+          "Get", "List", "UpdateLib", "ListLib", "DeleteLib", "DeleteLibVersion",
+          "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs"
+        )
+        description = "Upload and remove files, submit and cancel runs, read logs. Cannot delete the application."
+      },
+      new resources.Role {
+        name = "runner"
+        permissions = List("Get", "List", "ListLib", "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs")
+        description = "Submit, cancel and follow runs of the application as it is. Cannot change its files."
+      },
+      new resources.Role {
+        name = "viewer"
+        permissions = List("Get", "List", "ListLib", "ListRuns", "GetRunStats", "GetRunLogs")
+        description = "Read-only — see the application, its files, runs and logs."
+      }
+    )
     actions = List(
       new resources.Action {
         name = "Create"
