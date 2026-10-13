@@ -48,6 +48,53 @@ and/or `writer` roles on the databases it may touch. Users never act as this ide
 every statement goes through the SQL proxy, which checks the user's own dataset privileges before
 forwarding it.
 
+## Applications (PySpark jobs)
+
+Besides the interactive cluster, the app runs **PySpark applications as batch jobs**. An
+application is a `SailApplication` resource of the workspace; it owns a folder for its files and a
+service account its runs use to reach the Iceberg catalog.
+
+### Define an application
+
+- **Name** — lowercase letters, digits and dashes.
+- **Main file** — the file name of the Python file that starts the job, e.g. `main.py`.
+- **Arguments and environment** — passed to every run as `sys.argv` and env (a run can override both).
+- **Driver sizing** and **max duration** — the run pod; a run that exceeds the duration is failed.
+- **Workers** (optional) — without workers the job runs inside the driver pod (local mode). With
+  workers, the pod becomes the job's driver and starts up to *max workers* pods on demand; *max
+  workers × task slots* must cover the job's partitions.
+
+### Files
+
+Upload the application's files as versioned **libs**: `PyFile` (Python sources, placed in the run's
+working directory so they import each other), `Wheel` (installed with pip before the job starts) or
+`File` (copied as-is). Versions are `MAJOR.MINOR.PATCH` and only increase; a run always takes the
+**latest version of each lib**. Record the git repository, branch and commit with an upload to keep
+provenance. A version referenced by an active run cannot be deleted until the run ends.
+
+Files are stored in a Tangram folder on the app's bucket, owned by the application: whoever may
+run or update the application can read or write its files through the platform too.
+
+### Runs
+
+- **Run** — starts a Kubernetes Job in the app's namespace; optional per-run arguments, environment
+  and worker sizing. The job's `spark` session is ready when the main file starts; Iceberg tables are
+  reachable as `iceberg.<database>.<table>` with the application's service account (grant it the
+  Iceberg app's `reader`/`writer` roles first).
+- **Status** — `Pending` → `Running` → `Succeeded` / `Failed` / `Cancelled`, with a status message.
+- **Cancel** — stops the Job and its workers at once.
+- **Logs** — driver and worker logs of a run, from the platform's log pipeline.
+- **Stats** — the last run's status and run counts per status.
+
+### What you can do
+
+| Action on `SailApplication` | What it allows |
+|---|---|
+| `Create`, `Get`, `List` | create an application; read and list applications and their files |
+| `UpdateLib`, `ListLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; delete a lib or one of its versions |
+| `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
+| `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
+
 ## Querying
 
 The Active cluster is registered as a SQL engine. Connect through the Tangram SQL proxy with any
