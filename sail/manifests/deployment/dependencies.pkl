@@ -4,3 +4,8 @@ import "@tangram-app-manifest/infra.pkl" as infra
 databaseClaim: infra.PostgresqlDatabaseClaim = new {
   resourceName = "db"
 }
+
+// Application files (uploaded libs) live in Tangram folders on this bucket.
+bucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "storageBucket"
+}

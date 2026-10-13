@@ -113,4 +113,165 @@ SailCluster = new resources.ResourceTypeDefinition {
   })
 }
 
-types: List<resources.ResourceTypeDefinition> = List(SailCluster)
+// ---------------------------------------------------------------------------
+// SailApplication (workspace-scoped): a PySpark application whose files live in a Tangram folder
+// owned by this resource and whose runs execute as its service account (Kubernetes Jobs running
+// `sail spark run`). The run-files endpoint is called by run pods only and is not an action.
+// ---------------------------------------------------------------------------
+
+SailApplication = new resources.ResourceTypeDefinition {
+  name = "SailApplication"
+  doc  = "PySpark application run on Sail: uploaded files, on-demand Kubernetes Job runs, logs"
+  activeVersion = "v1"
+  scopeType = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true
+    actions = List(
+      new resources.Action {
+        name = "Create"
+        effect = Reversible
+        idempotent = false
+        doc = "Create a PySpark application (folder + service account)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "createSailApplication"
+          resourceNameTemplate = "[{{requestBody.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Get"
+        effect = Stateless
+        idempotent = true
+        doc = "Get an application or one of its runs."
+        openApiMappings = List(
+          new resources.OpenApiMapping {
+            operationId = "getSailApplication"
+            resourceNameTemplate = "[{{parameters.app}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "getSailApplicationRun"
+            resourceNameTemplate = "[{{parameters.app}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "getSailApplicationRunStatus"
+            resourceNameTemplate = "[{{parameters.app}}]"
+          }
+        )
+      },
+      new resources.Action {
+        name = "List"
+        effect = Stateless
+        idempotent = true
+        doc = "List applications."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listSailApplications"
+          resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "Delete"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete an application, its files and its service account."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSailApplication"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "UpdateLib"
+        effect = Reversible
+        idempotent = false
+        doc = "Upload a new version of an application file."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "uploadSailApplicationLib"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListLib"
+        effect = Stateless
+        idempotent = true
+        doc = "List the application's uploaded files."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listSailApplicationLibs"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "DeleteLib"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete every version of an application file."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSailApplicationLib"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "DeleteLibVersion"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Delete one version of an application file."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "deleteSailApplicationLibVersion"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "Run"
+        effect = Reversible
+        idempotent = false
+        doc = "Submit a run of the application as a Kubernetes Job."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "runSailApplication"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListRuns"
+        effect = Stateless
+        idempotent = true
+        doc = "List runs of the application."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listSailApplicationRuns"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetRunStats"
+        effect = Stateless
+        idempotent = true
+        doc = "Run counts by status."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailApplicationRunStats"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "CancelRun"
+        effect = Reversible
+        idempotent = true
+        doc = "Cancel a pending or running run."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "cancelSailApplicationRun"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetRunLogs"
+        effect = Stateless
+        idempotent = true
+        doc = "Logs of a run's pods."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailApplicationRunLogs"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(SailCluster, SailApplication)

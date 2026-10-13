@@ -13,8 +13,10 @@ deployment: ui.UIDeployment = new {
 
 resourceTypeIcons {
   ["SailCluster"] = "static/sail.svg"
+  ["SailApplication"] = "static/sail.svg"
 }
 
 resourceTypeUri {
   ["SailCluster"] = "/clusters/{{names[1]}}"
+  ["SailApplication"] = "/applications/{{names[1]}}"
 }
