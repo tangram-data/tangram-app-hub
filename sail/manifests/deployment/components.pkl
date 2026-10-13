@@ -31,6 +31,8 @@ sailManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
         "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
         "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
+        // Sail build with Iceberg REST vended credentials (fork branch feat/iceberg-vended-credentials).
+        "SAIL_IMAGE", "ghcr.io/tangram-data/sail:0.7.2-vended.1",
         "SAIL_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
         "SAIL_APP_JDBC_USER", dbSecrets.user,
         "SAIL_APP_JDBC_PASSWORD", new deployment.SecretValue {
