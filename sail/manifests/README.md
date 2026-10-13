@@ -31,7 +31,7 @@ these states:
 ### What you can do
 
 - **Create a cluster** — a name (lowercase, starts with a letter, at most 40 characters, unique in
-  the workspace), driver CPU/memory and worker pool sizing (max workers, per-worker CPU/memory,
+  the workspace, not containing `-driver` or `-worker`), driver CPU/memory and worker pool sizing (max workers, per-worker CPU/memory,
   idle timeout, task slots). The engine image is the app's pinned Sail version.
 - **Get the cluster** — including lifecycle status and status messages.
 - **Update resources** — change driver and worker sizing of an Active cluster; the driver is rolled.

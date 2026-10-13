@@ -564,7 +564,7 @@ components:
       properties:
         name:
           type: string
-          description: DNS-1035 label (lowercase, starts with a letter), at most 40 characters, unique in the workspace.
+          description: DNS-1035 label (lowercase, starts with a letter), at most 40 characters, unique in the workspace; must not contain '-driver' or '-worker'.
         driver:
           $ref: '#/components/schemas/PodResources'
         worker:
