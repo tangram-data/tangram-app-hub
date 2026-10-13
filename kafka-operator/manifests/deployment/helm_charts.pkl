@@ -43,6 +43,6 @@ charts: List<deployment.HelmChart> =
           resources = List("kafkaconnects", "kafkaconnectors")
           // patch: pause/resume merge-patches only the connector's spec.state.
           verbs = List("create", "get", "list", "update", "patch", "delete")
-        },
+        }
       )
   })

@@ -17,17 +17,10 @@ SailCluster = new resources.ResourceTypeDefinition {
   superType = resources.SQL_ENGINE_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true; superTypeVersion = "v1"
-    // Grantable per-cluster roles (same shape as the Iceberg app's owner / maintainer / viewer).
+    // Grantable per-cluster roles (same shape as the Iceberg app's maintainer / viewer; no owner preset —
+    // initializing and decommissioning stay with the workspace admin).
     // `viewer` is what a SQL user needs: the proxy connects through GetConnectionDetails.
     presetRoles = List(
-      new resources.Role {
-        name = "owner"
-        permissions = List(
-          "Create", "Get", "List", "Delete", "Configure",
-          "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
-        )
-        description = "Full control over the cluster — initialize, configure, decommission, inspect."
-      },
       new resources.Role {
         name = "maintainer"
         permissions = List(
@@ -150,17 +143,9 @@ SailApplication = new resources.ResourceTypeDefinition {
   scopeType = resources.WORKSPACE_TYPE
   versions = List(new resources.ResourceTypeVersion {
     version = "v1"; served = true
-    // Grantable per-application roles: owner / maintainer (code + runs) / runner (runs only) / viewer.
+    // Grantable per-application roles: maintainer (code + runs) / runner (runs only) / viewer; no owner preset —
+    // creating and deleting applications stay with the workspace admin.
     presetRoles = List(
-      new resources.Role {
-        name = "owner"
-        permissions = List(
-          "Create", "Get", "List", "Delete",
-          "UpdateLib", "ListLib", "DeleteLib", "DeleteLibVersion",
-          "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs"
-        )
-        description = "Full control over the application — files, runs, deletion."
-      },
       new resources.Role {
         name = "maintainer"
         permissions = List(

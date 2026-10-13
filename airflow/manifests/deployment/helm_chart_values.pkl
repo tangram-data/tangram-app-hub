@@ -84,8 +84,9 @@ local otelPort = "4318"
 
 // Top-level `values` — rendered to YAML and passed to `helm upgrade --values`.
 values = new Dynamic {
-  // ServiceBackend requires this stable rendered Service name. Tangram also
-  // forces the Helm release into the App's derived installation namespace.
+  // The chart ignores fullnameOverride unless useStandardNaming=true; the stable
+  // "airflow-*" resource names actually come from Tangram's Helm release name
+  // (the chart name), which planning and deploy both use. Kept for safety.
   fullnameOverride = "airflow"
 
   executor = "KubernetesExecutor"
