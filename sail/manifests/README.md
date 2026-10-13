@@ -48,14 +48,6 @@ and/or `writer` roles on the databases it may touch. Users never act as this ide
 every statement goes through the SQL proxy, which checks the user's own dataset privileges before
 forwarding it.
 
-### Security
-
-Sail has no client authentication. The Flight SQL endpoint is reachable only from the platform
-namespace (the SQL proxy) and the app's own namespace, and is never exposed through the UI. The
-driver runs under the platform's restricted workload service account and spawns workers under an
-unprivileged worker account; a cluster-wide admission policy prevents those pods from mounting
-Secrets or escalating privileges.
-
 ## Querying
 
 The Active cluster is registered as a SQL engine. Connect through the Tangram SQL proxy with any
