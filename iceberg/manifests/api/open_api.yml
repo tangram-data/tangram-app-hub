@@ -1112,6 +1112,37 @@ paths:
                 $ref: '#/components/schemas/ErrorResponseScala'
       security:
         - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}/dataset-schema:
+    get:
+      tags:
+        - Catalog API
+      summary: The table's current schema as registered in the dataset registry (raw schema and flattened fields)
+      operationId: loadTableDatasetSchema
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
   /v1/namespaces/{namespace}/tables/{table}/snapshots:
     get:
       tags:

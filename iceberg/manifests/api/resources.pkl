@@ -206,6 +206,20 @@ Table = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping { operationId = "loadTableCredentials" }
       },
       new resources.Action {
+        name       = "GetSchema"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns the table's current schema in the dataset registry's shape (raw Iceberg schema plus flattened fields). Used by the SQL proxy to register a schema version after an engine ran ALTER TABLE."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "loadTableDatasetSchema"
+          resourceName = List(
+            new resources.PathParam { name = "namespace" },
+            new resources.PathParam { name = "table" }
+          )
+        }
+      },
+      new resources.Action {
         name       = "GetSnapshots"
         privilege  = "Describe"
         effect     = "Stateless"
