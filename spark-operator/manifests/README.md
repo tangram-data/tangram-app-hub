@@ -1,6 +1,6 @@
 # Spark — User Guide
 
-The Spark app runs [Apache Spark](https://spark.apache.org) 4.0 on the platform's own Kubernetes
+The Spark app runs [Apache Spark](https://spark.apache.org) 4.1 on the platform's own Kubernetes
 cluster, in the app's namespace — no separate cluster to provision. It offers two ways to use
 Spark over the workspace's Iceberg lakehouse:
 
