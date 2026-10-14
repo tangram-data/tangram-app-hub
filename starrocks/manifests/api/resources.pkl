@@ -74,6 +74,26 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "Stop"
+        effect = Reversible
+        idempotent = false
+        doc = "Stop the cluster: compute scales to zero (the FE stays up); SQL connections do not resume it."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "stopStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Start"
+        effect = Reversible
+        idempotent = false
+        doc = "Start a stopped or idle-suspended cluster (asynchronous)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "startStarRocksCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "GetEndpoints"
         effect = Stateless
         idempotent = true

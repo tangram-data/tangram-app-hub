@@ -54,6 +54,32 @@ paths:
           description: Deletion started
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/stop:
+    post:
+      operationId: stopStarRocksCluster
+      tags: [StarRocksService]
+      summary: >-
+        Stop the cluster: compute scales to zero (the FE stays up); SQL connections do not resume
+        it until it is started again.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Stopped
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/start:
+    post:
+      operationId: startStarRocksCluster
+      tags: [StarRocksService]
+      summary: Start a stopped or idle-suspended cluster; poll GET /clusters/{name} until Active.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Start requested
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/scale:
     post:
       operationId: scaleStarRocksCluster
@@ -572,8 +598,12 @@ components:
           type: string
           nullable: true
           description: >-
-            Cluster lifecycle status at fetch time. Fetching the details wakes a Suspended
+            Cluster lifecycle status at fetch time. Fetching the details wakes an idle-suspended
             cluster; callers should poll this endpoint until Active before connecting.
+        stoppedByUser:
+          type: boolean
+          nullable: true
+          description: Suspended by a user's Stop; connections do not resume it.
     ClusterInstance:
       type: object
       description: One FE/CN/BE pod of a cluster; message carries a waiting reason (e.g. CrashLoopBackOff).
