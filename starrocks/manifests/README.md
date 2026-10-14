@@ -28,7 +28,7 @@ these states:
 | `DeployingStarRocks` | StarRocks FE/CN components are rolling out |
 | `Active` | Ready — SQL engine registered, endpoints available |
 | `Degraded` | A component reports failure; check the status message |
-| `Suspended` | Compute scaled to zero after the idle timeout; resumes on the next SQL connection |
+| `Suspended` | Compute scaled to zero — after the idle timeout (resumes on the next SQL query) or by a user's Stop (stays stopped until started) |
 | `Resuming` | Compute scaling back up after a suspend; flips to `Active` once nodes are ready |
 | `CreationFailed` | Creation failed — see the status message |
 | `Deleting` / `DeletionFailed` | Asynchronous deletion in progress / failed |
@@ -36,10 +36,13 @@ these states:
 ### What you can do
 
 - **Initialize the cluster** — FE replicas (1 or 3) and sizing, compute sizing with either a fixed
-  replica count or autoscaling, and an optional idle-suspend timeout.
+  replica count or autoscaling, and an optional auto-stop (idle) timeout.
 - **Get the cluster** — including lifecycle status and status messages.
-- **Update resources** — change FE/compute sizing, autoscaling, and idle-suspend settings of an
+- **Update resources** — change FE/compute sizing, autoscaling, and the auto-stop timeout of an
   Active cluster; the operator rolls the change out.
+- **Stop / Start** — stop releases compute (the FE stays up) until someone starts the cluster
+  again; SQL queries do not wake a cluster a user stopped. Start brings compute back (also for an
+  idle-stopped cluster).
 - **Scale compute** — change the CN replica count of an Active cluster. Rejected while autoscaling
   is enabled (the autoscaler owns the count — adjust the min/max range instead).
 - **Get endpoints** — the FE MySQL endpoint (port 9030), FE HTTP endpoint (port 8030), and the
@@ -56,13 +59,15 @@ on CPU utilization (configurable target). Scale-to-zero via autoscaling is not s
 minimum is 1 instance. New CN nodes start with a cold data cache, so expect briefly slower queries
 right after a scale-out.
 
-### Suspend when idle
+### Auto-stop when idle
 
-With an idle timeout configured, the app watches query activity and scales compute to zero after
-the timeout (status `Suspended`). The FE stays up, so the catalog remains browsable and metadata
-queries keep working — only data-scanning compute is released. The next SQL connection wakes the
-cluster automatically; the first connection blocks while compute comes back (typically 1–3
-minutes), then queries run normally.
+With an idle timeout configured, the app watches query activity (and active routine loads) and
+scales compute to zero after the timeout (status `Suspended`). The FE stays up, so the catalog
+remains browsable and metadata queries keep working — only data-scanning compute is released. The
+next SQL query wakes the cluster automatically: the session opens at once and its first statement
+waits while compute comes back (typically 1–3 minutes, within the query's timeout), then queries
+run normally. A cluster stopped with **Stop** is not woken by queries; they fail with a message to
+start it.
 
 ## Querying
 
