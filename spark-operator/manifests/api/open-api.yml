@@ -103,6 +103,11 @@ paths:
       summary: Start a stopped cluster asynchronously; poll GET /clusters/{name} until Active.
       parameters:
         - $ref: '#/components/parameters/name'
+        - name: onlyIfAutoStopped
+          in: query
+          description: Start only a cluster that auto-stop stopped (the SQL proxy waking an idle cluster).
+          schema:
+            type: boolean
       responses:
         '200':
           description: Start requested
@@ -140,6 +145,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClusterEndpoints'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/connection-details:
+    get:
+      operationId: getSparkClusterConnectionDetails
+      tags: [SparkService]
+      summary: Spark Connect host/port for the SQL proxy (GetConnectionDetails action).
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterConnectionDetails'
         default:
           $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/instances:
@@ -653,6 +674,25 @@ components:
         serviceAccount:
           type: string
           nullable: true
+    ClusterConnectionDetails:
+      type: object
+      required: [host, connectPort, catalog]
+      properties:
+        host:
+          type: string
+        connectPort:
+          type: integer
+        catalog:
+          type: string
+        status:
+          type: string
+          nullable: true
+        statusMessage:
+          type: string
+          nullable: true
+        autoStopped:
+          type: boolean
+          description: Stopped for idleness; the SQL proxy starts such a cluster on demand.
     ClusterInstance:
       type: object
       required: [name, role, phase, ready, restarts]

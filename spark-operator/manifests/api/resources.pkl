@@ -14,22 +14,25 @@ SparkCluster = new resources.ResourceTypeDefinition {
   doc  = "Apache Spark cluster on the platform's Kubernetes: a Spark Connect driver with on-demand executors"
   activeVersion = "v1"
   scopeType = resources.WORKSPACE_TYPE
+  // A SQL engine: the core server registers each cluster as one and the SQL proxy reaches it over
+  // Spark Connect through GetConnectionDetails.
+  superType = resources.SQL_ENGINE_TYPE
   versions = List(new resources.ResourceTypeVersion {
-    version = "v1"; served = true
+    version = "v1"; served = true; superTypeVersion = "v1"
     // Grantable per-cluster roles (same shape as the Iceberg app's maintainer / viewer; no owner preset —
     // initializing and decommissioning stay with the workspace admin).
     presetRoles = List(
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs"
+          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
         )
         description = "Configure sizing and auto-stop, stop and start, inspect pods and logs. Cannot initialize or decommission the cluster."
       },
       new resources.Role {
         name = "viewer"
-        permissions = List("Get", "List", "GetEndpoints", "GetInstances")
-        description = "Read-only — see the cluster, its Spark Connect endpoint and pods."
+        permissions = List("Get", "List", "GetEndpoints", "GetInstances", "GetConnectionDetails")
+        description = "Read-only — see the cluster, its endpoints and pods, and query it through the SQL proxy."
       }
     )
     actions = List(
@@ -127,6 +130,16 @@ SparkCluster = new resources.ResourceTypeDefinition {
         doc = "Status of the cluster's driver and executor pods."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getSparkClusterInstances"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetConnectionDetails"
+        effect = Stateless
+        idempotent = true
+        doc = "Spark Connect host/port — used by the SQL proxy to connect."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkClusterConnectionDetails"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },

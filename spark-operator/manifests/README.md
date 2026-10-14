@@ -82,6 +82,15 @@ default catalog); storage credentials are vended per table by the catalog. Befor
 read or write Iceberg tables, a workspace admin grants that service account the Iceberg app's
 `reader` and/or `writer` roles on the databases it may touch.
 
+## Querying with SQL
+
+Each cluster is registered as a SQL engine of the workspace. Connect through the Tangram SQL proxy
+with any PostgreSQL client, or pick the engine in a SQL notebook, dashboard or component, and run
+Spark SQL against Iceberg tables (`database.table`); the proxy forwards statements over Spark
+Connect after checking the user's own dataset privileges. Bound parameters are supported. A
+cluster stopped for idleness starts on the first query (the query waits, typically a minute or
+two); one a user stopped stays stopped and queries fail until it is started.
+
 ## Applications (batch jobs)
 
 An application is a `SparkApplication` resource of the workspace; it owns a folder for its files
