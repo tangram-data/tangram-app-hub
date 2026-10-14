@@ -84,6 +84,48 @@ paths:
           description: Update applied
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/stop:
+    post:
+      operationId: stopSparkCluster
+      tags: [SparkService]
+      summary: Stop the cluster; the driver goes to zero replicas and its pods stop. Start it again later.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Stopped
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/start:
+    post:
+      operationId: startSparkCluster
+      tags: [SparkService]
+      summary: Start a stopped cluster asynchronously; poll GET /clusters/{name} until Active.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Start requested
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/auto-stop:
+    post:
+      operationId: configureSparkClusterAutoStop
+      tags: [SparkService]
+      summary: Turn auto-stop on (idle minutes without Spark jobs) or off; the driver is not restarted.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAutoStopRequest'
+      responses:
+        '200':
+          description: Auto-stop updated
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/endpoints:
     get:
       operationId: getSparkClusterEndpoints
@@ -521,6 +563,8 @@ components:
           $ref: '#/components/schemas/ExecutorSpec'
         sparkConf:
           $ref: '#/components/schemas/SparkConf'
+        autoStop:
+          $ref: '#/components/schemas/AutoStopSpec'
         image:
           type: string
           nullable: true
@@ -536,7 +580,7 @@ components:
           $ref: '#/components/schemas/SparkClusterSpec'
         status:
           type: string
-          enum: [Creating, DeployingSpark, Active, Degraded, CreationFailed, Deleting, DeletionFailed]
+          enum: [Creating, DeployingSpark, Active, Degraded, Stopped, Starting, CreationFailed, Deleting, DeletionFailed]
         statusMessage:
           type: string
           nullable: true
@@ -547,6 +591,11 @@ components:
         createdAt:
           type: string
           format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last activity seen by the manager (Active clusters only).
     InitializeClusterRequest:
       type: object
       required: [name, driver, executor]
@@ -560,6 +609,23 @@ components:
           $ref: '#/components/schemas/ExecutorSpec'
         sparkConf:
           $ref: '#/components/schemas/SparkConf'
+        autoStop:
+          $ref: '#/components/schemas/AutoStopSpec'
+    AutoStopSpec:
+      type: object
+      required: [idleMinutes]
+      properties:
+        idleMinutes:
+          type: integer
+          description: Stop the cluster after this many minutes without Spark jobs (5 to 10080).
+    UpdateAutoStopRequest:
+      type: object
+      properties:
+        autoStop:
+          allOf:
+            - $ref: '#/components/schemas/AutoStopSpec'
+          nullable: true
+          description: Absent or null turns auto-stop off.
     UpdateResourcesRequest:
       type: object
       required: [driver, executor]

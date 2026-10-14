@@ -24,9 +24,9 @@ SailCluster = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "Configure", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
+          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
         )
-        description = "Configure sizing and inspect pods and logs. Cannot initialize or decommission the cluster."
+        description = "Configure sizing and auto-stop, stop and start, inspect pods and logs. Cannot initialize or decommission the cluster."
       },
       new resources.Role {
         name = "viewer"
@@ -80,9 +80,35 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "Configure"
         effect = Reversible
         idempotent = true
-        doc = "Update the driver resources and worker pool sizing of an active cluster."
+        doc = "Update the cluster's sizing (rolls the driver) or its auto-stop setting (no restart)."
+        openApiMappings = List(
+          new resources.OpenApiMapping {
+            operationId = "configureSailCluster"
+            resourceNameTemplate = "[{{parameters.name}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "configureSailClusterAutoStop"
+            resourceNameTemplate = "[{{parameters.name}}]"
+          }
+        )
+      },
+      new resources.Action {
+        name = "Stop"
+        effect = Reversible
+        idempotent = false
+        doc = "Stop the cluster: the driver goes to zero replicas and its pods stop; start it again later."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "configureSailCluster"
+          operationId = "stopSailCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Start"
+        effect = Reversible
+        idempotent = false
+        doc = "Start a stopped cluster (asynchronous)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "startSailCluster"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },

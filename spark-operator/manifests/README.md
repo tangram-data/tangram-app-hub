@@ -26,6 +26,8 @@ Creating a cluster is asynchronous. After you request it, the cluster moves thro
 | `DeployingSpark` | The driver is rolling out |
 | `Active` | Ready — the Spark Connect endpoint is available |
 | `Degraded` | The driver pod is not ready; check the status message |
+| `Stopped` | Stopped by a user or by auto-stop; no pods run until it is started again |
+| `Starting` | A start was requested; the driver is coming back |
 | `CreationFailed` | Creation failed — see the status message |
 | `Deleting` / `DeletionFailed` | Asynchronous deletion in progress / failed |
 
@@ -42,6 +44,11 @@ Creating a cluster is asynchronous. After you request it, the cluster moves thro
   reachable inside the Kubernetes cluster only) and the Spark UI.
 - **Spark UI** — the live driver UI (jobs, stages, SQL, executors), served by the app.
 - **Inspect instances** — status and log tails of the driver and executor pods.
+- **Stop / start** — stopping scales the driver to zero and stops its executors; nothing runs (and
+  nothing is billed for compute) until you start it again. Starting renews the cluster's token and
+  brings the driver back with the current sizing. Sizing can be changed while stopped.
+- **Auto-stop** — optional, per cluster: stop the cluster after a chosen idle time (5 minutes to
+  7 days) during which no Spark job ran or finished (Spark Connect sessions alone do not count). Changing auto-stop does not restart the cluster.
 - **Delete a cluster** — removes its driver, executors and service account.
 
 ```python

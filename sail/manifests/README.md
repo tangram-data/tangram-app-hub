@@ -25,6 +25,8 @@ these states:
 | `DeployingSail` | The driver is rolling out |
 | `Active` | Ready — SQL engine registered, Flight SQL endpoint available |
 | `Degraded` | The driver pod is not ready; check the status message |
+| `Stopped` | Stopped by a user or by auto-stop; no pods run until it is started again |
+| `Starting` | A start was requested; the driver is coming back |
 | `CreationFailed` | Creation failed — see the status message |
 | `Deleting` / `DeletionFailed` | Asynchronous deletion in progress / failed |
 
@@ -38,6 +40,11 @@ these states:
 - **Get endpoints** — the Flight SQL endpoint (port 32010, cluster-internal) and the registered SQL
   engine name.
 - **Inspect instances** — status and log tails of the driver and worker pods.
+- **Stop / start** — stopping scales the driver to zero and stops its workers; nothing runs (and
+  nothing is billed for compute) until you start it again. Starting renews the cluster's token and
+  brings the driver back with the current sizing. Sizing can be changed while stopped.
+- **Auto-stop** — optional, per cluster: stop the cluster after a chosen idle time (5 minutes to
+  7 days) during which no worker pod ran (workers start for distributed queries and tasks; a cluster with 0 max workers counts as always idle). Changing auto-stop does not restart the cluster.
 - **Delete a cluster** — removes its driver, workers, service account and SQL engine
   registration.
 

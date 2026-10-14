@@ -22,9 +22,9 @@ SparkCluster = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "Configure", "GetEndpoints", "GetInstances", "GetInstanceLogs"
+          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs"
         )
-        description = "Configure sizing and inspect pods and logs. Cannot initialize or decommission the cluster."
+        description = "Configure sizing and auto-stop, stop and start, inspect pods and logs. Cannot initialize or decommission the cluster."
       },
       new resources.Role {
         name = "viewer"
@@ -78,9 +78,35 @@ SparkCluster = new resources.ResourceTypeDefinition {
         name = "Configure"
         effect = Reversible
         idempotent = true
-        doc = "Update the driver resources, executor sizing and Spark settings of an active cluster."
+        doc = "Update the cluster's sizing (rolls the driver) or its auto-stop setting (no restart)."
+        openApiMappings = List(
+          new resources.OpenApiMapping {
+            operationId = "configureSparkCluster"
+            resourceNameTemplate = "[{{parameters.name}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "configureSparkClusterAutoStop"
+            resourceNameTemplate = "[{{parameters.name}}]"
+          }
+        )
+      },
+      new resources.Action {
+        name = "Stop"
+        effect = Reversible
+        idempotent = false
+        doc = "Stop the cluster: the driver goes to zero replicas and its pods stop; start it again later."
         openApiMapping = new resources.OpenApiMapping {
-          operationId = "configureSparkCluster"
+          operationId = "stopSparkCluster"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "Start"
+        effect = Reversible
+        idempotent = false
+        doc = "Start a stopped cluster (asynchronous)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "startSparkCluster"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },
