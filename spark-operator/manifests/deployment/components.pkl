@@ -5,45 +5,41 @@ import "@tangram-app-manifest/deployment-runtime.pkl" as deploymentRuntime
 local database = deps.databaseClaim.database()
 local dbSecrets = deps.databaseClaim.secrets()
 local storageBucket = deps.bucketClaim.bucket()
-local storageBucketSecrets = deps.bucketClaim.secrets()
 
 @deployment.AppComponentMeta {
-  name = "spark-operator-service"
-  recommendedReplica = 3
+  name = "spark-service"
+  recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
-    name = "spark-operator-server"
-    image = "ghcr.io/tangram-data/tangram-spark:0.1.0"
+    name = "spark-server"
+    image = "ghcr.io/tangram-data/tangram-spark-server:0.1.0"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
     metrics = new deployment.OtlpMetrics {}
   }
 }
-sparkOperatorManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
+sparkManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
   service = new deployment.AppComponentServiceSpec {
-    port = 8080
-    targetPort = 8080
+    port = 9898
+    targetPort = 9898
     protocol = "TCP"
   }
   containers = List(
     new deployment.AppContainerSpec {
-      ports = List(8080)
+      ports = List(9898)
       variables = Map(
-        "TANGRAM_APP_DEPLOYMENT_ID", deploymentRuntime.context.id,
-        "CLOUD_PROVIDER", deploymentRuntime.context.cloudProvider,
-        "BUCKET_NAME", storageBucket.name,
-        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
-        "TANGRAM_OS_WORKSPACE", deploymentRuntime.context.workspace,
+        "SERVER_PORT", "9898",
+        "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
         "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
-        "SPARK_OPERATOR_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
-        "SPARK_OPERATOR_JDBC_USER", dbSecrets.user,
-        "SPARK_OPERATOR_JDBC_PASSWORD", new deployment.SecretValue {
+        "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
+        // Apache Spark 4.0 + Iceberg runtime/bundles + token-file REST auth + entry helper (docker/spark).
+        "SPARK_IMAGE", "ghcr.io/tangram-data/spark:4.0.2-tangram.1",
+        "BUCKET_NAME", storageBucket.name,
+        "SPARK_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
+        "SPARK_APP_JDBC_USER", dbSecrets.user,
+        "SPARK_APP_JDBC_PASSWORD", new deployment.SecretValue {
           value = dbSecrets.password
-        },
-        "QUICKWIT_S3_BUCKET", storageBucket.name,
-        "QUICKWIT_S3_REGION", storageBucket.region ?? "us-east-1",
-        "QUICKWIT_S3_ACCESS_KEY", storageBucketSecrets.accessKey,
-        "QUICKWIT_S3_SECRET_KEY", storageBucketSecrets.secretKey ?? ""
+        }
       )
     }
   )

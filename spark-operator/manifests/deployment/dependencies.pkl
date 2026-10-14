@@ -1,11 +1,11 @@
 import "@tangram-app-manifest/infra.pkl" as infra
 
-// Exact shared claim classes; this registration-safe module exports claims only.
-// Runtime modules (components.pkl) import the claims and resolve outputs.
+// App state (the cluster record) lives in a platform-managed PostgreSQL database.
 databaseClaim: infra.PostgresqlDatabaseClaim = new {
   resourceName = "db"
 }
 
+// Application files (uploaded libs) live in Tangram folders on this bucket.
 bucketClaim: infra.StorageBucketClaim = new {
   resourceName = "storageBucket"
 }

@@ -1,144 +1,125 @@
-# Spark Operator — User Guide
+# Spark — User Guide
 
-The Spark Operator manages Apache Spark applications and clusters on Kubernetes. It handles the full lifecycle: provisioning compute clusters, registering Spark applications, managing versioned libraries, submitting and monitoring runs, and accessing logs and the Spark UI.
+The Spark app runs [Apache Spark](https://spark.apache.org) 4.0 on the platform's own Kubernetes
+cluster, in the app's namespace — no separate cluster to provision. It offers two ways to use
+Spark over the workspace's Iceberg lakehouse:
+
+- **Clusters** — long-running Spark Connect servers for interactive work (PySpark, notebooks).
+  Each cluster is one driver pod that starts executor pods on demand and releases them when idle.
+- **Applications** — JAR or PySpark jobs. Every run is a Kubernetes Job whose pod is the Spark
+  driver; it runs locally in that pod or requests executor pods on demand.
+
+A workspace can run **several clusters**, each with its own name, sizing and Spark settings. An idle
+cluster costs only its driver pod.
 
 ---
 
 ## Clusters
 
-A cluster is a Kubernetes-backed Spark compute environment. You must have an `Active` cluster before you can run any Spark application.
-
 ### Lifecycle
 
-Provisioning a cluster is asynchronous. After you request creation, the cluster moves through these states:
+Creating a cluster is asynchronous. After you request it, the cluster moves through these states:
 
 | Status | Meaning |
 |---|---|
-| `Creating` | Provisioning in progress — cluster is not yet usable |
-| `Active` | Ready to accept runs |
-| `CreationFailed` | Provisioning failed — cluster can be retried |
-| `Deleting` | Deletion in progress |
-| `DeletionFailed` | Deletion encountered an error |
+| `Creating` | Request accepted, work is starting |
+| `DeployingSpark` | The driver is rolling out |
+| `Active` | Ready — the Spark Connect endpoint is available |
+| `Degraded` | The driver pod is not ready; check the status message |
+| `CreationFailed` | Creation failed — see the status message |
+| `Deleting` / `DeletionFailed` | Asynchronous deletion in progress / failed |
 
 ### What you can do
 
-**Create a cluster** — specify a name, node size, disk size, and worker count bounds (min, initial, max). Cluster names must be lowercase alphanumeric with hyphens, start with a letter, and be at most 32 characters.
+- **Create a cluster** — a name (lowercase, starts with a letter, at most 40 characters, unique in
+  the workspace, not containing `-driver` or `-exec`), driver CPU/memory, executor sizing (max
+  executors, per-executor CPU/memory, cores, idle timeout) and optional Spark settings. With max
+  executors `0` the cluster runs in local mode inside the driver pod.
+- **Get the cluster** — including lifecycle status and status messages.
+- **Update resources** — change driver, executor sizing and Spark settings of an Active cluster;
+  the driver is restarted (open sessions are lost).
+- **Get endpoints** — the Spark Connect URL (`sc://<cluster>-connect.<namespace>.svc.cluster.local:15002`,
+  reachable inside the Kubernetes cluster only) and the Spark UI.
+- **Spark UI** — the live driver UI (jobs, stages, SQL, executors), served by the app.
+- **Inspect instances** — status and log tails of the driver and executor pods.
+- **Delete a cluster** — removes its driver, executors and service account.
 
-Available node sizes: `XS`, `S`, `M`, `L`, `XL`, `XXL`
-
-**Retry a failed cluster** — if a cluster is in `CreationFailed` state, you can retry provisioning it without deleting and recreating it.
-
-**List clusters / find a cluster** — see all clusters or look up a specific one by name, including its current status.
-
-**Inspect cluster nodes** — view the actual hardware of each node: CPU cores, memory (GB), storage (GB), and cloud instance type.
-
-**Delete a cluster** — deletion is asynchronous. The cluster moves to `Deleting` and is removed once deprovisioned. If deletion fails, the status becomes `DeletionFailed`.
-
----
-
-## Applications
-
-An application is a reusable Spark job template. It captures everything needed to run a job: the container image, main class or entry point, JARs, Python/R files, Spark configuration, and driver/executor resource requirements.
-
-You register an application once, then run it as many times as needed — optionally overriding Spark configuration at run time.
-
-### What you can do
-
-**Register an application** — provide the container image, entry point, resource specs (driver cores/memory, executor count/cores/memory), static JARs/files, and any default Spark configuration.
-
-**View an application** — retrieve the full spec of a registered application.
-
-**List all applications** — see every registered application.
-
-**Delete an application** — removes the application record and its associated library storage. Active runs are not affected.
-
----
-
-## Application Libraries
-
-Libraries (JARs, Python files, R files) are versioned artifacts stored in object storage. When a run is submitted, the latest version of each library registered for the application is automatically included in the Spark job classpath — you don't need to reference them manually in the application spec.
-
-The latest version of every library uploaded will be automatically configured to be part of jar files, py files or Spark R files when running application.
-
-### Versioning rules
-
-- Versions must follow **semantic versioning**: `MAJOR.MINOR.PATCH` (e.g. `1.0.0`)
-- Each new version must be strictly greater than the current latest — uploading the same or an older version is rejected
-- Versions are compared numerically, not lexicographically (so `1.10.0` > `1.9.0`)
-- Versioning is independent per library name within an application
-
-### Git provenance
-
-When uploading a library, you can optionally record where the artifact came from: repository URL, branch (defaults to `main`), and commit hash. This is stored alongside the version for traceability.
-
-### What you can do
-
-**Upload a new library version** — upload a file for a named library. Provide the library type (`Jar`, `PyFile`, or `RFile`) and optionally the git provenance metadata. The file's original filename is preserved.
-
-Example upload:
-```bash
-curl -X POST \
-  "http://<host>/api/v1/applications/my-app/libs/my-lib/versions/1.0.0?libType=Jar&gitRepo=github.com/org/repo&gitBranch=main&gitCommitHash=abc123" \
-  -F "file=@my-lib-1.0.0.jar"
+```python
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.remote("sc://<cluster>-connect.<namespace>.svc.cluster.local:15002").getOrCreate()
+spark.sql("SELECT * FROM iceberg.sales.orders LIMIT 10").show()
 ```
 
-**List all libraries for an application** — shows each library name with its latest version.
+Spark Connect has no client authentication: every session on a cluster acts as the cluster's
+service account. Share a cluster only with users who may use that account's data access.
 
-**List versions of a library** — see the full version history of a specific library, including git provenance for each version.
+### Tangram folders
 
-**Delete a specific library version** — removes a single version from storage and the registry.
+Jobs and Connect sessions can read and write files in Tangram folders through `to://` paths, e.g.
+`spark.read.parquet("to://<workspace>/<folder>/events/")`, as the cluster's or application's service
+account. Grant that account access to the folder first.
 
-**Delete all versions of a library** — removes every version of a library from storage and the registry.
+### Spark settings
 
----
+Clusters and applications accept extra Spark settings (`spark.sql.shuffle.partitions`,
+`spark.jars.packages`, …). The app manages the Kubernetes wiring, driver networking, executor
+sizing and the `iceberg` catalog, so `spark.master`, `spark.kubernetes.*`,
+`spark.sql.catalog.iceberg*`, `spark.driver.host/port/memory*/cores`, `spark.executor.memory*/cores`,
+`spark.executor.pyspark.memory`, `spark.memory.offHeap.*`, `spark.hadoop.fs.to.*` and similar keys are refused.
 
-## Runs
+### Cluster service account and data access
 
-A run submits a registered application to an active cluster for execution. Each run gets a unique `runId` and is tracked through its full lifecycle.
+Each cluster runs as its own Tangram **service account** (shown on the cluster page). It is the
+identity Spark presents to the workspace's Iceberg REST catalog (`iceberg`, also the session's
+default catalog); storage credentials are vended per table by the catalog. Before the cluster can
+read or write Iceberg tables, a workspace admin grants that service account the Iceberg app's
+`reader` and/or `writer` roles on the databases it may touch.
 
-When a run is submitted, the operator automatically resolves the latest version of each library registered for the application and includes them in the job — no manual coordination needed.
+## Applications (batch jobs)
 
-### Lifecycle
+An application is a `SparkApplication` resource of the workspace; it owns a folder for its files
+and a service account its runs use to reach the Iceberg catalog.
 
-| Status | Meaning |
+### Define an application
+
+- **Name** — lowercase letters, digits and dashes.
+- **Main file** — the file name of the JAR or Python file that starts the job (`etl.jar`,
+  `main.py`); for a JAR without a `Main-Class` manifest also the **main class**.
+- **Arguments, Spark settings and environment** — passed to every run (a run can override them).
+- **Driver sizing** and **max duration** — the run pod; a run that exceeds the duration is failed.
+- **Executors** (optional) — without executors the job runs in local mode inside the driver pod.
+  With executors, the driver requests up to *max executors* pods on demand (dynamic allocation).
+
+### Files
+
+Upload the application's files as versioned **libs**: `Jar` (added to `--jars`, or the main JAR),
+`PyFile` (added to `--py-files`, or the main script), `PyArchive` (`.zip`/`.egg` of pure-Python
+code, added to `--py-files`; wheels are not supported, zip the package instead) or `File` (shipped with `--files`). Versions are
+`MAJOR.MINOR.PATCH` and only increase; a run always takes the **latest version of each lib**.
+Record the git repository, branch and commit with an upload to keep provenance. A version
+referenced by an active run cannot be deleted until the run ends.
+
+Files are stored in a Tangram folder on the app's bucket, owned by the application: whoever may
+run or update the application can read or write its files through the platform too.
+
+### Runs
+
+- **Run** — starts a Kubernetes Job in the app's namespace; optional per-run arguments, Spark
+  settings, environment and executor sizing. Iceberg tables are reachable as
+  `iceberg.<database>.<table>` and Tangram folders as `to://<workspace>/<folder>/…`, both with the
+  application's service account (grant it the Iceberg app's `reader`/`writer` roles or folder access
+  first).
+- **Status** — `Pending` → `Running` → `Succeeded` / `Failed` / `Cancelled`, with a status message.
+- **Spark UI** — the live driver UI while the run is running.
+- **Cancel** — stops the Job and its executors at once.
+- **Logs** — driver and executor logs of a run, from the platform's log pipeline.
+- **Stats** — the last run's status and run counts per status.
+
+### What you can do
+
+| Action on `SparkApplication` | What it allows |
 |---|---|
-| `Pending` | Submitted to the cluster, waiting for the driver to start |
-| `Running` | Spark job is actively executing |
-| `Succeeded` | Job completed successfully |
-| `Failed` | Job completed with an error — a status message with the failure reason is recorded |
-| `Cancelled` | Cancelled by the user before or during execution |
-| `Unknown` | Status could not be determined |
-
-Terminal runs (`Succeeded`, `Failed`, `Cancelled`) have an `endedAt` timestamp recorded. Failed runs include a `statusMessage` with the error from the Spark operator.
-
-### What you can do
-
-**Submit a run** — choose which cluster to run on and optionally override Spark configuration (e.g. increase executor count for a specific run). The operator handles creating the Kubernetes custom resource, setting up credentials, and tracking status automatically.
-
-**Monitor run status** — poll or retrieve the full run details at any point, including status, start time, end time, and error message.
-
-**List runs for an application** — see all runs for a given application, optionally filtered by time range.
-
-**List runs for a cluster** — see all runs that have executed on a specific cluster, optionally filtered by time range.
-
-**View run statistics** — see aggregated counts per status (Pending, Running, Succeeded, Failed, etc.) across all runs of an application.
-
-**Cancel a run** — cancel a run that is still `Pending` or `Running`. Already-completed runs cannot be cancelled.
-
-**Access the Spark UI** — while a run is active, the Spark driver UI is accessible and when a run terminates, Spark history UI will be available as well.
-
----
-
-## Logs
-
-Spark driver and executor logs are collected and indexed, and can be queried per run.
-
-### What you can do
-
-**Query logs for a run** — retrieve logs from the driver or executor pods for a specific run. Supports filtering by:
-- Component: `Driver` or `Executor`
-- Time range (start/end timestamp)
-- Keyword search
-- Result limit
-
-Logs are returned sorted by timestamp descending. The response includes the total number of matching entries (`numHits`) before the limit is applied, along with each log line's timestamp, message, and container name.
+| `Create`, `Get`, `List` | create an application; read and list applications and their files |
+| `UpdateLib`, `ListLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; delete a lib or one of its versions |
+| `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
+| `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
