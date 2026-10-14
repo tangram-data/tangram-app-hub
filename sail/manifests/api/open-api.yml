@@ -103,6 +103,11 @@ paths:
       summary: Start a stopped cluster asynchronously; poll GET /clusters/{name} until Active.
       parameters:
         - $ref: '#/components/parameters/name'
+        - name: onlyIfAutoStopped
+          in: query
+          description: Start only a cluster that auto-stop stopped (the SQL proxy waking an idle cluster).
+          schema:
+            type: boolean
       responses:
         '200':
           description: Start requested
@@ -671,6 +676,12 @@ components:
         status:
           type: string
           nullable: true
+        statusMessage:
+          type: string
+          nullable: true
+        autoStopped:
+          type: boolean
+          description: Stopped for idleness; the SQL proxy starts such a cluster on demand.
     ClusterInstance:
       type: object
       required: [name, role, phase, ready, restarts]
