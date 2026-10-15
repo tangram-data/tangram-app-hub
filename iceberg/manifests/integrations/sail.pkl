@@ -12,7 +12,7 @@ local sailInterface = new integration.AppIntegrationInterface {
   version = "v1"
 }
 
-local sailLib = new Dynamic { name = "iceberg-sail"; version = "1.0.0" }
+local sailLib = new Dynamic { name = "iceberg-sail"; version = "1.1.0" }
 
 tableQueryable = new integration.IntegrationImplementation {
   interface          = sailInterface

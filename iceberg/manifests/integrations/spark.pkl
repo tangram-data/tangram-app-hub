@@ -2,7 +2,7 @@ import "@tangram-app-manifest/integration.pkl" as integration
 
 local tableType  = "ai.tangram/iceberg/Table/v1"
 local viewType   = "ai.tangram/iceberg/View/v1"
-local sparkLib   = new Dynamic { name = "iceberg-spark-io"; version = "1.0.0" }
+local sparkLib   = new Dynamic { name = "iceberg-spark-io"; version = "1.1.0" }
 local sparkClass = "ai.tangram.os.iceberg.spark.io.IcebergSparkSupport"
 
 tableIO = new integration.IntegrationImplementation {

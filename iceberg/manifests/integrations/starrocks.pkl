@@ -2,6 +2,7 @@ import "@tangram-app-manifest/integration.pkl" as integration
 
 local tableType = "ai.tangram/iceberg/Table/v1"
 local databaseType = "ai.tangram/iceberg/Database/v1"
+local viewType = "ai.tangram/iceberg/View/v1"
 
 tableQueryable = new integration.IntegrationImplementation {
   interface = new integration.AppIntegrationInterface {
@@ -12,7 +13,7 @@ tableQueryable = new integration.IntegrationImplementation {
   implementationType = tableType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.0" }
   }
 }
 
@@ -27,8 +28,22 @@ databaseQueryable = new integration.IntegrationImplementation {
   implementationType = databaseType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.0" }
   }
 }
 
-implementations: List<integration.IntegrationImplementation> = List(tableQueryable, databaseQueryable)
+// Views are expanded by the proxy (transpiled SQL over bootstrapped tables), not read natively.
+viewQueryable = new integration.IntegrationImplementation {
+  interface = new integration.AppIntegrationInterface {
+    app     = integration.TANGRAM_SQL_APP
+    name    = "queryable/starrocks"
+    version = "v1"
+  }
+  implementationType = viewType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.iceberg.sql.starrocks.IcebergViewStarRocksSqlQuerySupport"
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, databaseQueryable, viewQueryable)

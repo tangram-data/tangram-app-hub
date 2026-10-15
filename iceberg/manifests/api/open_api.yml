@@ -1374,6 +1374,58 @@ paths:
       security:
         - httpAuth: []
   /v1/namespaces/{namespace}/views/{view}:
+    head:
+      tags:
+        - Catalog API
+      summary: Check if a view exists
+      description: Check if a view exists within a given namespace. .
+      operationId: checkIfViewExists
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Namespace Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
     get:
       tags:
         - Catalog API

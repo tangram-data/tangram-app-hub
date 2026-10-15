@@ -402,6 +402,14 @@ View = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping { operationId = "listViews" }
       },
       new resources.Action {
+        name       = "CheckExists"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Checks whether a view exists."
+        openApiMapping = new resources.OpenApiMapping { operationId = "checkIfViewExists" }
+      },
+      new resources.Action {
         // Named `UpdateMetadata` (not `Update`) to mirror Table and to align with
         // sql_queryable.pkl's `"Alter" → ["UpdateMetadata"]` mapping for views.
         // privilege defaults to the action name.
@@ -443,17 +451,17 @@ View = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "owner"
-        permissions = List("Create", "Load", "List", "UpdateMetadata", "Read", "Delete", "Rename")
+        permissions = List("Create", "Load", "List", "UpdateMetadata", "Read", "Delete", "Rename", "CheckExists")
         description = "Full control over the view."
       },
       new resources.Role {
         name = "editor"
-        permissions = List("Load", "List", "UpdateMetadata", "Read", "Rename")
+        permissions = List("Load", "List", "UpdateMetadata", "Read", "Rename", "CheckExists")
         description = "Update the SQL definition, rename, read. Cannot create or drop views."
       },
       new resources.Role {
         name = "viewer"
-        permissions = List("Load", "List", "Read")
+        permissions = List("Load", "List", "Read", "CheckExists")
         description = "Read-only access to the view definition and results."
       }
     )
