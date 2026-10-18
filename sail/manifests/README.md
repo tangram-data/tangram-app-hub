@@ -108,3 +108,10 @@ run or update the application can read or write its files through the platform t
 
 The Active cluster is registered as a SQL engine. Connect through the Tangram SQL proxy with any
 PostgreSQL client, or pick the engine in a SQL notebook, and run Spark SQL against Iceberg tables.
+
+## Trademarks
+
+Sail and LakeSail are trademarks of LakeSail, Inc.; the Sail logo is used unmodified from the
+[LakeSail media kit](https://lakesail.com/media-kit/). Apache Spark and Spark are trademarks of the
+Apache Software Foundation. This app is built by Tangram and is not affiliated with or endorsed by
+LakeSail, Inc. or the Apache Software Foundation.
