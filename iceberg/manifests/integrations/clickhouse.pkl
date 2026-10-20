@@ -9,7 +9,7 @@ local clickhouseInterface = new integration.AppIntegrationInterface {
   version = "v1"
 }
 
-local clickhouseLib = new Dynamic { name = "iceberg-clickhouse"; version = "1.1.0" }
+local clickhouseLib = new Dynamic { name = "iceberg-clickhouse"; version = "1.1.1" }
 
 tableQueryable = new integration.IntegrationImplementation {
   interface          = clickhouseInterface
