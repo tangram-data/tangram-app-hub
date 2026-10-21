@@ -1,0 +1,35 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType    = "ai.tangram/delta/Table/v1"
+local databaseType = "ai.tangram/delta/Database/v1"
+
+// The Sail engine runs Spark SQL (proxy dialect "spark") and mounts this catalog as `delta`, so reads,
+// writes and DDL on `delta.<database>.<table>` are all write-through.
+local sailInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/spark"
+  version = "v1"
+}
+
+local sailLib = new Dynamic { name = "delta-sail"; version = "0.1.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = sailInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.sql.sail.DeltaSailSqlQuerySupport"
+    lib       = sailLib
+  }
+}
+
+// CREATE/DROP DATABASE write-through
+databaseQueryable = new integration.IntegrationImplementation {
+  interface          = sailInterface
+  implementationType = databaseType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.sql.sail.DeltaSailSqlQuerySupport"
+    lib       = sailLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, databaseQueryable)
