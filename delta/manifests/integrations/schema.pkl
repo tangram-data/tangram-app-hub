@@ -1,0 +1,13 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+// Registers a table's schema from its create request (UC columns); changes go through ALTER TABLE.
+tableSchemaUpdater = new integration.IntegrationImplementation {
+  interface          = integration.SCHEMA_UPDATOR
+  implementationType = "ai.tangram/delta/Table/v1"
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.schema.DeltaSchemaUpdateExecutor"
+    lib       = new Dynamic { name = "delta-schema-update"; version = "0.1.0" }
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableSchemaUpdater)

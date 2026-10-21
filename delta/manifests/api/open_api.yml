@@ -1,0 +1,1017 @@
+openapi: 3.1.0
+info:
+  title: Delta Lake catalog (Unity Catalog API)
+  version: 1.0.0
+paths:
+  /api/2.1/unity-catalog/catalogs:
+    get:
+      tags:
+      - UnityCatalog
+      summary: List catalogs.
+      operationId: listCatalogs
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCatalogsResponse'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: &id001
+      - httpAuth: []
+      parameters:
+      - &id002
+        name: max_results
+        in: query
+        required: false
+        schema:
+          type: integer
+      - &id003
+        name: page_token
+        in: query
+        required: false
+        schema:
+          type: string
+  /api/2.1/unity-catalog/catalogs/{name}:
+    get:
+      tags:
+      - UnityCatalog
+      summary: Get a catalog.
+      operationId: getCatalog
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/2.1/unity-catalog/schemas:
+    get:
+      tags:
+      - UnityCatalog
+      summary: List schemas.
+      operationId: listSchemas
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSchemasResponse'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: catalog_name
+        in: query
+        required: true
+        schema:
+          type: string
+      - *id002
+      - *id003
+    post:
+      tags:
+      - UnityCatalog
+      summary: Create a schema.
+      operationId: createSchema
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSchema'
+  /api/2.1/unity-catalog/schemas/{full_name}:
+    get:
+      tags:
+      - UnityCatalog
+      summary: Get a schema.
+      operationId: getSchema
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: full_name
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags:
+      - UnityCatalog
+      summary: Delete a schema.
+      operationId: deleteSchema
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empty'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: full_name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: boolean
+  /api/2.1/unity-catalog/tables:
+    get:
+      tags:
+      - UnityCatalog
+      summary: List tables.
+      operationId: listTables
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTablesResponse'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: catalog_name
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: schema_name
+        in: query
+        required: true
+        schema:
+          type: string
+      - *id002
+      - *id003
+    post:
+      tags:
+      - UnityCatalog
+      summary: Create a table.
+      operationId: createTable
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTable'
+  /api/2.1/unity-catalog/tables/{full_name}:
+    get:
+      tags:
+      - UnityCatalog
+      summary: Get a table.
+      operationId: getTable
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: full_name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: read_streaming_table_as_managed
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: read_materialized_view_as_managed
+        in: query
+        required: false
+        schema:
+          type: boolean
+    delete:
+      tags:
+      - UnityCatalog
+      summary: Delete a table.
+      operationId: deleteTable
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empty'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: full_name
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/2.1/unity-catalog/staging-tables:
+    post:
+      tags:
+      - UnityCatalog
+      summary: Reserve a location for a new table.
+      operationId: createStagingTable
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagingTableInfo'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStagingTable'
+  /api/2.1/unity-catalog/temporary-table-credentials:
+    post:
+      tags:
+      - UnityCatalog
+      summary: Temporary credentials for a table.
+      operationId: generateTemporaryTableCredentials
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryCredentials'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTemporaryTableCredential'
+  /api/2.1/unity-catalog/temporary-path-credentials:
+    post:
+      tags:
+      - UnityCatalog
+      summary: Temporary credentials for a storage path.
+      operationId: generateTemporaryPathCredentials
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryCredentials'
+        '400':
+          description: Invalid argument
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTemporaryPathCredential'
+components:
+  schemas:
+    UcError:
+      type: object
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+    Empty:
+      type: object
+    CatalogInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        comment:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+        id:
+          type: string
+    ListCatalogsResponse:
+      type: object
+      properties:
+        catalogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogInfo'
+        next_page_token:
+          type: string
+    CreateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+        catalog_name:
+          type: string
+        comment:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - name
+      - catalog_name
+    SchemaInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        catalog_name:
+          type: string
+        comment:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+        full_name:
+          type: string
+        owner:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        created_by:
+          type: string
+        updated_at:
+          type: integer
+          format: int64
+        schema_id:
+          type: string
+    ListSchemasResponse:
+      type: object
+      properties:
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchemaInfo'
+        next_page_token:
+          type: string
+    CreateTable:
+      type: object
+      properties:
+        name:
+          type: string
+        catalog_name:
+          type: string
+        schema_name:
+          type: string
+        table_type:
+          type: string
+        data_source_format:
+          type: string
+        columns:
+          type: array
+          items: &id004
+            type: object
+            additionalProperties: true
+        storage_location:
+          type: string
+        comment:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - name
+      - catalog_name
+      - schema_name
+    TableInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        catalog_name:
+          type: string
+        schema_name:
+          type: string
+        table_type:
+          type: string
+        data_source_format:
+          type: string
+        columns:
+          type: array
+          items: *id004
+        storage_location:
+          type: string
+        comment:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+        owner:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        created_by:
+          type: string
+        updated_at:
+          type: integer
+          format: int64
+        table_id:
+          type: string
+    ListTablesResponse:
+      type: object
+      properties:
+        tables:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableInfo'
+        next_page_token:
+          type: string
+    CreateStagingTable:
+      type: object
+      properties:
+        name:
+          type: string
+        catalog_name:
+          type: string
+        schema_name:
+          type: string
+      required:
+      - name
+      - catalog_name
+      - schema_name
+    StagingTableInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        catalog_name:
+          type: string
+        schema_name:
+          type: string
+        staging_location:
+          type: string
+    GenerateTemporaryTableCredential:
+      type: object
+      properties:
+        table_id:
+          type: string
+        operation:
+          type: string
+          enum:
+          - READ
+          - READ_WRITE
+      required:
+      - table_id
+      - operation
+    GenerateTemporaryPathCredential:
+      type: object
+      properties:
+        url:
+          type: string
+        operation:
+          type: string
+          enum:
+          - PATH_READ
+          - PATH_READ_WRITE
+          - PATH_CREATE_TABLE
+        dry_run:
+          type: boolean
+      required:
+      - url
+      - operation
+    TemporaryCredentials:
+      type: object
+      properties:
+        aws_temp_credentials:
+          type: object
+          properties:
+            access_key_id:
+              type: string
+            secret_access_key:
+              type: string
+            session_token:
+              type: string
+        azure_user_delegation_sas:
+          type: object
+          properties:
+            sas_token:
+              type: string
+        gcp_oauth_token:
+          type: object
+          properties:
+            oauth_token:
+              type: string
+        expiration_time:
+          type: integer
+          format: int64
+        url:
+          type: string
+        storage_options:
+          type: object
+          additionalProperties:
+            type: string
+  securitySchemes:
+    httpAuth:
+      type: http
+      scheme: bearer

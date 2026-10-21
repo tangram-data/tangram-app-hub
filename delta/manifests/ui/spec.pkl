@@ -1,0 +1,18 @@
+import "@tangram-app-manifest/ui.pkl" as ui
+
+logo = "static/logo.png"
+
+deployment: ui.UIDeployment = new {
+  mode = "OSBuiltIn"
+}
+
+resourceTypeIcons {
+  ["Catalog"]  = "static/logo.png"
+  ["Database"] = "static/logo.png"
+  ["Table"]    = "static/logo.png"
+}
+
+resourceTypeUri {
+  ["Database"] = "/databases/{{names[1]}}"
+  ["Table"]    = "/databases/{{names[1]}}/tables/{{names[2]}}"
+}

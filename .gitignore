@@ -11,3 +11,4 @@ duckling/libs
 clickhouse/libs
 snowflake/libs
 databricks/libs
+delta/libs

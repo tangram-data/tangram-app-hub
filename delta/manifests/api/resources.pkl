@@ -1,0 +1,257 @@
+import "@tangram-app-manifest/manifest.pkl" as manifest
+import "@tangram-app-manifest/resources.pkl" as resources
+import "../app.pkl" as app
+
+local appRef       = new manifest.AppName { group = app.group; name = app.name }
+local DatabaseType = new resources.ResourceType { app = appRef; name = "Database" }
+
+// UC addresses objects by dotted full name (`delta.<schema>.<table>`); names are plain identifiers.
+local schemaFromFullName = "[{{ (pathParams.full_name|split('.'))[1] }}]"
+local tableFromFullName  = "[{{ (pathParams.full_name|split('.'))[1] }}, {{ (pathParams.full_name|split('.'))[2] }}]"
+
+// ---------------------------------------------------------------------------
+// Catalog  (workspace singleton: the UC catalog `delta`)
+// ---------------------------------------------------------------------------
+
+Catalog = new resources.ResourceTypeDefinition {
+  name = "Catalog"
+  doc  = "The workspace's Delta Lake catalog (Unity Catalog API). One catalog, `delta`, per workspace."
+  activeVersion = "v1"
+  superType     = resources.STORAGE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        skipAuth   = true
+        skipAudit  = true
+        doc = "Lists the workspace's catalog. Static information; any signed-in caller."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listCatalogs" }
+      },
+      new resources.Action {
+        name       = "GetMetadata"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        skipAuth   = true
+        skipAudit  = true
+        doc = "Returns the catalog. Static information; any signed-in caller."
+        openApiMapping = new resources.OpenApiMapping { operationId = "getCatalog" }
+      },
+      new resources.Action {
+        name       = "GetPathCredentials"
+        privilege  = "Execute"
+        effect     = "Stateless"
+        idempotent = false
+        // Authorized by the catalog: a staged create location only to the caller that staged it
+        // (Create on the table was checked then); a table location through the caller's own folder
+        // privileges on that table.
+        skipAuth   = true
+        doc = "Issues short-lived storage credentials for a staged create location or a table location."
+        openApiMapping = new resources.OpenApiMapping { operationId = "generateTemporaryPathCredentials" }
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Database  (a UC schema, workspace-scoped)
+// ---------------------------------------------------------------------------
+
+Database = new resources.ResourceTypeDefinition {
+  name = "Database"
+  doc  = "A Delta Lake database (UC schema). Groups tables stored in a storage bucket."
+  activeVersion = "v1"
+  superType     = resources.DATABASE_TYPE
+  scopeType     = resources.WORKSPACE_TYPE
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a database backed by a storage bucket (the app's bucket unless the `volume` property names another)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createSchema"
+          resourceName = List(new resources.BodyField { path = "name" })
+        }
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists the databases of the catalog."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listSchemas" }
+      },
+      new resources.Action {
+        name       = "GetMetadata"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns a database."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId          = "getSchema"
+          resourceNameTemplate = schemaFromFullName
+        }
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = "Irreversible"
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Deletes an empty database and its storage folder. Irreversible."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId          = "deleteSchema"
+          resourceNameTemplate = schemaFromFullName
+        }
+      },
+      new resources.Action {
+        name       = "ListTable"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists the tables of the database."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "listTables"
+          resourceName = List(new resources.QueryParam { name = "schema_name" })
+        }
+      }
+    )
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List("Create", "List", "GetMetadata", "Delete", "ListTable")
+        description = "Full control over the database: create, drop, list and describe its contents."
+      },
+      new resources.Role {
+        name = "viewer"
+        permissions = List("List", "GetMetadata", "ListTable")
+        description = "Read-only: list, describe and enumerate tables."
+      }
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Table  (Database-scoped)
+// ---------------------------------------------------------------------------
+
+Table = new resources.ResourceTypeDefinition {
+  name = "Table"
+  doc  = "A Delta Lake table: an ACID transaction log over Parquet files in the table's storage folder."
+  activeVersion = "v1"
+  superType     = resources.DATASET_TYPE
+  scopeType     = DatabaseType
+  versions = List(new resources.ResourceTypeVersion {
+    version = "v1"; served = true; superTypeVersion = "v1"
+    actions = List(
+      new resources.Action {
+        name       = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Registers a new table (engines then write its first Delta commit)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createTable"
+          resourceName = List(
+            new resources.BodyField { path = "schema_name" },
+            new resources.BodyField { path = "name" }
+          )
+          // UC clients ask for credentials by table id
+          resourceId = new resources.ResponseField { path = "table_id" }
+        }
+      },
+      new resources.Action {
+        name       = "Stage"
+        privilege  = "Create"
+        effect     = "Stateless"
+        idempotent = false
+        doc = "Reserves a storage location for a table being created (CREATE TABLE, CTAS)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId  = "createStagingTable"
+          resourceName = List(
+            new resources.BodyField { path = "schema_name" },
+            new resources.BodyField { path = "name" }
+          )
+        }
+      },
+      new resources.Action {
+        name       = "Load"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns the table's location, columns and id. Engines call it before reading or writing."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId          = "getTable"
+          resourceNameTemplate = tableFromFullName
+        }
+      },
+      new resources.Action {
+        name       = "LoadCredentials"
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = false
+        doc = "Issues short-lived storage credentials for the table folder: read-only, or read-write when the caller also holds Write."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "generateTemporaryTableCredentials"
+          resourceId  = new resources.BodyField { path = "table_id" }
+        }
+      },
+      new resources.Action {
+        name       = "List"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists tables in the parent database."
+        // No HTTP mapping: exposed via Database.ListTable
+      },
+      new resources.Action {
+        name       = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Authorization marker for reading table data via a query engine. No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "Write"
+        effect     = "Reversible"   // Delta versions allow restoring an earlier one
+        idempotent = false
+        doc = "Authorization marker for writing table data (and ALTER TABLE) via a query engine. No HTTP endpoint."
+      },
+      new resources.Action {
+        name                 = "Delete"
+        effect               = "Irreversible"
+        idempotent           = true
+        requiresConfirmation = true
+        doc = "Drops the table from the catalog. Its files stay in the database folder until the database is dropped."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId          = "deleteTable"
+          resourceNameTemplate = tableFromFullName
+        }
+      }
+    )
+    presetRoles = List(
+      new resources.Role {
+        name = "owner"
+        permissions = List("Create", "Stage", "Load", "LoadCredentials", "List", "Read", "Write", "Delete")
+        description = "Full control over the table."
+      },
+      new resources.Role {
+        name = "writer"
+        permissions = List("Load", "LoadCredentials", "List", "Read", "Write")
+        description = "Read and write data, alter the schema."
+      },
+      new resources.Role {
+        name = "reader"
+        permissions = List("Load", "LoadCredentials", "List", "Read")
+        description = "Read-only access to table data and metadata."
+      }
+    )
+  })
+}
+
+types: List<resources.ResourceTypeDefinition> = List(Catalog, Database, Table)

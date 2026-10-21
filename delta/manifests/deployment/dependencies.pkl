@@ -1,0 +1,9 @@
+import "@tangram-app-manifest/infra.pkl" as infra
+
+postgresDb: infra.PostgresqlDatabaseClaim = new {
+  resourceName = "catalogDb"
+}
+
+storageBucketClaim: infra.StorageBucketClaim = new {
+  resourceName = "storageBucket"
+}

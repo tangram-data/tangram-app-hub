@@ -1,0 +1,23 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/delta/Table/v1"
+
+local tableCommandMapping = Map(
+  "Select", List("Read"),
+  "Insert", List("Write"),
+  "Update", List("Write"),
+  "Delete", List("Write"),
+  "Drop",   List("Delete"),
+  "Create", List("Create"),
+  "Alter",  List("Write")
+)
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = integration.SQL_QUERYABLE
+  implementationType = tableType
+  implementationSpec = new integration.TangramSQLQueryableSpec {
+    sqlCommandPrivilegeMapping = tableCommandMapping
+  }.toDynamic()
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable)

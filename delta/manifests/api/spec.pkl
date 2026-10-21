@@ -1,0 +1,9 @@
+import "@tangram-app-manifest/api.pkl" as api
+
+backend: api.ServiceBackend = new api.ServiceBackend {
+  serviceName = "catalog-service"
+  port = 9494
+}
+
+authMode    = "Proxy"
+apiSpecFile = "open_api.yml"
