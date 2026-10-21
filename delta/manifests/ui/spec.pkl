@@ -1,15 +1,21 @@
 import "@tangram-app-manifest/ui.pkl" as ui
 
-logo = "static/logo.png"
+logo = "static/delta.svg"
+
+// The app serves its own UI (tangram-delta/ui, bundled into the catalog server), not an OS built-in one.
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
 
 deployment: ui.UIDeployment = new {
-  mode = "OSBuiltIn"
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
 }
 
 resourceTypeIcons {
-  ["Catalog"]  = "static/logo.png"
-  ["Database"] = "static/logo.png"
-  ["Table"]    = "static/logo.png"
+  ["Catalog"]  = "static/delta.svg"
+  ["Database"] = "static/delta.svg"
+  ["Table"]    = "static/delta.svg"
 }
 
 resourceTypeUri {

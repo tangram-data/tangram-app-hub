@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none" role="img" aria-label="Tangram Delta Lake">
+  <!-- A delta (Δ) with a hollow core, cut into tangram triangles in the Tangram palette -->
+  <g stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round">
+    <polygon points="300,48 36,532 221,419" fill="#1677FF"/>
+    <polygon points="300,48 221,419 300,274" fill="#5CDBD3"/>
+    <polygon points="36,532 564,532 379,419" fill="#52C41A"/>
+    <polygon points="36,532 379,419 221,419" fill="#FFEC3D"/>
+    <polygon points="564,532 300,48 300,274" fill="#9254DE"/>
+    <polygon points="564,532 300,274 379,419" fill="#FA8C16"/>
+  </g>
+</svg>
