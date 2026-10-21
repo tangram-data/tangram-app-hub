@@ -66,6 +66,13 @@ paths:
         - DucklingService
       summary: Create a DuckDB deployment
       operationId: createDucklingInstance
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Same as the body's `idempotencyKey`; the body wins when both are sent.
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
@@ -826,8 +833,9 @@ components:
         idempotencyKey:
           type: string
           description: |
-            Makes the create idempotent: a retry with the same key and request returns the same instance, the same key
-            with a different request is a 409, and an existing name without that key is a 400 with no Kubernetes changes.
+            Makes the create idempotent: a retry with the same key and request returns the same instance (resuming an
+            unfinished apply), the same key with a different request or name is a 409, and an existing name without
+            that key is a 400 with no Kubernetes changes.
     DuckLake:
       required:
         - name
