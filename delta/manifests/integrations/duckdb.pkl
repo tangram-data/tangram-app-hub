@@ -1,0 +1,24 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType = "ai.tangram/delta/Table/v1"
+
+// Embedded DuckDB and Duckling (proxy engine key "duckdb") mount each table per statement with vended
+// table-scoped credentials. They read Delta and INSERT into it; other writes and DDL run on Spark or Sail.
+local duckdbInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/duckdb"
+  version = "v1"
+}
+
+local duckdbLib = new Dynamic { name = "delta-duckdb"; version = "0.1.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = duckdbInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.sql.duckdb.DeltaDuckDBSqlQuerySupport"
+    lib       = duckdbLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable)
