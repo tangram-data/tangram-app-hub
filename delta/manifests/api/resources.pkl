@@ -43,6 +43,19 @@ Catalog = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping { operationId = "getCatalog" }
       },
       new resources.Action {
+        name       = "GetTableCredentials"
+        privilege  = "Execute"
+        effect     = "Stateless"
+        idempotent = false
+        // Authorized by the catalog, by table id: a table's credentials are a core permit requested with the
+        // caller's own token, so they carry exactly the folder privileges the caller's Table privileges derive
+        // (Read -> read-only, Write -> read-write); a staged create's only go to the caller that staged it.
+        // Staging ids are not registered resources, so the gateway cannot resolve them.
+        skipAuth   = true
+        doc = "Issues short-lived storage credentials for one table location, scoped to the caller's table privileges."
+        openApiMapping = new resources.OpenApiMapping { operationId = "generateTemporaryTableCredentials" }
+      },
+      new resources.Action {
         name       = "GetPathCredentials"
         privilege  = "Execute"
         effect     = "Stateless"
@@ -162,8 +175,6 @@ Table = new resources.ResourceTypeDefinition {
             new resources.BodyField { path = "schema_name" },
             new resources.BodyField { path = "name" }
           )
-          // UC clients ask for credentials by table id
-          resourceId = new resources.ResponseField { path = "table_id" }
         }
       },
       new resources.Action {
@@ -189,17 +200,6 @@ Table = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping {
           operationId          = "getTable"
           resourceNameTemplate = tableFromFullName
-        }
-      },
-      new resources.Action {
-        name       = "LoadCredentials"
-        privilege  = "Read"
-        effect     = "Stateless"
-        idempotent = false
-        doc = "Issues short-lived storage credentials for the table folder: read-only, or read-write when the caller also holds Write."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "generateTemporaryTableCredentials"
-          resourceId  = new resources.BodyField { path = "table_id" }
         }
       },
       new resources.Action {
@@ -237,17 +237,17 @@ Table = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "owner"
-        permissions = List("Create", "Stage", "Load", "LoadCredentials", "List", "Read", "Write", "Delete")
+        permissions = List("Create", "Stage", "Load", "List", "Read", "Write", "Delete")
         description = "Full control over the table."
       },
       new resources.Role {
         name = "writer"
-        permissions = List("Load", "LoadCredentials", "List", "Read", "Write")
+        permissions = List("Load", "List", "Read", "Write")
         description = "Read and write data, alter the schema."
       },
       new resources.Role {
         name = "reader"
-        permissions = List("Load", "LoadCredentials", "List", "Read")
+        permissions = List("Load", "List", "Read")
         description = "Read-only access to table data and metadata."
       }
     )
