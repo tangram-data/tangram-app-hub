@@ -74,7 +74,11 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
+          description: The instance (also returned for a replay with the same idempotencyKey)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DucklingInstance'
         '400':
           description: ''
           content:
@@ -99,6 +103,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
+        '409':
+          description: The idempotencyKey was already used with a different request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictError'
         '500':
           description: ''
           content:
@@ -769,6 +779,18 @@ components:
           type: string
         errorType:
           type: string
+    ConflictError:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
     CreateDuckLake:
       required:
         - name
@@ -801,6 +823,11 @@ components:
           format: int32
         description:
           type: string
+        idempotencyKey:
+          type: string
+          description: |
+            Makes the create idempotent: a retry with the same key and request returns the same instance, the same key
+            with a different request is a 409, and an existing name without that key is a 400 with no Kubernetes changes.
     DuckLake:
       required:
         - name

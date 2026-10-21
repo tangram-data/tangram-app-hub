@@ -67,7 +67,7 @@ Database = new resources.ResourceTypeDefinition {
         name       = "Create"   // privilege defaults to Create
         effect     = "Reversible"
         idempotent = false
-        doc = "Creates a new Iceberg database backed by a storage bucket."
+        doc = "Creates a new Iceberg database backed by a storage bucket. Idempotent with the tangram.idempotency-key property."
         openApiMapping = new resources.OpenApiMapping {
           operationId  = "createNamespace"
           resourceName = List(new resources.BodyField { path = "namespace[0]" })

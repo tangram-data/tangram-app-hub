@@ -30,7 +30,7 @@ Instance = new resources.ResourceTypeDefinition {
         name = "Create"
         effect = Reversible
         idempotent = false
-        doc = "Create a Duckling instance."
+        doc = "Create a Duckling instance. Idempotent with idempotencyKey; returns the instance."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "createDucklingInstance"
           resourceName = List(new resources.BodyField { path = "instanceName" })
