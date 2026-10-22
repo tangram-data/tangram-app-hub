@@ -177,19 +177,19 @@ SparkApplication = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "UpdateLib", "ListLib", "DeleteLib", "DeleteLibVersion",
+          "Get", "List", "UpdateLib", "ListLib", "ReadLib", "DeleteLib", "DeleteLibVersion",
           "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs"
         )
         description = "Upload and remove files, submit and cancel runs, read logs. Cannot delete the application."
       },
       new resources.Role {
         name = "runner"
-        permissions = List("Get", "List", "ListLib", "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs")
+        permissions = List("Get", "List", "ListLib", "ReadLib", "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs")
         description = "Submit, cancel and follow runs of the application as it is. Cannot change its files."
       },
       new resources.Role {
         name = "viewer"
-        permissions = List("Get", "List", "ListLib", "ListRuns", "GetRunStats", "GetRunLogs")
+        permissions = List("Get", "List", "ListLib", "ReadLib", "ListRuns", "GetRunStats", "GetRunLogs")
         description = "Read-only — see the application, its files, runs and logs."
       }
     )
@@ -262,6 +262,16 @@ SparkApplication = new resources.ResourceTypeDefinition {
         doc = "List the application's uploaded files."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "listSparkApplicationLibs"
+          resourceNameTemplate = "[{{parameters.app}}]"
+        }
+      },
+      new resources.Action {
+        name = "ReadLib"
+        effect = Stateless
+        idempotent = true
+        doc = "Read the content of an application's text file (source code, config) for preview."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSparkApplicationLibContent"
           resourceNameTemplate = "[{{parameters.app}}]"
         }
       },

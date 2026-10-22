@@ -113,7 +113,8 @@ Upload the application's files as versioned **libs**: `Jar` (added to `--jars`, 
 code, added to `--py-files`; wheels are not supported, zip the package instead) or `File` (shipped with `--files`). Versions are
 `MAJOR.MINOR.PATCH` and only increase; a run always takes the **latest version of each lib**.
 Record the git repository, branch and commit with an upload to keep provenance. A version
-referenced by an active run cannot be deleted until the run ends.
+referenced by an active run cannot be deleted until the run ends. Source and text files (Python,
+Scala, Java, SQL, config) can be previewed in the app (files up to 16 MiB; the first 1 MiB is shown).
 
 Files are stored in a Tangram folder on the app's bucket, owned by the application: whoever may
 run or update the application can read or write its files through the platform too.
@@ -136,7 +137,7 @@ run or update the application can read or write its files through the platform t
 | Action on `SparkApplication` | What it allows |
 |---|---|
 | `Create`, `Get`, `List` | create an application; read and list applications and their files |
-| `UpdateLib`, `ListLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; delete a lib or one of its versions |
+| `UpdateLib`, `ListLib`, `ReadLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; preview a source file; delete a lib or one of its versions |
 | `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
 | `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
 
