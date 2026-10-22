@@ -111,7 +111,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
         '409':
-          description: The idempotencyKey was already used with a different request
+          description: The idempotencyKey was already used with a different request, or its instance was deleted
           content:
             application/json:
               schema:
@@ -834,8 +834,8 @@ components:
           type: string
           description: |
             Makes the create idempotent: a retry with the same key and request returns the same instance (resuming an
-            unfinished apply), the same key with a different request or name is a 409, and an existing name without
-            that key is a 400 with no Kubernetes changes.
+            unfinished apply), the same key with a different request or name, or after its instance was deleted, is a
+            409, and an existing name without that key is a 400 with no Kubernetes changes.
     DuckLake:
       required:
         - name

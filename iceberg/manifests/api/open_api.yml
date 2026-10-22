@@ -472,8 +472,9 @@ paths:
                   type: object
                   description: |
                     Namespace properties. `tangram.idempotency-key` makes the create idempotent: a retry with the same
-                    key and request succeeds without side effects, the same key with a different request is a 409, and
-                    an existing namespace created without that key is a 409 before any storage folder is created.
+                    key and request succeeds without side effects, the same key with a different request or namespace,
+                    or after its namespace was dropped, is a 409, and an existing namespace created without that key is
+                    a 409; all before any storage folder is created.
                   additionalProperties:
                     type: string
         required: true
@@ -509,7 +510,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponseScala'
         '409':
-          description: Namespace already exists (or the idempotency key was reused with a different request)
+          description: >-
+            Namespace already exists, the idempotency key was reused with a different request, or the namespace
+            created with the key was dropped
           content:
             application/json:
               schema:
