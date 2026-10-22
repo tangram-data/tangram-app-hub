@@ -600,6 +600,49 @@ paths:
         required: true
         schema:
           type: string
+  /api/2.1/unity-catalog/tables/{full_name}/history:
+    get:
+      tags:
+      - UnityCatalog
+      summary: The table's Delta log commits, newest first (Tangram extension).
+      operationId: getTableHistory
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableHistory'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
+      parameters:
+      - name: full_name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: max_results
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: version
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
   /api/2.1/unity-catalog/staging-tables:
     post:
       tags:
@@ -895,6 +938,36 @@ components:
       - name
       - catalog_name
       - schema_name
+    TableHistory:
+      type: object
+      required:
+      - commits
+      properties:
+        commits:
+          type: array
+          items:
+            type: object
+            required:
+            - version
+            properties:
+              version:
+                type: integer
+                format: int64
+              timestamp:
+                type: integer
+                format: int64
+              operation:
+                type: string
+              operation_parameters:
+                type: object
+                additionalProperties:
+                  type: string
+              operation_metrics:
+                type: object
+                additionalProperties:
+                  type: string
+              engine_info:
+                type: string
     TableInfo:
       type: object
       properties:

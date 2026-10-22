@@ -203,6 +203,18 @@ Table = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name       = "History"
+        // commit parameters can carry data values (e.g. DELETE predicates): readers of the data only
+        privilege  = "Read"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Lists the table's Delta log commits (version, time, operation, metrics), newest first."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId          = "getTableHistory"
+          resourceNameTemplate = tableFromFullName
+        }
+      },
+      new resources.Action {
         name       = "List"
         privilege  = "Describe"
         effect     = "Stateless"
@@ -237,17 +249,17 @@ Table = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "owner"
-        permissions = List("Create", "Stage", "Load", "List", "Read", "Write", "Delete")
+        permissions = List("Create", "Stage", "Load", "History", "List", "Read", "Write", "Delete")
         description = "Full control over the table."
       },
       new resources.Role {
         name = "writer"
-        permissions = List("Load", "List", "Read", "Write")
+        permissions = List("Load", "History", "List", "Read", "Write")
         description = "Read and write data, alter the schema."
       },
       new resources.Role {
         name = "reader"
-        permissions = List("Load", "List", "Read")
+        permissions = List("Load", "History", "List", "Read")
         description = "Read-only access to table data and metadata."
       }
     )
