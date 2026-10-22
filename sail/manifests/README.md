@@ -100,7 +100,7 @@ run or update the application can read or write its files through the platform t
 | Action on `SailApplication` | What it allows |
 |---|---|
 | `Create`, `Get`, `List` | create an application; read and list applications and their files |
-| `UpdateLib`, `ListLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; delete a lib or one of its versions |
+| `UpdateLib`, `ListLib`, `ReadLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; delete a lib or one of its versions |
 | `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
 | `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
 

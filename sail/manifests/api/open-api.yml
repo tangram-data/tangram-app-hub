@@ -369,6 +369,24 @@ paths:
           description: Deleted
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/libs/{lib}/versions/{version}/content:
+    get:
+      operationId: getSailApplicationLibContent
+      tags: [SailService]
+      summary: A text lib version's content for preview (source and config files up to 16 MiB, first 1 MiB).
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/lib'
+        - $ref: '#/components/parameters/version'
+      responses:
+        '200':
+          description: The file's content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LibContent'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/applications/{app}/runs:
     post:
       operationId: runSailApplication
@@ -775,6 +793,18 @@ components:
         createdAt:
           type: string
           format: date-time
+    LibContent:
+      type: object
+      required: [content, truncated, sizeBytes]
+      properties:
+        content:
+          type: string
+        truncated:
+          type: boolean
+          description: The file is larger than the 1 MiB preview cap; content is its first part.
+        sizeBytes:
+          type: integer
+          format: int64
     SailAppLib:
       type: object
       required: [name, version, fileName, libType, sizeBytes, createdAt]
