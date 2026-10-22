@@ -680,6 +680,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponseScala'
+        '409':
+          description: The namespace was dropped and re-created by another request during this drop; retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
         '500':
           description: ''
           content:
