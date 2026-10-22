@@ -13,7 +13,7 @@ tableQueryable = new integration.IntegrationImplementation {
   implementationType = tableType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.1" }
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
   }
 }
 
@@ -28,7 +28,7 @@ databaseQueryable = new integration.IntegrationImplementation {
   implementationType = databaseType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.starrocks.IcebergStarRocksSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.1" }
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
   }
 }
 
@@ -42,7 +42,7 @@ viewQueryable = new integration.IntegrationImplementation {
   implementationType = viewType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.starrocks.IcebergViewStarRocksSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.1.1" }
+    lib       = new Dynamic { name = "iceberg-starrocks"; version = "1.0.0" }
   }
 }
 

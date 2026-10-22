@@ -11,7 +11,7 @@ tableQueryable = new integration.IntegrationImplementation {
   implementationType = tableType
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.iceberg.sql.snowflake.IcebergSnowflakeSqlQuerySupport"
-    lib       = new Dynamic { name = "iceberg-snowflake"; version = "1.1.0" }
+    lib       = new Dynamic { name = "iceberg-snowflake"; version = "1.0.0" }
   }
 }
 
