@@ -1,15 +1,14 @@
 # Sail — User Guide
 
-The Sail app runs a [Sail](https://lakesail.com) (LakeSail) engine on Kubernetes: a Spark-compatible
+The Sail app runs a [Sail](https://lakesail.com) (LakeSail) engine in your workspace: a Spark-compatible
 compute engine written in Rust. It supports both **Apache Iceberg** and **Delta Lake**: it reads and
 writes the tables of Tangram SQL catalogs in either format. The app
-deploys one Flight SQL driver that starts worker pods on demand and removes them when idle, and
+deploys one Flight SQL driver that starts workers on demand and removes them when idle, and
 registers the cluster as a SQL engine so it is queryable through the Tangram SQL proxy with any
 PostgreSQL client, from SQL notebooks, dashboards and flows.
 
 A workspace can run **several clusters**, each with its own name and sizing, all deployed into the
-app's own Kubernetes namespace and each registered as its own SQL engine. An idle cluster costs
-only its driver pod.
+app and each registered as its own SQL engine. An idle cluster costs only its driver.
 
 ---
 
@@ -25,8 +24,8 @@ these states:
 | `Creating` | Request accepted, work is starting |
 | `DeployingSail` | The driver is rolling out |
 | `Active` | Ready — SQL engine registered, Flight SQL endpoint available |
-| `Degraded` | The driver pod is not ready; check the status message |
-| `Stopped` | Stopped by a user or by auto-stop; no pods run until it is started again |
+| `Degraded` | The driver is not ready; check the status message |
+| `Stopped` | Stopped by a user or by auto-stop; nothing runs until it is started again |
 | `Starting` | A start was requested; the driver is coming back |
 | `CreationFailed` | Creation failed — see the status message |
 | `Deleting` / `DeletionFailed` | Asynchronous deletion in progress / failed |
@@ -40,12 +39,12 @@ these states:
 - **Update resources** — change driver and worker sizing of an Active cluster; the driver is rolled.
 - **Get endpoints** — the Flight SQL endpoint (port 32010, cluster-internal) and the registered SQL
   engine name.
-- **Inspect instances** — status and log tails of the driver and worker pods.
+- **Inspect instances** — status and log tails of the driver and workers.
 - **Stop / start** — stopping scales the driver to zero and stops its workers; nothing runs (and
   nothing is billed for compute) until you start it again. Starting renews the cluster's token and
   brings the driver back with the current sizing. Sizing can be changed while stopped.
 - **Auto-stop** — optional, per cluster: stop the cluster after a chosen idle time (5 minutes to
-  7 days) during which no worker pod ran (workers start for distributed queries and tasks; a cluster with 0 max workers counts as always idle). Changing auto-stop does not restart the cluster.
+  7 days) during which no worker ran (workers start for distributed queries and tasks; a cluster with 0 max workers counts as always idle). Changing auto-stop does not restart the cluster.
 - **Delete a cluster** — removes its driver, workers, service account and SQL engine
   registration.
 
@@ -69,9 +68,9 @@ service account its runs use to reach the catalogs.
 - **Name** — lowercase letters, digits and dashes.
 - **Main file** — the file name of the Python file that starts the job, e.g. `main.py`.
 - **Arguments and environment** — passed to every run as `sys.argv` and env (a run can override both).
-- **Driver sizing** and **max duration** — the run pod; a run that exceeds the duration is failed.
-- **Workers** (optional) — without workers the job runs inside the driver pod (local mode). With
-  workers, the pod becomes the job's driver and starts up to *max workers* pods on demand; *max
+- **Driver sizing** and **max duration** — the run's driver; a run that exceeds the duration is failed.
+- **Workers** (optional) — without workers the job runs inside the driver (local mode). With
+  workers, the driver starts up to *max workers* workers on demand; *max
   workers × task slots* must cover the job's partitions.
 
 ### Files
@@ -88,12 +87,12 @@ run or update the application can read or write its files through the platform t
 
 ### Runs
 
-- **Run** — starts a Kubernetes Job in the app's namespace; optional per-run arguments, environment
+- **Run** — starts the job; optional per-run arguments, environment
   and worker sizing. The job's `spark` session is ready when the main file starts; the workspace's
   catalogs are reachable by name, `<catalog>.<database>.<table>`, with the application's service
   account (grant it the catalog app's `reader`/`writer` roles first). Each run has its own page.
 - **Status** — `Pending` → `Running` → `Succeeded` / `Failed` / `Cancelled`, with a status message.
-- **Cancel** — stops the Job and its workers at once.
+- **Cancel** — stops the run and its workers at once.
 - **Logs** — driver and worker logs of a run, from the platform's log pipeline.
 - **Stats** — the last run's status and run counts per status.
 
