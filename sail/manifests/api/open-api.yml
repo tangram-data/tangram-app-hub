@@ -9,6 +9,13 @@ paths:
       tags: [SailService]
       summary: >-
         Create a Sail cluster asynchronously; poll GET /clusters/{name} for progress.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Same as the body's `idempotencyKey`; the body wins when both are sent.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -22,6 +29,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SailClusterInfo'
+        '409':
+          # the idempotency key was already used with a different request
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
     get:
@@ -625,6 +635,12 @@ components:
           $ref: '#/components/schemas/WorkerSpec'
         autoStop:
           $ref: '#/components/schemas/AutoStopSpec'
+        idempotencyKey:
+          type: string
+          description: |
+            Makes the create idempotent: a retry with the same key and request returns the same cluster (resuming an
+            unfinished or failed create), the same key with a different request or name, or after its cluster was
+            deleted, is a 409, and an existing name without that key is a 400 with no Kubernetes changes.
     AutoStopSpec:
       type: object
       required: [idleMinutes]

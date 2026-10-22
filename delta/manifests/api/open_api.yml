@@ -186,6 +186,13 @@ paths:
       - UnityCatalog
       summary: Create a schema.
       operationId: createSchema
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Same as the `tangram.idempotency-key` property; the property wins when both are sent.
+        schema:
+          type: string
       responses:
         '200':
           description: OK
@@ -218,7 +225,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/UcError'
         '409':
-          description: Already exists
+          description: >-
+            Already exists (ALREADY_EXISTS), or the idempotency key was reused with a different request
+            (IDEMPOTENCY_KEY_CONFLICT)
           content:
             application/json:
               schema:
@@ -809,6 +818,12 @@ components:
           type: string
         properties:
           type: object
+          description: |
+            Schema properties. `volume` names the storage bucket (default: the app's). `tangram.idempotency-key`
+            makes the create idempotent (it isn't stored as a property): a retry with the same key and request returns
+            the same schema (resuming an unfinished create), the same key with a different request or name, or after
+            its schema was dropped, is a 409 IDEMPOTENCY_KEY_CONFLICT, and an existing schema without that key is a 409
+            ALREADY_EXISTS before any storage folder is created.
           additionalProperties:
             type: string
       required:

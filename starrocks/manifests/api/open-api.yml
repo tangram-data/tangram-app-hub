@@ -10,6 +10,13 @@ paths:
       summary: >-
         Initialize the workspace's single shared-data StarRocks cluster in the app's k8s cluster
         asynchronously; poll GET /clusters/{name} for progress.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Same as the body's `idempotencyKey`; the body wins when both are sent.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -23,6 +30,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StarRocksClusterInfo'
+        '409':
+          # the idempotency key was already used with a different request
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}:
@@ -641,6 +651,12 @@ components:
             - $ref: '#/components/schemas/ComputeAutoscaleSpec'
           nullable: true
         idleSuspendMinutes: { type: integer, nullable: true }
+        idempotencyKey:
+          type: string
+          description: |
+            Makes the create idempotent: a retry with the same key and request returns the same cluster (resuming an
+            unfinished or failed create), the same key with a different request, or after its cluster was deleted, is
+            a 409, and an existing cluster without that key is a 400 with no side effects.
     KafkaRoutineLoadSource:
       type: object
       description: >-

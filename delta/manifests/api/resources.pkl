@@ -88,7 +88,7 @@ Database = new resources.ResourceTypeDefinition {
         name       = "Create"
         effect     = "Reversible"
         idempotent = false
-        doc = "Creates a database backed by a storage bucket (the app's bucket unless the `volume` property names another)."
+        doc = "Creates a database backed by a storage bucket (the app's bucket unless the `volume` property names another). Idempotent with the tangram.idempotency-key property."
         openApiMapping = new resources.OpenApiMapping {
           operationId  = "createSchema"
           resourceName = List(new resources.BodyField { path = "name" })
