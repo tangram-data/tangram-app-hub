@@ -1,7 +1,8 @@
 # Sail — User Guide
 
 The Sail app runs a [Sail](https://lakesail.com) (LakeSail) engine on Kubernetes: a Spark-compatible
-compute engine written in Rust that reads and writes Iceberg and Delta tables of Tangram SQL catalogs. The app
+compute engine written in Rust. It supports both **Apache Iceberg** and **Delta Lake**: it reads and
+writes the tables of Tangram SQL catalogs in either format. The app
 deploys one Flight SQL driver that starts worker pods on demand and removes them when idle, and
 registers the cluster as a SQL engine so it is queryable through the Tangram SQL proxy with any
 PostgreSQL client, from SQL notebooks, dashboards and flows.
@@ -53,7 +54,7 @@ these states:
 Each cluster runs as its own Tangram **service account** (shown on the cluster page). It is the
 identity Sail presents to the catalogs it reads and writes. Before the engine can use a table, a
 workspace admin grants that service account the catalog app's `reader` and/or `writer` roles
-(Iceberg, Delta) on the databases it may touch — in this workspace or in another one. Users never act as this identity directly:
+(Iceberg, Delta Lake) on the databases it may touch — in this workspace or in another one. Users never act as this identity directly:
 every statement goes through the SQL proxy, which checks the user's own dataset privileges before
 forwarding it.
 
@@ -107,16 +108,17 @@ run or update the application can read or write its files through the platform t
 
 ## Catalogs
 
-Sail is the compute; Tangram SQL owns the catalogs. Tables are addressed by their Tangram SQL
+Sail supports both Apache Iceberg and Delta Lake. Sail is the compute; Tangram SQL owns the
+catalogs. Tables are addressed by their Tangram SQL
 catalog name — `<catalog>.<database>.<table>`, e.g. `iceberg.sales.orders`, `delta.events.clicks`,
 or another workspace's catalog such as `finance_iceberg.reports.monthly`.
 
-- Any Iceberg or Delta catalog registered in Tangram SQL can be used, including other workspaces'
+- Any Iceberg or Delta Lake catalog registered in Tangram SQL can be used, including other workspaces'
   catalogs: grant the engine's (or application's) service account roles there and it works, with
   no cluster change or restart.
 - `CREATE TABLE` without `USING` creates the table in the target catalog's format.
 - Reads, `INSERT`, `CREATE TABLE … AS SELECT`, `MERGE`, `UPDATE` and `DELETE` work on Iceberg and
-  Delta tables alike.
+  Delta Lake tables alike, and a job or query can read one format and write the other.
 
 ## Lineage
 
@@ -124,7 +126,7 @@ Sail jobs record the lineage of every write they commit, shown in the dataset's 
 
 - **Tables** — the tables a write read, linked to the table it wrote.
 - **Columns** — for each written column, the source columns it comes from.
-- **Version** — the table version the write created (Delta version, Iceberg snapshot), with the
+- **Version** — the table version the write created (Delta Lake version, Iceberg snapshot), with the
   table's commit history.
 - **Job** — the application and the run that wrote it, with a link to the run, and the SQL statement
   when the write was SQL.
@@ -137,7 +139,7 @@ cluster through the Tangram SQL proxy record their lineage too.
 
 The Active cluster is registered as a SQL engine. Connect through the Tangram SQL proxy with any
 PostgreSQL client, or pick the engine in a SQL notebook, and run Spark SQL against Iceberg and
-Delta tables.
+Delta Lake tables.
 
 ## Trademarks
 
