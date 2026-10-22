@@ -511,8 +511,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponseScala'
         '409':
           description: >-
-            Namespace already exists, the idempotency key was reused with a different request, or the namespace
-            created with the key was dropped
+            Namespace already exists, the idempotency key was reused with a different request, the namespace
+            created with the key was dropped, or another create with the key is still running (retry)
           content:
             application/json:
               schema:
@@ -681,7 +681,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponseScala'
         '409':
-          description: The namespace was dropped and re-created by another request during this drop; retry
+          description: >-
+            The namespace was dropped and re-created by another request during this drop, or a create with its
+            idempotency key is still running; retry
           content:
             application/json:
               schema:
