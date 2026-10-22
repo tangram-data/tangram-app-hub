@@ -11,7 +11,7 @@ local Irreversible = resources.Effect.Irreversible
 
 SailCluster = new resources.ResourceTypeDefinition {
   name = "SailCluster"
-  doc  = "Sail (LakeSail) engine cluster on Kubernetes: one Flight SQL driver with on-demand workers"
+  doc  = "Sail (LakeSail) engine cluster: one Flight SQL driver with on-demand workers"
   activeVersion = "v1"
   scopeType = resources.WORKSPACE_TYPE
   superType = resources.SQL_ENGINE_TYPE
@@ -26,12 +26,12 @@ SailCluster = new resources.ResourceTypeDefinition {
         permissions = List(
           "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
         )
-        description = "Configure sizing and auto-stop, stop and start, inspect pods and logs. Cannot initialize or decommission the cluster."
+        description = "Configure sizing and auto-stop, stop and start, inspect instances and logs. Cannot initialize or decommission the cluster."
       },
       new resources.Role {
         name = "viewer"
         permissions = List("Get", "List", "GetEndpoints", "GetInstances", "GetConnectionDetails")
-        description = "Read-only — see the cluster, its endpoints and pods, and query it through the SQL proxy."
+        description = "Read-only — see the cluster, its endpoints and instances, and query it through the SQL proxy."
       }
     )
     actions = List(
@@ -96,7 +96,7 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "Stop"
         effect = Reversible
         idempotent = false
-        doc = "Stop the cluster: the driver goes to zero replicas and its pods stop; start it again later."
+        doc = "Stop the cluster: the driver and its workers stop; start it again later."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "stopSailCluster"
           resourceNameTemplate = "[{{parameters.name}}]"
@@ -126,7 +126,7 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "GetInstances"
         effect = Stateless
         idempotent = true
-        doc = "Status of the cluster's driver and worker pods."
+        doc = "Status of the cluster's driver and workers."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getSailClusterInstances"
           resourceNameTemplate = "[{{parameters.name}}]"
@@ -136,7 +136,7 @@ SailCluster = new resources.ResourceTypeDefinition {
         name = "GetInstanceLogs"
         effect = Stateless
         idempotent = true
-        doc = "Tail of one driver/worker pod's logs (debugging aid)."
+        doc = "Tail of one driver or worker's logs (debugging aid)."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getSailClusterInstanceLogs"
           resourceNameTemplate = "[{{parameters.name}}]"
@@ -158,13 +158,13 @@ SailCluster = new resources.ResourceTypeDefinition {
 
 // ---------------------------------------------------------------------------
 // SailApplication (workspace-scoped): a PySpark application whose files live in a Tangram folder
-// owned by this resource and whose runs execute as its service account (Kubernetes Jobs running
-// `sail spark run`). The run-files endpoint is called by run pods only and is not an action.
+// owned by this resource and whose runs execute as its service account (runs execute
+// `sail spark run`). The run-files endpoint is called by runs only and is not an action.
 // ---------------------------------------------------------------------------
 
 SailApplication = new resources.ResourceTypeDefinition {
   name = "SailApplication"
-  doc  = "PySpark application run on Sail: uploaded files, on-demand Kubernetes Job runs, logs"
+  doc  = "PySpark application run on Sail: uploaded files, on-demand runs, logs"
   activeVersion = "v1"
   scopeType = resources.WORKSPACE_TYPE
   versions = List(new resources.ResourceTypeVersion {
@@ -299,7 +299,7 @@ SailApplication = new resources.ResourceTypeDefinition {
         name = "Run"
         effect = Reversible
         idempotent = false
-        doc = "Submit a run of the application as a Kubernetes Job."
+        doc = "Submit a run of the application."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "runSailApplication"
           resourceNameTemplate = "[{{parameters.app}}]"
@@ -339,7 +339,7 @@ SailApplication = new resources.ResourceTypeDefinition {
         name = "GetRunLogs"
         effect = Stateless
         idempotent = true
-        doc = "Logs of a run's pods."
+        doc = "Logs of a run's driver and workers."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getSailApplicationRunLogs"
           resourceNameTemplate = "[{{parameters.app}}]"

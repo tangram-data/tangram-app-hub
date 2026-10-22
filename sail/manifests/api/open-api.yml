@@ -98,7 +98,7 @@ paths:
     post:
       operationId: stopSailCluster
       tags: [SailService]
-      summary: Stop the cluster; the driver goes to zero replicas and its pods stop. Start it again later.
+      summary: Stop the cluster; the driver and its workers stop. Start it again later.
       parameters:
         - $ref: '#/components/parameters/name'
       responses:
@@ -177,12 +177,12 @@ paths:
     get:
       operationId: getSailClusterInstances
       tags: [SailService]
-      summary: Status of the cluster's driver and worker pods.
+      summary: Status of the cluster's driver and workers.
       parameters:
         - $ref: '#/components/parameters/name'
       responses:
         '200':
-          description: Pods
+          description: Instances
           content:
             application/json:
               schema:
@@ -195,7 +195,7 @@ paths:
     get:
       operationId: getSailClusterInstanceLogs
       tags: [SailService]
-      summary: Tail of one driver/worker pod's logs (default 500 lines, capped at 5000).
+      summary: Tail of one driver or worker's logs (default 500 lines, capped at 5000).
       parameters:
         - $ref: '#/components/parameters/name'
         - name: pod
@@ -391,7 +391,7 @@ paths:
     post:
       operationId: runSailApplication
       tags: [SailService]
-      summary: Submit a run of the application's latest libs as a Kubernetes Job.
+      summary: Submit a run of the application's latest libs.
       parameters:
         - $ref: '#/components/parameters/app'
       requestBody:
@@ -497,13 +497,13 @@ paths:
     get:
       operationId: getSailApplicationRunLogs
       tags: [SailService]
-      summary: Logs of a run's pods from the platform log pipeline.
+      summary: Logs of a run's driver and workers from the platform log pipeline.
       parameters:
         - $ref: '#/components/parameters/app'
         - $ref: '#/components/parameters/runId'
         - name: component
           in: query
-          description: run (the driver pod) or run-worker
+          description: run (the driver) or run-worker
           schema:
             type: string
         - name: startTimestamp
@@ -585,7 +585,7 @@ components:
       properties:
         maxCount:
           type: integer
-          description: Maximum worker pods spawned on demand; workers are removed when idle.
+          description: Maximum workers started on demand; workers are removed when idle.
         resources:
           $ref: '#/components/schemas/PodResources'
         idleSeconds:
@@ -658,7 +658,7 @@ components:
           description: |
             Makes the create idempotent: a retry with the same key and request returns the same cluster (resuming an
             unfinished or failed create), the same key with a different request or name, or after its cluster was
-            deleted, is a 409, and an existing name without that key is a 400 with no Kubernetes changes.
+            deleted, is a 409, and an existing name without that key is a 400 and changes nothing.
     AutoStopSpec:
       type: object
       required: [idleMinutes]
