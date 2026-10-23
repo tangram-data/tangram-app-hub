@@ -160,6 +160,28 @@ paths:
                 $ref: '#/components/schemas/ClusterConnectionDetails'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/engine-catalogs:
+    post:
+      operationId: ensureStarRocksEngineCatalog
+      tags: [StarRocksService]
+      summary: Create or repair the cluster's long-lived Iceberg catalog (Tangram SQL proxy only).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnsureEngineCatalogRequest'
+      responses:
+        '200':
+          description: The physical catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineCatalog'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/instances:
     get:
       operationId: getStarRocksClusterInstances
@@ -569,6 +591,20 @@ components:
         k8sClusterName: { type: string, nullable: true }
         sqlEngineFn: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        serviceAccount: { type: string, nullable: true }
+    EnsureEngineCatalogRequest:
+      type: object
+      required: [workspace, catalog]
+      properties:
+        workspace: { type: string }
+        catalog: { type: string }
+        repair: { type: boolean, nullable: true }
+        kind: { type: string, nullable: true }
+    EngineCatalog:
+      type: object
+      required: [catalog]
+      properties:
+        catalog: { type: string }
     ClusterEndpoints:
       type: object
       required: [feMysqlPort]

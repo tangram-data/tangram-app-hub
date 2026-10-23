@@ -134,6 +134,16 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "EnsureCatalog"
+        effect = Reversible
+        idempotent = true
+        doc = "Create or repair the cluster's long-lived Iceberg catalog for a Tangram catalog (authenticated as the cluster's service account) and return its physical name. Only the Tangram SQL service may call it."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "ensureStarRocksEngineCatalog"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "ListDatabases"
         effect = Stateless
         idempotent = true
