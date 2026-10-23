@@ -1,0 +1,36 @@
+import "@tangram-app-manifest/integration.pkl" as integration
+
+local tableType    = "ai.tangram/delta/Table/v1"
+local databaseType = "ai.tangram/delta/Database/v1"
+
+// StarRocks reads Delta tables through the StarRocks app's long-lived Delta engine catalogs (Unity Catalog
+// metastore, the cluster's engine identity, per-table READ credentials). Read-only: writes and DDL are refused
+// and run on Spark or Sail.
+local starrocksInterface = new integration.AppIntegrationInterface {
+  app     = integration.TANGRAM_SQL_APP
+  name    = "queryable/starrocks"
+  version = "v1"
+}
+
+local starrocksLib = new Dynamic { name = "delta-starrocks"; version = "0.1.0" }
+
+tableQueryable = new integration.IntegrationImplementation {
+  interface          = starrocksInterface
+  implementationType = tableType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.sql.starrocks.DeltaStarRocksSqlQuerySupport"
+    lib       = starrocksLib
+  }
+}
+
+// CREATE/DROP DATABASE: refused with the read-only message
+databaseQueryable = new integration.IntegrationImplementation {
+  interface          = starrocksInterface
+  implementationType = databaseType
+  implementationSpec = new Dynamic {
+    className = "ai.tangram.os.delta.sql.starrocks.DeltaStarRocksSqlQuerySupport"
+    lib       = starrocksLib
+  }
+}
+
+implementations: List<integration.IntegrationImplementation> = List(tableQueryable, databaseQueryable)

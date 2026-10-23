@@ -3,6 +3,8 @@
 Delta Lake is an open table format with ACID transactions, time travel and schema evolution on
 object storage. This app runs a Delta Lake catalog for the workspace. It speaks the Unity Catalog
 REST API (`/api/2.1/unity-catalog`), so Sail, Spark and DuckDB can read and write the same tables.
+StarRocks reads them (read-only) through the StarRocks app's Delta engine catalogs; grant the
+StarRocks cluster's service account the Database `viewer` and Table `reader` roles on the databases it may read.
 
 - One catalog per workspace, named `delta`. Databases (schemas) and tables live in Tangram storage
   folders; access follows the Database and Table roles.
