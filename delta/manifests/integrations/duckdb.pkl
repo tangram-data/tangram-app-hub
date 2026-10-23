@@ -10,7 +10,7 @@ local duckdbInterface = new integration.AppIntegrationInterface {
   version = "v1"
 }
 
-local duckdbLib = new Dynamic { name = "delta-duckdb"; version = "0.1.0" }
+local duckdbLib = new Dynamic { name = "delta-duckdb"; version = "1.0.0" }
 
 tableQueryable = new integration.IntegrationImplementation {
   interface          = duckdbInterface

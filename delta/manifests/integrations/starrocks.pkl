@@ -12,7 +12,7 @@ local starrocksInterface = new integration.AppIntegrationInterface {
   version = "v1"
 }
 
-local starrocksLib = new Dynamic { name = "delta-starrocks"; version = "0.1.0" }
+local starrocksLib = new Dynamic { name = "delta-starrocks"; version = "1.0.0" }
 
 tableQueryable = new integration.IntegrationImplementation {
   interface          = starrocksInterface

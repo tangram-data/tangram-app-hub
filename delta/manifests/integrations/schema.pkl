@@ -6,7 +6,7 @@ tableSchemaUpdater = new integration.IntegrationImplementation {
   implementationType = "ai.tangram/delta/Table/v1"
   implementationSpec = new Dynamic {
     className = "ai.tangram.os.delta.schema.DeltaSchemaUpdateExecutor"
-    lib       = new Dynamic { name = "delta-schema-update"; version = "0.1.0" }
+    lib       = new Dynamic { name = "delta-schema-update"; version = "1.0.0" }
   }
 }
 
