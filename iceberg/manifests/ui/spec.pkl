@@ -2,8 +2,16 @@ import "@tangram-app-manifest/ui.pkl" as ui
 
 logo = "static/logo.png"
 
+// The app serves its own UI (tangram-iceberg/ui, bundled into the catalog server), not an OS built-in one.
+// Requests matching an api/open_api.yml operation go through IAM as API calls; everything else is UI, so
+// every server API path must stay declared there.
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
+
 deployment: ui.UIDeployment = new {
-  mode = "OSBuiltIn"
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
 }
 
 resourceTypeIcons {
