@@ -1,6 +1,16 @@
 # Duckling
 **Duckling** enables the deployment of **DuckDB** instances within **Tangram OS**, with native support for Duck Lake and **Apache Iceberg™** as the underlying table formats.
 
+## Versions
+
+| Component | Version |
+|---|---|
+| Engine | DuckDB 2.0.0 (JDBC `org.duckdb:duckdb_jdbc` 2.0.0.0) |
+| Extensions | `iceberg`, `delta`, `ducklake`, `httpfs`, `aws`, `azure`, `postgres`, `avro` (DuckDB 2.0.0 builds, pre-installed) |
+| Delta Lake | DuckDB `delta` extension, against the Delta app's catalog (Delta Kernel 4.3.1) |
+
+Each instance needs at least 1 GB of memory.
+
 ## Apache Iceberg™
 It supports both **reading from** and **writing to** Iceberg tables.
 
@@ -16,8 +26,15 @@ insert into heros values('james bond');
 from heros;
 ```
 
-### Granting Iceberg Access to Duckling
-To allow Duckling instances to access Iceberg data, you must assign a role to the Duckling App's service account that includes **read and write privileges** for Iceberg.
+### Granting Iceberg and Delta access to Duckling
+Each Duckling instance reads tables as its own service account (shown on the instance as `serviceAccount`), after Tangram has checked that you may read them. Give that service account a role on the Iceberg or Delta databases it should read (for example the database `owner` or a reader role); until then a query names the account and what to grant.
+
+## Delta Lake
+Duckling reads Delta tables from the workspace's Delta catalog and can `INSERT` into them:
+
+```sql
+select * from delta.sales.orders;
+```
 
 ## Duck Lake
 
@@ -44,6 +61,7 @@ from employee;
 
 ## Trademarks
 
+- Delta Lake is a trademark of LF Projects, LLC.
 - Apache Iceberg™ is registered trademarks or trademarks of the Apache Software Foundation in the United States and/or other countries.
 
 -  PostgreSQL™ are all registered trademarks of the PostgreSQL Community Association of Canada.

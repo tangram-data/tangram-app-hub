@@ -12,6 +12,17 @@ StarRocks cluster's service account the Database `viewer` and Table `reader` rol
   that table's folder and to what the caller may do (read-only or read-write).
 - Commits go straight to the Delta log in storage, so any Delta reader can also read a table by path.
 
+## Versions
+
+| Component | Version |
+|---|---|
+| Catalog server (Delta log reads and commits) | Delta Kernel 4.3.1 (Java) |
+| Catalog API | Unity Catalog REST API 2.1 (subset) |
+| Sail | Sail 0.7.2 (Tangram build): read, write, DDL |
+| Spark | Delta Lake 4.3.1 (`delta-spark`): read, write, DDL |
+| DuckDB / Duckling | DuckDB 2.0.0 with its `delta` extension: read, INSERT |
+| StarRocks | StarRocks 4.1.6 (Tangram build): read-only |
+
 ## Create a database
 
 Create a storage bucket in the workspace first, then a database from a SQL engine, e.g. on Sail:
