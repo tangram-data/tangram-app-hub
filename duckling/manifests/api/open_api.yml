@@ -820,8 +820,8 @@ components:
         memory:
           type: integer
           format: int32
-          minimum: 512
-          description: Memory allocation in MB. The minimum is 512 MB.
+          minimum: 1000
+          description: Memory allocation in MB. The minimum is 1000 MB.
         cpu:
           type: integer
           format: int32
@@ -965,8 +965,8 @@ components:
         memory:
           type: integer
           format: int32
-          minimum: 512
-          description: Memory allocation in MB. The minimum is 512 MB.
+          minimum: 1000
+          description: Memory allocation in MB. The minimum is 1000 MB.
         description:
           type: string
         status:
@@ -976,6 +976,9 @@ components:
         idleTimeoutMinutes:
           type: [integer, "null"]
           format: int32
+        serviceAccount:
+          type: [string, "null"]
+          description: The service account the instance reads catalogs as; grant it data roles.
     Failed:
       required:
         - errorMsg
@@ -1042,8 +1045,8 @@ components:
         memory:
           type: integer
           format: int32
-          minimum: 512
-          description: Memory allocation in MB. The minimum is 512 MB.
+          minimum: 1000
+          description: Memory allocation in MB. The minimum is 1000 MB.
         cpu:
           type: integer
           format: int32
