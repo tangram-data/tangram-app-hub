@@ -23,7 +23,7 @@ The same tables are available to every SQL engine of the workspace, with no copi
 | Sail | ✓ | ✓ | ✓ |
 | Spark | ✓ | ✓ | ✓ |
 | StarRocks | ✓ | ✓ | ✓ |
-| DuckDB / Duckling | ✓ | | |
+| DuckDB / Duckling | ✓ | ✓ | |
 | ClickHouse | ✓ | | |
 | Snowflake | ✓ | | |
 
