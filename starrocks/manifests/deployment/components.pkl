@@ -30,7 +30,7 @@ starRocksManager: deployment.AppComponentSpec = new deployment.AppComponentSpec 
       ports = List(9899)
       variables = Map(
         "SERVER_PORT", "9899",
-        "STARROCKS_FE_IMAGE", "ghcr.io/tangram-data/starrocks-fe:4.1.6-tangram.1",
+        "STARROCKS_FE_IMAGE", "ghcr.io/tangram-data/starrocks-fe:4.1.6-tangram.3",
         "STARROCKS_COMPUTE_IMAGE", "starrocks/cn-ubuntu:4.1.6",
         "STARROCKS_ENGINE_IDENTITY_POLL_INTERVAL_SECONDS", "60",
         "TANGRAM_DATA_OS_WORKSPACE", deploymentRuntime.context.workspace,
