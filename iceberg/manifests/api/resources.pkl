@@ -228,6 +228,14 @@ Table = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping { operationId = "loadTableSnapshots" }
       },
       new resources.Action {
+        name       = "GetStats"
+        privilege  = "Describe"
+        effect     = "Stateless"
+        idempotent = true
+        doc = "Returns file stats of the table's current snapshot: data files, bytes, average and small (< 32 MiB) files, delete files, snapshot count."
+        openApiMapping = new resources.OpenApiMapping { operationId = "loadTableStats" }
+      },
+      new resources.Action {
         name       = "List"
         privilege  = "Describe"
         effect     = "Stateless"
@@ -317,7 +325,7 @@ Table = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "owner"
         permissions = List(
-          "Create", "Load", "LoadCredentials", "GetSnapshots", "List",
+          "Create", "Load", "LoadCredentials", "GetSnapshots", "GetStats", "List",
           "UpdateMetadata", "Read", "Write", "Delete", "Rename",
           "ReportMetrics", "CheckExists"
         )
@@ -326,7 +334,7 @@ Table = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Load", "Create", "LoadCredentials", "GetSnapshots", "List",
+          "Load", "Create", "LoadCredentials", "GetSnapshots", "GetStats", "List",
           "UpdateMetadata", "Read", "Write", "Rename",
           "ReportMetrics", "CheckExists"
         )
@@ -335,7 +343,7 @@ Table = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "writer"
         permissions = List(
-          "Load", "LoadCredentials", "GetSnapshots", "List",
+          "Load", "LoadCredentials", "GetSnapshots", "GetStats", "List",
           "Read", "Write", "ReportMetrics", "CheckExists"
         )
         description = "Read + write data only. Cannot evolve schema or rename."
@@ -343,7 +351,7 @@ Table = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "reader"
         permissions = List(
-          "Load", "LoadCredentials", "GetSnapshots", "List",
+          "Load", "LoadCredentials", "GetSnapshots", "GetStats", "List",
           "Read", "CheckExists"
         )
         description = "Read-only access to table data and metadata."
@@ -351,7 +359,7 @@ Table = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "schema_admin"
         permissions = List(
-          "GetSnapshots", "List", "UpdateMetadata", "Rename", "CheckExists"
+          "GetSnapshots", "GetStats", "List", "UpdateMetadata", "Rename", "CheckExists"
         )
         description = "Schema/metadata steward — alter and rename, but no data access."
       }

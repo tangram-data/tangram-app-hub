@@ -1244,6 +1244,50 @@ paths:
                 $ref: '#/components/schemas/ErrorResponseScala'
       security:
         - httpAuth: []
+  /v1/namespaces/{namespace}/tables/{table}/stats:
+    get:
+      tags:
+        - Catalog API
+      summary: File stats of the table's current snapshot (data files, bytes, small files, delete files)
+      operationId: loadTableStats
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '404':
+          description: Table Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '500':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
   /v1/tables/rename:
     post:
       tags:
