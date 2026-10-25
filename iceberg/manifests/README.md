@@ -25,7 +25,6 @@ The same tables are available to every SQL engine of the workspace, with no copi
 | StarRocks | ✓ | ✓ | ✓ |
 | DuckDB / Duckling | ✓ | ✓ | |
 | ClickHouse | ✓ | | |
-| Snowflake | ✓ | | |
 
 Engines reach storage with short-lived credentials scoped to the tables being used, never with workspace-wide keys.
 
