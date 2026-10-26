@@ -1017,6 +1017,10 @@ components:
             type: string
         truncated:
           type: boolean
+        records:
+          type: integer
+          format: int64
+          description: Live rows (file numRecords minus deletion-vector rows); absent when a file has no stats.
     TableHistory:
       type: object
       required:

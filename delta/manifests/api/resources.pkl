@@ -243,7 +243,13 @@ Table = new resources.ResourceTypeDefinition {
         name       = "Write"
         effect     = "Reversible"   // Delta versions allow restoring an earlier one
         idempotent = false
-        doc = "Authorization marker for writing table data (and ALTER TABLE) via a query engine. No HTTP endpoint."
+        doc = "Authorization marker for writing table data via a query engine. No HTTP endpoint."
+      },
+      new resources.Action {
+        name       = "UpdateMetadata"
+        effect     = "Irreversible" // VACUUM deletes files no version references any more
+        idempotent = false
+        doc = "Authorization marker for ALTER TABLE and table maintenance (OPTIMIZE, VACUUM, REORG) via a query engine, and for editing the table's maintenance policy. No HTTP endpoint."
       },
       new resources.Action {
         name                 = "Delete"
@@ -260,13 +266,13 @@ Table = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "owner"
-        permissions = List("Create", "Stage", "Load", "History", "Stats", "List", "Read", "Write", "Delete")
+        permissions = List("Create", "Stage", "Load", "History", "Stats", "List", "Read", "Write", "UpdateMetadata", "Delete")
         description = "Full control over the table."
       },
       new resources.Role {
         name = "writer"
         permissions = List("Load", "History", "Stats", "List", "Read", "Write")
-        description = "Read and write data, alter the schema."
+        description = "Read and write data."
       },
       new resources.Role {
         name = "reader"

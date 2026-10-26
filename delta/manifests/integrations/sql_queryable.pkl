@@ -9,7 +9,8 @@ local tableCommandMapping = Map(
   "Delete", List("Write"),
   "Drop",   List("Delete"),
   "Create", List("Create"),
-  "Alter",  List("Write")
+  // ALTER TABLE and maintenance (OPTIMIZE, VACUUM, REORG): table owners, like Iceberg's UpdateMetadata
+  "Alter",  List("UpdateMetadata")
 )
 
 tableQueryable = new integration.IntegrationImplementation {
