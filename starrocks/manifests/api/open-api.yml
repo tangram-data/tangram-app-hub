@@ -535,7 +535,7 @@ components:
         diskSizeGb: { type: integer }
     StarRocksClusterSpec:
       type: object
-      required: [name, k8sTarget, mode, fe, compute, exposeFeService]
+      required: [name, k8sTarget, mode, fe, compute]
       properties:
         name: { type: string }
         k8sTarget:
@@ -554,7 +554,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/StorageSpec'
           nullable: true
-        exposeFeService: { type: boolean }
+        exposeFeService: { type: boolean, description: Ignored; the FE is never exposed outside the cluster. }
         computeAutoscale:
           allOf:
             - $ref: '#/components/schemas/ComputeAutoscaleSpec'
@@ -675,13 +675,13 @@ components:
       description: >-
         Sizing for the workspace's single shared-data cluster (fixed name 'starrocks',
         deployed into the app's own k8s cluster; storage resolved server-side).
-      required: [fe, compute, exposeFeService]
+      required: [fe, compute]
       properties:
         fe:
           $ref: '#/components/schemas/ComponentSpec'
         compute:
           $ref: '#/components/schemas/ComputeSpecRequest'
-        exposeFeService: { type: boolean }
+        exposeFeService: { type: boolean, description: Ignored; the FE is never exposed outside the cluster. }
         computeAutoscale:
           allOf:
             - $ref: '#/components/schemas/ComputeAutoscaleSpec'
