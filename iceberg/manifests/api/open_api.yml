@@ -885,6 +885,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/Snapshots'
+        - name: tangram-metadata-only
+          in: query
+          description: Tangram extension; the table metadata only, without storage config or credentials.
+          required: false
+          schema:
+            type: boolean
       responses:
         '200':
           description: ''
