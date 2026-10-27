@@ -12,7 +12,7 @@ local storageBucket = deps.storageBucketClaim.bucket()
   recommendedReplica = 3
   containers = List(new deployment.ContainerMeta {
     name = "catalog-server"
-    image = "ghcr.io/tangram-data/tangram-iceberg-catalog:0.2.2"
+    image = "ghcr.io/tangram-data/tangram-iceberg-catalog:0.2.3"
   })
   // Push OTLP traces + JVM-runtime metrics to the platform collector; the collector derives the
   // workspace from the namespace and the tangram router fans out to {tenant}-traces / {tenant}-metrics.
