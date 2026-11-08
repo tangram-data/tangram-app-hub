@@ -550,6 +550,13 @@ components:
         compute:
           $ref: '#/components/schemas/ComponentSpec'
         computeDiskGb: { type: integer, nullable: true }
+        cacheDiskGb:
+          type: integer
+          nullable: true
+          description: >-
+            Shared-data only: size in GiB of each CN's cache volume (data cache for external scans
+            and the star cache). Server-assigned at creation and immutable; null on clusters
+            created before this field existed.
         storage:
           allOf:
             - $ref: '#/components/schemas/StorageSpec'
@@ -687,6 +694,12 @@ components:
             - $ref: '#/components/schemas/ComputeAutoscaleSpec'
           nullable: true
         idleSuspendMinutes: { type: integer, nullable: true }
+        cacheDiskGb:
+          type: integer
+          nullable: true
+          minimum: 5
+          maximum: 2000
+          description: Per-CN data cache volume in GiB (default 20). Fixed once the cluster is created.
         idempotencyKey:
           type: string
           description: |

@@ -12,7 +12,7 @@ local bucketSecrets = deps.bucketClaim.secrets()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "starrocks-server"
-    image = "ghcr.io/tangram-data/tangram-starrocks-server:1.0.0"
+    image = "ghcr.io/tangram-data/tangram-starrocks-server:1.1.3"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
