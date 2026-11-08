@@ -2,8 +2,14 @@ import "@tangram-app-manifest/ui.pkl" as ui
 
 logo = "static/logo.png"
 
+// The app serves its own UI (tangram-apps tangram-duckling/ui), proxied by the OS.
+uiPattern = new ui.UriPattern {
+  pattern = ".*"
+}
+
 deployment: ui.UIDeployment = new {
-  mode = "OSBuiltIn"
+  mode = "Proxy"
+  uriPatterns = List(uiPattern)
 }
 
 resourceTypeIcons {
@@ -17,8 +23,9 @@ resourceTypeIcons {
 resourceTypeUri {
   ["Instance"] = "/instances/{{names[1]}}"
   ["DuckLake"] = "/duck-lakes/{{names[1]}}"
-  ["Table"] = "/duck-lakes/{{names[1]}}?schema={{names[2]}}&table={{names[3]}}"
-  ["View"] = "/duck-lakes/{{names[1]}}?schema={{names[2]}}&view={{names[3]}}"
+  ["Schema"] = "/duck-lakes/{{names[1]}}"
+  ["Table"] = "/duck-lakes/{{names[1]}}/schemas/{{names[2]}}/tables/{{names[3]}}"
+  ["View"] = "/duck-lakes/{{names[1]}}/schemas/{{names[2]}}/views/{{names[3]}}"
 }
 
 components: Listing<ui.AppUIComponentSpec> = new Listing {
