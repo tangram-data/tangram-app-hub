@@ -108,10 +108,10 @@ and a service account its runs use to reach the Iceberg catalog.
 - **Service-account token** — every run gets its service account's token (valid for the whole run)
   as a file in `/var/run/spark/run/` (name configurable, default `service-account-token`; its path is
   always in `TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE`) and, unless turned off, in an env var holding the
-  token itself (default `TANGRAM_SERVICE_ACCOUNT_TOKEN`). The Iceberg catalog, `to://` paths and
-  lineage use it automatically; jobs can use it too, e.g. as the OAUTHBEARER token of the Kafka app's
-  Tangram-token listener. The env var comes from the run's Secret on the driver and executor pods and
-  is never a Spark setting, so the Spark UI does not show it; don't print the environment in logs.
+  token itself (default `TANGRAM_SERVICE_ACCOUNT_TOKEN`) on the driver; executors read the file. The
+  Iceberg catalog, `to://` paths and lineage use it automatically; jobs can use it too, e.g. as the
+  OAUTHBEARER token of the Kafka app's Tangram-token listener. The env var comes from the run's Secret
+  and is never a Spark setting, so the Spark UI does not show it; don't print the environment in logs.
 
 Settings can be changed later (**Edit** on the application page); the next run uses them, runs in
 progress keep the settings they started with. The name is fixed.
