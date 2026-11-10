@@ -843,8 +843,101 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/GenerateTemporaryPathCredential'
+  /api/2.1/unity-catalog/storage-buckets:
+    get:
+      tags:
+        - UnityCatalog
+      summary: List the storage buckets Delta can store a new database in
+      operationId: listStorageBuckets
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStorageBucketList'
+      security: *id001
+    post:
+      tags:
+        - UnityCatalog
+      summary: Create a storage bucket owned by Delta
+      operationId: createStorageBucket
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppStorageBucket'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStorageBucket'
+        '400':
+          description: Invalid bucket name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+        '409':
+          description: Bucket already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UcError'
+      security: *id001
 components:
   schemas:
+    AppStorageBucket:
+      title: AppStorageBucket
+      type: object
+      required:
+        - name
+        - owner
+        - canCreateFolders
+      properties:
+        name:
+          type: string
+        owner:
+          type: string
+          enum:
+            - app
+            - workspace
+        canCreateFolders:
+          type: boolean
+    AppStorageBucketList:
+      title: AppStorageBucketList
+      type: object
+      required:
+        - canCreateBuckets
+        - hiddenCount
+        - buckets
+      properties:
+        canCreateBuckets:
+          type: boolean
+        hiddenCount:
+          type: integer
+          format: int32
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStorageBucket'
+    CreateAppStorageBucket:
+      title: CreateAppStorageBucket
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
     UcError:
       type: object
       properties:

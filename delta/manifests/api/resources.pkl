@@ -95,6 +95,23 @@ Database = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name       = "ListStorageBuckets"
+        privilege  = "Create"   // the create form's bucket picker: same gate as creating the database
+        effect     = "Stateless"
+        idempotent = true
+        skipAudit  = true
+        doc = "Lists the storage buckets a new database can use: Delta's own, and workspace buckets Delta can create folders in."
+        openApiMapping = new resources.OpenApiMapping { operationId = "listStorageBuckets" }
+      },
+      new resources.Action {
+        name       = "CreateStorageBucket"
+        privilege  = "Create"
+        effect     = "Reversible"
+        idempotent = false
+        doc = "Creates a workspace storage bucket owned by Delta (it stays if Delta is uninstalled), for new databases."
+        openApiMapping = new resources.OpenApiMapping { operationId = "createStorageBucket" }
+      },
+      new resources.Action {
         name       = "List"
         privilege  = "Describe"
         effect     = "Stateless"

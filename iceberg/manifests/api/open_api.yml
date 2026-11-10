@@ -1785,8 +1785,103 @@ paths:
                 $ref: '#/components/schemas/ErrorResponseScala'
       security:
         - httpAuth: []
+  /api/v1/storage-buckets:
+    get:
+      tags:
+        - Catalog API
+      summary: List the storage buckets Iceberg can store a new database in
+      operationId: listStorageBuckets
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStorageBucketList'
+      security:
+        - httpAuth: []
+    post:
+      tags:
+        - Catalog API
+      summary: Create a storage bucket owned by Iceberg
+      operationId: createStorageBucket
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppStorageBucket'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStorageBucket'
+        '400':
+          description: Invalid bucket name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '403':
+          description: No privilege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+        '409':
+          description: Bucket already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseScala'
+      security:
+        - httpAuth: []
 components:
   schemas:
+    AppStorageBucket:
+      title: AppStorageBucket
+      type: object
+      required:
+        - name
+        - owner
+        - canCreateFolders
+      properties:
+        name:
+          type: string
+        owner:
+          type: string
+          enum:
+            - app
+            - workspace
+        canCreateFolders:
+          type: boolean
+    AppStorageBucketList:
+      title: AppStorageBucketList
+      type: object
+      required:
+        - canCreateBuckets
+        - hiddenCount
+        - buckets
+      properties:
+        canCreateBuckets:
+          type: boolean
+        hiddenCount:
+          type: integer
+          format: int32
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStorageBucket'
+    CreateAppStorageBucket:
+      title: CreateAppStorageBucket
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
     AuthenticationError:
       required:
         - message
