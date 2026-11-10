@@ -716,6 +716,10 @@ components:
         autoStopped:
           type: boolean
           description: Stopped for idleness; the SQL proxy starts such a cluster on demand.
+        serviceAccountTokenFile:
+          type: string
+          nullable: true
+          description: Path of the cluster's service-account token file; catalogs the SQL proxy attaches use it.
     ClusterInstance:
       type: object
       required: [name, role, phase, ready, restarts]
