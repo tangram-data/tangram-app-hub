@@ -91,6 +91,9 @@ run or update the application can read or write its files through the platform t
   and worker sizing. The job's `spark` session is ready when the main file starts; the workspace's
   catalogs are reachable by name, `<catalog>.<database>.<table>`, with the application's service
   account (grant it the catalog app's `reader`/`writer` roles first). Each run has its own page.
+- **Service-account token** — the catalogs authenticate with the run's token, valid for the whole
+  run, in `/var/run/sail/run/service-account-token`. A job can read it too, e.g. to call other
+  Tangram APIs or a Kafka topic as the application; don't print it.
 - **Status** — `Pending` → `Running` → `Succeeded` / `Failed` / `Cancelled`, with a status message.
 - **Cancel** — stops the run and its workers at once.
 - **Logs** — driver and worker logs of a run, from the platform's log pipeline.
