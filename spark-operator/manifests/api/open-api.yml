@@ -258,6 +258,27 @@ paths:
                 $ref: '#/components/schemas/SparkApplication'
         default:
           $ref: '#/components/responses/Error'
+    put:
+      operationId: updateSparkApplication
+      tags: [SparkService]
+      summary: Replace an application's spec (the name is fixed); the next run uses it, active runs keep theirs.
+      parameters:
+        - $ref: '#/components/parameters/app'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SparkApplicationSpec'
+      responses:
+        '200':
+          description: The updated application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparkApplication'
+        default:
+          $ref: '#/components/responses/Error'
     delete:
       operationId: deleteSparkApplication
       tags: [SparkService]
@@ -776,6 +797,23 @@ components:
           type: integer
         description:
           type: string
+        serviceAccountToken:
+          $ref: '#/components/schemas/ServiceAccountTokenSpec'
+    ServiceAccountTokenSpec:
+      type: object
+      description: >-
+        How runs receive the application's service-account token. Omitted, the defaults apply: file
+        service-account-token and env var TANGRAM_SERVICE_ACCOUNT_TOKEN. Runs always get
+        TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE with the file's path.
+      properties:
+        fileName:
+          type: string
+          default: service-account-token
+          description: File name in the run directory /var/run/spark/run/ (letters, digits, '.', '_', '-').
+        envVar:
+          type: string
+          nullable: true
+          description: Env var holding the token itself; null for none.
     SparkApplication:
       type: object
       required: [name, workspace, spec, folder, createdAt]
@@ -886,6 +924,8 @@ components:
             $ref: '#/components/schemas/RunLib'
         image:
           type: string
+        serviceAccountToken:
+          $ref: '#/components/schemas/ServiceAccountTokenSpec'
     SparkRun:
       type: object
       required: [appName, runId, status, spec, submittedAt]

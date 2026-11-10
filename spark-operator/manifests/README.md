@@ -105,6 +105,16 @@ and a service account its runs use to reach the Iceberg catalog.
 - **Driver sizing** and **max duration** — the run pod; a run that exceeds the duration is failed.
 - **Executors** (optional) — without executors the job runs in local mode inside the driver pod.
   With executors, the driver requests up to *max executors* pods on demand (dynamic allocation).
+- **Service-account token** — every run gets its service account's token (valid for the whole run)
+  as a file in `/var/run/spark/run/` (name configurable, default `service-account-token`; its path is
+  always in `TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE`) and, unless turned off, in an env var holding the
+  token itself (default `TANGRAM_SERVICE_ACCOUNT_TOKEN`). The Iceberg catalog, `to://` paths and
+  lineage use it automatically; jobs can use it too, e.g. as the OAUTHBEARER token of the Kafka app's
+  Tangram-token listener. The env var comes from the run's Secret on the driver and executor pods and
+  is never a Spark setting, so the Spark UI does not show it; don't print the environment in logs.
+
+Settings can be changed later (**Edit** on the application page); the next run uses them, runs in
+progress keep the settings they started with. The name is fixed.
 
 ### Files
 
@@ -137,6 +147,7 @@ run or update the application can read or write its files through the platform t
 | Action on `SparkApplication` | What it allows |
 |---|---|
 | `Create`, `Get`, `List` | create an application; read and list applications and their files |
+| `Update` | change the application's settings (entry point, sizing, Spark settings, env, token) |
 | `UpdateLib`, `ListLib`, `ReadLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; preview a source file; delete a lib or one of its versions |
 | `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
 | `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
