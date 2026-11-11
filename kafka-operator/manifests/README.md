@@ -35,6 +35,21 @@ Provision and operate Apache Kafka clusters on Kubernetes through a namespace-co
     oauth.access.token="<TANGRAM_TOKEN>" oauth.access.token.is.jwt="false" ;
   ```
 
+## Data catalog and Spark
+
+The cluster is the database level of the app's data catalog and its topics are datasets: register a data
+catalog for this app (e.g. `kafka`) and topics are named `kafka.<cluster>.<topic>`.
+
+Spark applications and clusters of the Spark app read topics through the same name, connected for them to the
+token listener with their service account's token:
+
+```python
+events = spark.readStream.option("startingOffsets", "latest").table("kafka.kafka.clickstream")
+```
+
+The service account needs the cluster's **client** role (looks up the bootstrap servers) and the topic's
+**reader** role. Lineage from the topic to the tables a streaming query writes is recorded automatically.
+
 ## Limitations
 
 The operator runs namespace-scoped with Role-only RBAC, so rack awareness and NodePort listeners

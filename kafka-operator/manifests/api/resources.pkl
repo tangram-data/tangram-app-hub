@@ -18,8 +18,17 @@ KafkaCluster = new resources.ResourceTypeDefinition {
   doc  = "Strimzi-managed Apache Kafka cluster (KRaft) on Kubernetes"
   activeVersion = "v1"
   scopeType = resources.WORKSPACE_TYPE
+  // the database level of the app's data catalog: `<catalog>.<cluster>.<topic>`
+  superType = resources.DATABASE_TYPE
   versions = List(new resources.ResourceTypeVersion {
-    version = "v1"; served = true
+    version = "v1"; served = true; superTypeVersion = "v1"
+    presetRoles = List(
+      new resources.Role {
+        name = "client"
+        permissions = List("GetConnectionDetails")
+        description = "Look up how to connect to the cluster (bootstrap servers, no credentials); topic access is granted per topic."
+      }
+    )
     actions = List(
       new resources.Action {
         name = "Create"
