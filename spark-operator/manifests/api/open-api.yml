@@ -803,6 +803,12 @@ components:
           type: string
         serviceAccountToken:
           $ref: '#/components/schemas/ServiceAccountTokenSpec'
+        streaming:
+          type: boolean
+          default: false
+          description: >-
+            Streaming job: runs checkpoint under <app folder>/checkpoints/<queryName> by default and only one
+            run is active at a time.
     ServiceAccountTokenSpec:
       type: object
       description: >-
@@ -930,6 +936,10 @@ components:
           type: string
         serviceAccountToken:
           $ref: '#/components/schemas/ServiceAccountTokenSpec'
+        appFolder:
+          type: string
+        streaming:
+          type: boolean
     SparkRun:
       type: object
       required: [appName, runId, status, spec, submittedAt]
