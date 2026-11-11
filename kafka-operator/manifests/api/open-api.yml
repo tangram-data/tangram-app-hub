@@ -437,6 +437,60 @@ paths:
                 $ref: '#/components/schemas/TopicStats'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/sample:
+    get:
+      operationId: getKafkaTopicSample
+      tags: [KafkaService]
+      summary: The topic's newest record (any partition), or null when it is empty.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Newest record
+          content:
+            application/json:
+              schema:
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/TopicSample'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/topics/{topic}/downstream:
+    get:
+      operationId: listKafkaTopicDownstream
+      tags: [KafkaService]
+      summary: Datasets fed from the topic, with the columns derived from each topic field (core lineage).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/TopicName'
+      responses:
+        '200':
+          description: Downstream datasets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopicDownstream'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/ingest-settings:
+    get:
+      operationId: getKafkaIngestSettings
+      tags: [KafkaService]
+      summary: App-wide public ingest settings (default browser-origin allowlist; empty = any origin).
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Ingest settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestSettings'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics/{topic}/messages:
     post:
       operationId: produceKafkaTopicMessage
@@ -1228,6 +1282,40 @@ components:
           format: int64
           nullable: true
           description: On-disk log size of the leader replica.
+    TopicSample:
+      type: object
+      required: [partition, offset, timestamp]
+      properties:
+        partition: {type: integer}
+        offset: {type: integer, format: int64}
+        timestamp: {type: integer, format: int64}
+        key: {type: string, nullable: true}
+        value:
+          description: The record value when it is JSON text.
+          nullable: true
+        rawValue: {type: string, nullable: true}
+    TopicDownstream:
+      type: object
+      required: [resource, app, resourceType, names]
+      properties:
+        resource: {type: string}
+        app: {type: string}
+        resourceType: {type: string}
+        names:
+          type: array
+          items: {type: string}
+        columns:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: string}
+        processor: {type: string, nullable: true}
+    IngestSettings:
+      type: object
+      properties:
+        allowedOrigins:
+          type: array
+          items: {type: string}
     TopicStats:
       type: object
       required: [topic, partitions, totalMessageEstimate, totalLeaderSizeBytes, totalReplicatedSizeBytes]

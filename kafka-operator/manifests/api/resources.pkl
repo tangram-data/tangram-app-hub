@@ -121,6 +121,16 @@ KafkaCluster = new resources.ResourceTypeDefinition {
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },
+      new resources.Action {
+        name = "GetIngestSettings"
+        effect = Stateless
+        idempotent = true
+        doc = "App-wide public ingest settings (default browser-origin allowlist)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaIngestSettings"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
       // Confluent-wire-compatible Avro schema registry, served per cluster. Registered versions
       // are immutable (the registry has no delete), hence Irreversible on register.
       new resources.Action {
@@ -214,12 +224,12 @@ Topic = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "reader"
-        permissions = List("Read", "GetSchema")
+        permissions = List("Read", "GetSchema", "ReadSample", "GetDownstream")
         description = "Consume messages from the topic and read its schemas."
       },
       new resources.Role {
         name = "writer"
-        permissions = List("Read", "Write", "GetSchema", "SetSchema")
+        permissions = List("Read", "Write", "GetSchema", "SetSchema", "ReadSample", "GetDownstream")
         description = "Produce to and consume from the topic, reading and registering its schemas."
       }
     )
@@ -345,6 +355,26 @@ Topic = new resources.ResourceTypeDefinition {
         doc = "Live per-partition offsets, retained-record estimate and log sizes, fetched from the brokers."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getKafkaTopicStats"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "ReadSample"
+        effect = Stateless
+        idempotent = true
+        doc = "The topic's newest record, to infer a schema from real data."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaTopicSample"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetDownstream"
+        effect = Stateless
+        idempotent = true
+        doc = "Datasets fed from the topic, from the core lineage graph (read with the caller's own access)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaTopicDownstream"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
         }
       }
