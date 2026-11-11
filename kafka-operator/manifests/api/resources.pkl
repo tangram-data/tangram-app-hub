@@ -224,12 +224,12 @@ Topic = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "reader"
-        permissions = List("Read", "GetSchema", "ReadSample", "GetDownstream")
+        permissions = List("Read", "GetSchema", "GetDownstream")
         description = "Consume messages from the topic and read its schemas."
       },
       new resources.Role {
         name = "writer"
-        permissions = List("Read", "Write", "GetSchema", "SetSchema", "ReadSample", "GetDownstream")
+        permissions = List("Read", "Write", "GetSchema", "SetSchema", "GetDownstream")
         description = "Produce to and consume from the topic, reading and registering its schemas."
       }
     )
@@ -289,7 +289,11 @@ Topic = new resources.ResourceTypeDefinition {
         name = "Read"
         effect = Stateless
         idempotent = true
-        doc = "Authorization marker for consuming from the topic."
+        doc = "Consume from the topic; over HTTP, read its newest record (to infer a schema)."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaTopicSample"
+          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
+        }
       },
       new resources.Action {
         name = "CreateIngestionKey"
@@ -355,16 +359,6 @@ Topic = new resources.ResourceTypeDefinition {
         doc = "Live per-partition offsets, retained-record estimate and log sizes, fetched from the brokers."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getKafkaTopicStats"
-          resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
-        }
-      },
-      new resources.Action {
-        name = "ReadSample"
-        effect = Stateless
-        idempotent = true
-        doc = "The topic's newest record, to infer a schema from real data."
-        openApiMapping = new resources.OpenApiMapping {
-          operationId = "getKafkaTopicSample"
           resourceNameTemplate = "[{{parameters.name}}, {{parameters.topic}}]"
         }
       },
