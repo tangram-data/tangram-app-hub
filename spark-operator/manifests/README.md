@@ -142,6 +142,21 @@ run or update the application can read or write its files through the platform t
 - **Logs** — driver and executor logs of a run, from the platform's log pipeline.
 - **Stats** — the last run's status and run counts per status.
 
+### Streaming jobs
+
+Structured Streaming queries checkpoint under the application's folder by default:
+`to://<workspace>/<application folder>/checkpoints/<query name>` (shown on the application's Edit
+page). Name each query so a new run resumes where the last one stopped:
+
+```python
+events.writeStream.queryName("clickstream").toTable("iceberg.streaming.clickstream")
+```
+
+An unnamed query gets a new checkpoint every run. A `checkpointLocation` option, or
+`spark.sql.streaming.checkpointLocation` in the application's Spark settings, overrides the default.
+Runs also get the folder as `TANGRAM_SPARK_APP_FOLDER` for other state. To start a query over,
+delete its checkpoint folder. Set the max duration to how long the stream should run.
+
 ### What you can do
 
 | Action on `SparkApplication` | What it allows |
