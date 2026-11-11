@@ -144,15 +144,18 @@ run or update the application can read or write its files through the platform t
 
 ### Streaming jobs
 
-Structured Streaming queries checkpoint under the application's folder by default:
-`to://<workspace>/<application folder>/checkpoints/<query name>` (shown on the application's Edit
-page). Name each query so a new run resumes where the last one stopped:
+Turn on **Streaming job** for an application that runs Structured Streaming queries. Its queries then
+checkpoint under the application's folder by default,
+`to://<workspace>/<application folder>/checkpoints/<query name>` (shown on the Edit page), and the
+application runs one at a time, so two runs never share a checkpoint. Name each query so a new run
+resumes where the last one stopped:
 
 ```python
 events.writeStream.queryName("clickstream").toTable("iceberg.streaming.clickstream")
 ```
 
-An unnamed query gets a new checkpoint every run. A `checkpointLocation` option, or
+An unnamed query gets a new checkpoint every run. Without Streaming job, Spark's temporary
+checkpoints apply as usual. A `checkpointLocation` option, or
 `spark.sql.streaming.checkpointLocation` in the application's Spark settings, overrides the default.
 Runs also get the folder as `TANGRAM_SPARK_APP_FOLDER` for other state. To start a query over,
 delete its checkpoint folder. Set the max duration to how long the stream should run.
