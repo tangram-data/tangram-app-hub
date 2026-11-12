@@ -175,10 +175,10 @@ SailApplication = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "UpdateLib", "ListLib", "ReadLib", "DeleteLib", "DeleteLibVersion",
+          "Get", "List", "Update", "UpdateLib", "ListLib", "ReadLib", "DeleteLib", "DeleteLibVersion",
           "Run", "ListRuns", "GetRunStats", "CancelRun", "GetRunLogs"
         )
-        description = "Upload and remove files, submit and cancel runs, read logs. Cannot delete the application."
+        description = "Edit settings, upload and remove files, submit and cancel runs, read logs. Cannot delete the application."
       },
       new resources.Role {
         name = "runner"
@@ -230,6 +230,16 @@ SailApplication = new resources.ResourceTypeDefinition {
         openApiMapping = new resources.OpenApiMapping {
           operationId = "listSailApplications"
           resourceNameTemplate = "[]"
+        }
+      },
+      new resources.Action {
+        name = "Update"
+        effect = Reversible
+        idempotent = true
+        doc = "Replace the application's settings (entry point, sizing, env, notifications, restarts); the next run uses them."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "updateSailApplication"
+          resourceNameTemplate = "[{{parameters.app}}]"
         }
       },
       new resources.Action {

@@ -11,7 +11,7 @@ local storageBucket = deps.bucketClaim.bucket()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "spark-server"
-    image = "ghcr.io/tangram-data/tangram-spark-server:0.1.3"
+    image = "ghcr.io/tangram-data/tangram-spark-server:0.1.4"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
@@ -33,7 +33,7 @@ sparkManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
         "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
         // Apache Spark 4.1 + Iceberg runtime/bundles + token-file REST auth + entry helper (docker/spark).
-        "SPARK_IMAGE", "ghcr.io/tangram-data/spark:4.1.3-tangram.1",
+        "SPARK_IMAGE", "ghcr.io/tangram-data/spark:4.1.3-tangram.2",
         "BUCKET_NAME", storageBucket.name,
         "SPARK_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
         "SPARK_APP_JDBC_USER", dbSecrets.user,

@@ -508,7 +508,7 @@ paths:
     get:
       operationId: getSparkApplicationRunLogs
       tags: [SparkService]
-      summary: Logs of a run's pods from the platform log pipeline.
+      summary: Logs of a run's pods from the platform log pipeline, newest page first.
       parameters:
         - $ref: '#/components/parameters/app'
         - $ref: '#/components/parameters/runId'
@@ -533,6 +533,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: errorsOnly
+          in: query
+          description: only error records, tracebacks and exceptions
+          schema:
+            type: boolean
       responses:
         '200':
           description: Log entries
@@ -809,6 +814,23 @@ components:
           description: >-
             Streaming job: runs checkpoint under <app folder>/checkpoints/<queryName> by default and only one
             run is active at a time.
+        notifyOn:
+          type: string
+          enum: ["off", failures, failures_and_recovery]
+          description: >-
+            When failed (and stalled) runs open an AI SRE incident on this app; absent = failures for streaming
+            applications, off for batch. failures_and_recovery also resolves it when runs recover.
+        stallMinutes:
+          type: integer
+          description: Streaming only. A running run without driver logs this long is stalled; absent = 10, 0 = never.
+        restartOnFailure:
+          type: boolean
+          default: false
+          description: Streaming only. Resubmit a failed run after 1, 2, 4 ... minutes, reusing its checkpoints.
+        maxRestarts:
+          type: integer
+          default: 3
+          description: Most automatic restarts in a row (1-10); a run healthy for 5 minutes resets the count.
     ServiceAccountTokenSpec:
       type: object
       description: >-
@@ -963,6 +985,13 @@ components:
           format: date-time
         statusMessage:
           type: string
+        stalledSince:
+          type: string
+          format: date-time
+          description: Running streaming run without driver logs since then.
+        restartAttempt:
+          type: integer
+          description: This run is the n-th automatic restart after a failure.
     RunStats:
       type: object
       required: [counts]
@@ -986,6 +1015,9 @@ components:
           type: string
         log:
           type: string
+        time:
+          type: string
+          description: RFC 3339 with sub-second precision (timestamp is epoch seconds)
     RunLogs:
       type: object
       required: [logs]
@@ -994,3 +1026,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RunLogEntry'
+        before:
+          type: integer
+          format: int64
+          description: Earlier lines exist; the next page ends there (endTimestamp, epoch seconds, exclusive). Lines come oldest first, newest page first.
+        partialSecond:
+          type: integer
+          format: int64
+          description: That second (epoch seconds) had too many lines; only its newest are included.
