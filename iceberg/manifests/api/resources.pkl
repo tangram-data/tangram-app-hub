@@ -359,11 +359,14 @@ Table = new resources.ResourceTypeDefinition {
       },
       new resources.Role {
         name = "writer"
+        // Every data commit (append, overwrite, delete) goes through the REST updateTable
+        // endpoint, which the gateway authorizes as UpdateMetadata; without it a writer could
+        // stage data files but never commit them.
         permissions = List(
           "Load", "LoadCredentials", "GetSnapshots", "GetStats", "List",
-          "Read", "Write", "ReportMetrics", "CheckExists"
+          "UpdateMetadata", "Read", "Write", "ReportMetrics", "CheckExists"
         )
-        description = "Read + write data only. Cannot evolve schema or rename."
+        description = "Read + write data. Commits go through the table update, so writers may also evolve the schema and run maintenance. Cannot rename, create or drop tables."
       },
       new resources.Role {
         name = "reader"

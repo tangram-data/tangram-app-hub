@@ -90,8 +90,9 @@ Access is granted per catalog, database, table or view with preset roles:
 | Table | owner, maintainer, writer, reader, schema_admin |
 | View | owner, editor, viewer |
 
-Reading a table needs *reader*; writing needs *writer*; changing schema or running maintenance needs *maintainer*,
-*schema_admin* or *owner* (the **Update metadata** permission). Engines read and write as their own service account,
+Reading a table needs *reader*; writing needs *writer*; renaming needs *maintainer*, *schema_admin* or *owner*.
+Every data commit goes through the table update (the **Update metadata** permission), so *writer* includes it: a writer
+may also evolve the schema and run `ALTER TABLE … EXECUTE` maintenance. Engines read and write as their own service account,
 which needs the owner roles on the databases they work on; workspace blueprints grant them.
 
 ### Trademarks
