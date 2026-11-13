@@ -1096,6 +1096,14 @@ components:
           description: Controller replicas are immutable; only cpu/memory may change.
         brokers:
           $ref: '#/components/schemas/ComponentSpec'
+        controllerDiskGb:
+          type: integer
+          minimum: 1
+          description: New controller disk size per pod (GiB). Grow only; omit to keep the current size.
+        brokerDiskGb:
+          type: integer
+          minimum: 1
+          description: New broker disk size per pod (GiB). Grow only; omit to keep the current size.
     ClusterEndpoints:
       type: object
       properties:
