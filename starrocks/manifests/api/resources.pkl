@@ -124,6 +124,27 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "ListOpsActions"
+        effect = Stateless
+        idempotent = true
+        doc = "Problems on the cluster that need a person (e.g. an FE stuck on a lost node) and whether the fix is safe now."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksClusterOpsActions"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ExecuteOpsAction"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Run an ops action's fix, e.g. rebuild an FE stuck on a lost node (drops it from the FE group, deletes its pod and local metadata volume; it re-syncs from the leader). Re-checks the FE quorum and needs the typed pod name."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "executeStarRocksClusterOpsAction"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "GetConnectionDetails"
         effect = Stateless
         idempotent = true

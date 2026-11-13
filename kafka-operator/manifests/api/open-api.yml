@@ -168,6 +168,53 @@ paths:
                 $ref: '#/components/schemas/InstanceLogs'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/ops-actions:
+    get:
+      operationId: listKafkaClusterOpsActions
+      tags: [KafkaService]
+      summary: "Open ops actions of the cluster: problems that need a person, whether the fix is safe now."
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Open and in-progress ops actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OpsAction'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/ops-actions/{id}/execute:
+    post:
+      operationId: executeKafkaClusterOpsAction
+      tags: [KafkaService]
+      summary: >-
+        Run an ops action's fix (e.g. rebuild a broker stuck on a lost node). Re-checks safety; `confirm` must
+        equal the action's typed confirmation value.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteOpsActionRequest'
+      responses:
+        '200':
+          description: The action, now in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsAction'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics:
     post:
       operationId: createKafkaTopic
@@ -856,6 +903,53 @@ components:
               error_code: { type: integer }
               message: { type: string }
   schemas:
+    ExecuteOpsActionRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          description: The action's typed confirmation value (the pod name).
+    OpsAction:
+      type: object
+      required: [id, kind, severity, scope, title, detail, evidence, resolution, status, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        kind: { type: string }
+        severity: { type: string, enum: [critical, warning, info] }
+        scope:
+          type: object
+          required: [type]
+          properties:
+            type: { type: string }
+            appGroup: { type: string }
+            appName: { type: string }
+            resource: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        evidence:
+          type: object
+          additionalProperties: { type: string }
+        resolution:
+          type: object
+          required: [action, label, safeNow, executor]
+          properties:
+            action: { type: string }
+            label: { type: string }
+            safeNow: { type: boolean }
+            blockedReason: { type: string }
+            confirm:
+              type: object
+              required: [type, value]
+              properties:
+                type: { type: string }
+                value: { type: string }
+            executor: { type: string }
+            link: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: string, format: date-time }
     ComponentSpec:
       type: object
       required: [replicas, cpuMilli, memoryMi]

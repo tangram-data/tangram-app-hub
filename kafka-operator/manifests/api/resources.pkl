@@ -112,6 +112,27 @@ KafkaCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "ListOpsActions"
+        effect = Stateless
+        idempotent = true
+        doc = "Problems on the cluster that need a person (e.g. a broker stuck on a lost node) and whether the fix is safe now."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listKafkaClusterOpsActions"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ExecuteOpsAction"
+        effect = Irreversible
+        idempotent = true
+        requiresConfirmation = true
+        doc = "Run an ops action's fix, e.g. rebuild a broker stuck on a lost node (deletes its pod and local volume; Kafka re-copies its partitions). Re-checks safety and needs the typed pod name."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "executeKafkaClusterOpsAction"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "GetConnectionDetails"
         effect = Stateless
         idempotent = true
