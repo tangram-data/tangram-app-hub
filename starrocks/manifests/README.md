@@ -40,8 +40,8 @@ these states:
 - **Get the cluster** — including lifecycle status and status messages.
 - **Update resources** — change FE/compute sizing, autoscaling, and the auto-stop timeout of an
   Active cluster; the operator rolls the change out.
-- **Stop / Start** — stop releases compute (the FE stays up) until someone starts the cluster
-  again; SQL queries do not wake a cluster a user stopped. Start brings compute back (also for an
+- **Stop / Start** — stop releases compute and the FE until someone starts the cluster
+  again; SQL queries do not wake a cluster a user stopped. Start brings the FE and compute back (also for an
   idle-stopped cluster).
 - **Scale compute** — change the CN replica count of an Active cluster. Rejected while autoscaling
   is enabled (the autoscaler owns the count — adjust the min/max range instead).
