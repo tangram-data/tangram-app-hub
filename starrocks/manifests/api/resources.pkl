@@ -94,6 +94,46 @@ StarRocksCluster = new resources.ResourceTypeDefinition {
         }
       },
       new resources.Action {
+        name = "GetQueryLimits"
+        effect = Stateless
+        idempotent = true
+        doc = "Query timeout, per-query memory limit and query queue settings of the cluster."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksQueryLimits"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "UpdateQueryLimits"
+        effect = Reversible
+        idempotent = true
+        doc = "Save query limits (null resets to defaults); applied live as global variables, no restart."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "updateStarRocksQueryLimits"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "ListQueries"
+        effect = Stateless
+        idempotent = true
+        doc = "List persisted query history with state and SQL/user/database search filters."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "listStarRocksQueries"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetQuery"
+        effect = Stateless
+        idempotent = true
+        doc = "SQL, explain text, runtime profile and execution-plan graph for one query."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getStarRocksQuery"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
         name = "GetEndpoints"
         effect = Stateless
         idempotent = true

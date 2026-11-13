@@ -498,9 +498,18 @@ paths:
           content:
             application/json:
               schema:
+                type: object
                 nullable: true
-                allOf:
-                  - $ref: '#/components/schemas/TopicSample'
+                required: [partition, offset, timestamp]
+                properties:
+                  partition: {type: integer}
+                  offset: {type: integer, format: int64}
+                  timestamp: {type: integer, format: int64}
+                  key: {type: string, nullable: true}
+                  value:
+                    description: The record value when it is JSON text.
+                    nullable: true
+                  rawValue: {type: string, nullable: true}
         default:
           $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/topics/{topic}/downstream:
@@ -922,9 +931,9 @@ components:
           required: [type]
           properties:
             type: { type: string }
-            appGroup: { type: string }
-            appName: { type: string }
-            resource: { type: string }
+            appGroup: { type: string, nullable: true }
+            appName: { type: string, nullable: true }
+            resource: { type: string, nullable: true }
         title: { type: string }
         detail: { type: string }
         evidence:
@@ -937,19 +946,20 @@ components:
             action: { type: string }
             label: { type: string }
             safeNow: { type: boolean }
-            blockedReason: { type: string }
+            blockedReason: { type: string, nullable: true }
             confirm:
               type: object
+              nullable: true
               required: [type, value]
               properties:
                 type: { type: string }
                 value: { type: string }
             executor: { type: string }
-            link: { type: string }
+            link: { type: string, nullable: true }
         status: { type: string, enum: [open, in_progress, resolved] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-        resolvedAt: { type: string, format: date-time }
+        resolvedAt: { type: string, format: date-time, nullable: true }
     ComponentSpec:
       type: object
       required: [replicas, cpuMilli, memoryMi]

@@ -128,6 +128,80 @@ paths:
           description: Updated
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/query-limits:
+    get:
+      operationId: getStarRocksQueryLimits
+      tags: [StarRocksService]
+      summary: Query timeout, per-query memory limit and query queue settings of the cluster.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      responses:
+        '200':
+          description: Query limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryLimitsView'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: updateStarRocksQueryLimits
+      tags: [StarRocksService]
+      summary: Save query limits (null resets to defaults); applied live as global variables, no restart.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQueryLimitsRequest'
+      responses:
+        '200':
+          description: Saved query limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryLimitsView'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/queries:
+    get:
+      operationId: listStarRocksQueries
+      tags: [StarRocksService]
+      summary: List persisted StarRocks query history with state and SQL/user/database search filters.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: offset, in: query, required: false, schema: { type: integer } }
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+      responses:
+        '200':
+          description: Query history page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksQueryPage'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/clusters/{name}/queries/{queryId}:
+    get:
+      operationId: getStarRocksQuery
+      tags: [StarRocksService]
+      summary: Get SQL, explain text, runtime profile, and normalized execution-plan graph for one query.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - { name: queryId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Query detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarRocksQueryDetail'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/clusters/{name}/endpoints:
     get:
       operationId: getStarRocksClusterEndpoints
@@ -519,6 +593,102 @@ components:
         confirm:
           type: string
           description: The action's typed confirmation value (the pod name).
+    QueryLimitsSpec:
+      type: object
+      required: [queryTimeoutSeconds, queueEnabled, queuePendingTimeoutSeconds, queueMaxQueuedQueries]
+      properties:
+        queryTimeoutSeconds: { type: integer }
+        queryMemLimitMi: { type: integer, nullable: true }
+        queueEnabled: { type: boolean }
+        queueMemUsedPct: { type: integer, nullable: true }
+        queueConcurrencyLimit: { type: integer, nullable: true }
+        queuePendingTimeoutSeconds: { type: integer }
+        queueMaxQueuedQueries: { type: integer }
+    QueryLimitsView:
+      type: object
+      required: [limits, defaults, customized, applied]
+      properties:
+        limits: { $ref: '#/components/schemas/QueryLimitsSpec' }
+        defaults: { $ref: '#/components/schemas/QueryLimitsSpec' }
+        customized: { type: boolean }
+        applied: { type: boolean }
+        applyMessage: { type: string, nullable: true }
+    UpdateQueryLimitsRequest:
+      type: object
+      properties:
+        limits:
+          description: null resets to the app defaults.
+          type: object
+          nullable: true
+          required: [queryTimeoutSeconds, queueEnabled, queuePendingTimeoutSeconds, queueMaxQueuedQueries]
+          properties:
+            queryTimeoutSeconds: { type: integer }
+            queryMemLimitMi: { type: integer, nullable: true }
+            queueEnabled: { type: boolean }
+            queueMemUsedPct: { type: integer, nullable: true }
+            queueConcurrencyLimit: { type: integer, nullable: true }
+            queuePendingTimeoutSeconds: { type: integer }
+            queueMaxQueuedQueries: { type: integer }
+    StarRocksQuerySummary:
+      type: object
+      required: [queryId, eventTime, startTime, endTime, latency, state, scanRows, scanBytes, returnRows, cpuCostNs, memCostBytes, spillBytes, cacheMissRatio, hasProfile]
+      properties:
+        queryId: { type: string }
+        eventTime: { type: integer, format: int64 }
+        startTime: { type: integer, format: int64 }
+        endTime: { type: integer, format: int64 }
+        latency: { type: integer, format: int64 }
+        state: { type: string }
+        database: { type: string, nullable: true }
+        user: { type: string, nullable: true }
+        sql: { type: string, nullable: true }
+        errorMessage: { type: string, nullable: true }
+        scanRows: { type: integer, format: int64 }
+        scanBytes: { type: integer, format: int64 }
+        returnRows: { type: integer, format: int64 }
+        cpuCostNs: { type: integer, format: int64 }
+        memCostBytes: { type: integer, format: int64 }
+        spillBytes: { type: integer, format: int64 }
+        cacheMissRatio: { type: number, format: double }
+        digest: { type: string, nullable: true }
+        querySource: { type: string, nullable: true }
+        resourceGroupName: { type: string, nullable: true }
+        hasProfile: { type: boolean }
+    StarRocksQueryPage:
+      type: object
+      required: [items, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/StarRocksQuerySummary' } }
+        total: { type: integer, format: int64 }
+    StarRocksQueryPlanNode:
+      type: object
+      required: [id, name, children, metrics]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        children: { type: array, items: { type: integer } }
+        metrics: { type: object, additionalProperties: { type: string } }
+        properties: { type: object, additionalProperties: { type: string } }
+    StarRocksQueryPlanGraph:
+      type: object
+      required: [rootId, nodes]
+      properties:
+        rootId: { type: integer }
+        nodes: { type: array, items: { $ref: '#/components/schemas/StarRocksQueryPlanNode' } }
+    StarRocksQueryDetail:
+      type: object
+      required: [summary]
+      properties:
+        summary: { $ref: '#/components/schemas/StarRocksQuerySummary' }
+        explain: { type: string, nullable: true }
+        profile: { type: string, nullable: true }
+        plan:
+          type: object
+          nullable: true
+          required: [rootId, nodes]
+          properties:
+            rootId: { type: integer }
+            nodes: { type: array, items: { $ref: '#/components/schemas/StarRocksQueryPlanNode' } }
     OpsAction:
       type: object
       required: [id, kind, severity, scope, title, detail, evidence, resolution, status, createdAt, updatedAt]
@@ -531,9 +701,9 @@ components:
           required: [type]
           properties:
             type: { type: string }
-            appGroup: { type: string }
-            appName: { type: string }
-            resource: { type: string }
+            appGroup: { type: string, nullable: true }
+            appName: { type: string, nullable: true }
+            resource: { type: string, nullable: true }
         title: { type: string }
         detail: { type: string }
         evidence:
@@ -546,19 +716,20 @@ components:
             action: { type: string }
             label: { type: string }
             safeNow: { type: boolean }
-            blockedReason: { type: string }
+            blockedReason: { type: string, nullable: true }
             confirm:
               type: object
+              nullable: true
               required: [type, value]
               properties:
                 type: { type: string }
                 value: { type: string }
             executor: { type: string }
-            link: { type: string }
+            link: { type: string, nullable: true }
         status: { type: string, enum: [open, in_progress, resolved] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-        resolvedAt: { type: string, format: date-time }
+        resolvedAt: { type: string, format: date-time, nullable: true }
     ComponentSpec:
       type: object
       required: [replicas, cpuMilli, memoryMi]
