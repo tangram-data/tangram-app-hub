@@ -14,7 +14,7 @@ duckLakeDuckDBQueryable = new integration.IntegrationImplementation {
     className = "ai.tangram.os.duckling.duckdb.DuckLakeDuckDBSqlQuerySupport"
     lib {
       name = "duckling-ducklake"
-      version = "1.0.0"
+      version = "1.0.1"
     }
   }
 }
@@ -30,7 +30,7 @@ duckLakeDuckDBViewQueryable = new integration.IntegrationImplementation {
     className = "ai.tangram.os.duckling.duckdb.DuckLakeDuckDBSqlQuerySupport"
     lib {
       name = "duckling-ducklake"
-      version = "1.0.0"
+      version = "1.0.1"
     }
   }
 }
