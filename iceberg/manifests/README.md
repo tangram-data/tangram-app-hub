@@ -51,7 +51,7 @@ keeps them in shape:
   | Job | What it does |
   |---|---|
   | Compact data files | Rewrites small files into larger ones (target file size, minimum input files, optional filter). |
-  | Expire snapshots | Drops snapshots older than N days, keeping at least the last K, and the files only they used. |
+  | Expire snapshots | Drops snapshots older than N hours or days, keeping at least the last K, and the files only they used. Tables committing every few minutes (streaming) can expire hourly and keep e.g. 6 hours. |
   | Remove orphan files | Deletes files no snapshot references, older than N days; a dry run only lists them. |
   | Rewrite manifests | Merges small manifests so queries plan faster. |
 
@@ -75,7 +75,7 @@ CALL iceberg.system.rewrite_manifests(table => 'sales.orders');
 
 -- StarRocks
 ALTER TABLE iceberg.sales.orders EXECUTE rewrite_data_files(rewrite_all = true);
-ALTER TABLE iceberg.sales.orders EXECUTE expire_snapshots(older_than = now() - interval 7 day, retain_last = 10);
+ALTER TABLE iceberg.sales.orders EXECUTE expire_snapshots(older_than = now() - interval 168 hour, retain_last = 10);
 ALTER TABLE iceberg.sales.orders EXECUTE remove_orphan_files(older_than = now() - interval 3 day, dry_run = true);
 ALTER TABLE iceberg.sales.orders EXECUTE rewrite_manifests();
 ```
