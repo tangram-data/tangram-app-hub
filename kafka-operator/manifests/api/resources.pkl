@@ -25,8 +25,8 @@ KafkaCluster = new resources.ResourceTypeDefinition {
     presetRoles = List(
       new resources.Role {
         name = "client"
-        permissions = List("GetConnectionDetails")
-        description = "Look up how to connect to the cluster (bootstrap servers, no credentials); topic access is granted per topic."
+        permissions = List("GetConnectionDetails", "GetSchemaById", "GetSchemaTextById")
+        description = "Look up how to connect to the cluster (bootstrap servers, no credentials) and resolve the writer schemas of the topics it may read; topic access is granted per topic."
       }
     )
     actions = List(
@@ -191,6 +191,26 @@ KafkaCluster = new resources.ResourceTypeDefinition {
         doc = "One registered schema version of a subject (number or latest)."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getKafkaSchemaVersion"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetSchemaById"
+        effect = Stateless
+        idempotent = true
+        doc = "A registered schema by ID; the app allows it when the caller may read the schemas of a topic using the ID."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSchemaById"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetSchemaTextById"
+        effect = Stateless
+        idempotent = true
+        doc = "The raw text of a registered schema by ID; allowed as GetSchemaById."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getKafkaSchemaTextById"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },

@@ -811,6 +811,44 @@ paths:
                 $ref: '#/components/schemas/SchemaVersionInfo'
         default:
           $ref: '#/components/responses/SchemaRegistryError'
+  /api/v1/clusters/{name}/schema-registry/schemas/ids/{id}:
+    get:
+      operationId: getKafkaSchemaById
+      tags: [KafkaService]
+      summary: >-
+        A registered schema by its ID (the writer schema of a Confluent message). Allowed when
+        the caller may read the schemas of a topic whose subject uses the ID.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SchemaId'
+      responses:
+        '200':
+          description: The schema
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema]
+                properties:
+                  schema: { type: string }
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
+  /api/v1/clusters/{name}/schema-registry/schemas/ids/{id}/schema:
+    get:
+      operationId: getKafkaSchemaTextById
+      tags: [KafkaService]
+      summary: The raw text of a registered schema by its ID.
+      parameters:
+        - $ref: '#/components/parameters/ClusterName'
+        - $ref: '#/components/parameters/SchemaId'
+      responses:
+        '200':
+          description: The schema text
+          content:
+            application/json:
+              schema: {}
+        default:
+          $ref: '#/components/responses/SchemaRegistryError'
   /api/v1/clusters/{name}/schema-registry/config:
     get:
       operationId: getKafkaSchemaCompatibility
@@ -885,6 +923,13 @@ components:
       required: true
       schema:
         type: string
+    SchemaId:
+      name: id
+      in: path
+      required: true
+      description: A schema ID of the registry (the 4-byte ID of a Confluent message).
+      schema:
+        type: integer
     SchemaVersion:
       name: version
       in: path
