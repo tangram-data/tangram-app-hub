@@ -11,7 +11,7 @@ local storageBucket = deps.bucketClaim.bucket()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "spark-server"
-    image = "ghcr.io/tangram-data/tangram-spark-server:0.1.4"
+    image = "ghcr.io/tangram-data/tangram-spark-server:0.1.5"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"

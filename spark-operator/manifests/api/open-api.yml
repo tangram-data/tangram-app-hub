@@ -835,8 +835,9 @@ components:
       type: object
       description: >-
         How runs receive the application's service-account token. Omitted, the defaults apply: file
-        service-account-token and env var TANGRAM_SERVICE_ACCOUNT_TOKEN. Runs always get
-        TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE with the file's path.
+        service-account-token and no env var. Runs always get
+        TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE with the file's path. The file's token is short-lived and
+        renewed during the run; with envVar set the run keeps one token for its whole max duration.
       properties:
         fileName:
           type: string
