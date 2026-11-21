@@ -897,7 +897,7 @@ components:
       type: object
       description: >-
         Finished runs older than retainDays are removed with their Sail UI event logs, except the
-        newest keepAtLeast finished runs. Active runs and streaming checkpoints are never removed.
+        newest keepAtLeast finished runs. Active runs and streaming checkpoint directories are never removed.
       properties:
         retainDays:
           type: integer
@@ -909,12 +909,29 @@ components:
           minimum: 0
           maximum: 10000
           default: 20
+        eventLogHours:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 87600
+          description: >-
+            Sail UI history window: the driver deletes its event log chunks older than this, and the files
+            of ended runs once all are older. Absent = 24 for streaming applications, 168 for batch.
+        checkpointBatches:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 100000
+          description: >-
+            Streaming queries keep the checkpoint records (offsets, commits, state) of this many latest
+            batches (spark.sql.streaming.minBatchesToRetain). Absent = 100.
     ServiceAccountTokenSpec:
       type: object
       description: >-
         How runs receive the application's service-account token. Omitted, the defaults apply: file
-        service-account-token and env var TANGRAM_SERVICE_ACCOUNT_TOKEN. Run drivers and workers always get
-        TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE with the file's path.
+        service-account-token and no env var. Run drivers and workers always get
+        TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE with the file's path. The file's token is short-lived and
+        renewed during the run; with envVar set the run keeps one token for its whole max duration.
       properties:
         fileName:
           type: string
@@ -1034,6 +1051,14 @@ components:
           $ref: '#/components/schemas/ServiceAccountTokenSpec'
         stateStore:
           $ref: '#/components/schemas/StateStoreSpec'
+        eventLogHours:
+          type: integer
+          nullable: true
+          description: Resolved from the application's run retention at submission; absent on older runs.
+        checkpointBatches:
+          type: integer
+          nullable: true
+          description: Resolved from the application's run retention at submission; absent on older runs.
     SailRun:
       type: object
       required: [appName, runId, status, spec, submittedAt]

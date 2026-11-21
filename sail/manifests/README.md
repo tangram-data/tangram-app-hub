@@ -95,9 +95,13 @@ run or update the application can read or write its files through the platform t
   and worker sizing. The job's `spark` session is ready when the main file starts; the workspace's
   catalogs are reachable by name, `<catalog>.<database>.<table>`, with the application's service
   account (grant it the catalog app's `reader`/`writer` roles first). Each run has its own page.
-- **Service-account token** — the catalogs authenticate with the run's token, valid for the whole
-  run, in `/var/run/sail/run/service-account-token`. A job can read it too, e.g. to call other
-  Tangram APIs or a Kafka topic as the application; don't print it.
+- **Service-account token** — the catalogs authenticate with the run's token, a file in
+  `/var/run/sail/run/` (default `service-account-token`; its path is in
+  `TANGRAM_SERVICE_ACCOUNT_TOKEN_FILE`). It is short-lived (24 hours by default) and renewed in the
+  file while the run is active, so read the file each time. A job can use it too, e.g. to call other
+  Tangram APIs or a Kafka topic as the application; don't print it. Optionally the driver also gets
+  an env var holding the token; a variable cannot be renewed, so such runs keep one token for their
+  whole max duration.
 - **Status** — `Pending` → `Running` → `Succeeded` / `Failed` / `Cancelled`, with a status message.
 - **Cancel** — stops the run and its workers at once.
 - **Logs** — driver and worker logs of a run, from the platform's log pipeline.
@@ -111,6 +115,132 @@ run or update the application can read or write its files through the platform t
 | `UpdateLib`, `ListLib`, `ReadLib`, `DeleteLib`, `DeleteLibVersion` | upload files; list them; preview a source file; delete a lib or one of its versions |
 | `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
 | `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
+
+## Streaming applications
+
+Turn on **Streaming** for a job that runs until stopped (Structured Streaming). A streaming
+application gets:
+
+- **Alerts** — a failed run opens a critical incident (notify on failures, failures and recoveries,
+  or off).
+- **Stall detection** — a running run whose driver writes no logs for *Stalled after* minutes
+  (default 10; 0 = off) is marked stalled.
+- **Restart on failure** — a failed run is resubmitted after 1, 2, 4 … minutes, at most *Max
+  restarts* times in a row (a run that stays up 5 minutes without stalling resets the count). Errors
+  recognized as not retryable (such as missing classes or too few task slots) are not restarted.
+- **Max duration** — raise it for streams (up to 10080 minutes = 7 days); a run past it is failed
+  and, with restarts on, resubmitted.
+
+### Reading Kafka
+
+Runs see the workspace's Kafka topics as the `kafka` catalog: `spark.readStream.table("kafka.<cluster>.<topic>")`.
+The run reads as the application's service account, so the job holds no Kafka credentials. Grant the
+service account the Kafka cluster's *client* role and the *reader* role on the topic. Avro topics
+decode with `from_avro(value, schema, {"schemaRegistryUrl": …, "schemaRegistryTokenFile": …})`;
+writer schemas come from the registry, so the topic's schema may evolve.
+
+### Micro-batch: Kafka → Delta Lake (or Iceberg)
+
+```python
+import os
+from pyspark.sql import functions as F
+
+events = (
+    spark.readStream.option("startingOffsets", "earliest")
+    .option("maxOffsetsPerTrigger", "200000")
+    .option("failOnDataLoss", "false")          # continue if Kafka retention removed unread offsets
+    .table("kafka.kafka.clickstream")
+    .select(F.from_json(F.col("value").cast("string"), "event_id STRING, user_id STRING, ts TIMESTAMP").alias("e"))
+    .select("e.*")
+    .withColumn("event_date", F.to_date("ts"))
+)
+
+spark.sql("CREATE DATABASE IF NOT EXISTS delta.clickstream")
+spark.sql("CREATE TABLE IF NOT EXISTS delta.clickstream.events "
+          "(event_id STRING, user_id STRING, ts TIMESTAMP, event_date DATE) USING delta PARTITIONED BY (event_date)")
+
+query = (
+    events.writeStream.queryName("clickstream_events")   # a stable name keeps its checkpoint
+    .format("delta").outputMode("append")
+    .trigger(processingTime="30 seconds")
+    .toTable("delta.clickstream.events")
+)
+while not query.awaitTermination(60):   # wait in short steps
+    pass
+```
+
+Table sinks (Delta Lake, Iceberg) need micro-batch mode. Grant the service account the target
+catalog's owner/writer roles on the schema.
+
+### Real-time mode
+
+Real-time mode (`trigger(realTime=…)`) processes records as they arrive within long-running
+batches, for sub-second latency. It supports stateless queries, unions, inner and outer stream–stream joins, and
+one stateful operator per query (`count`, `sum`, `avg`, `min`, `max` aggregations; no session windows
+or `DISTINCT` aggregates), in `update` output mode, and only these sinks: **kafka, console, memory, noop** — not tables and not
+`foreachBatch`. Large state can live in the **RocksDB state store** (see *State store* above).
+
+```python
+from pyspark.sql import functions as F
+
+counts = (
+    spark.readStream.table("kafka.kafka.clickstream")
+    .select(F.col("key").cast("string").alias("user_id"))
+    .groupBy("user_id").count()
+)
+query = (
+    counts.writeStream.queryName("clicks_per_user")
+    .format("console").outputMode("update")
+    .trigger(realTime="5 seconds")   # each real-time batch runs this long, then commits its checkpoint
+    .start()
+)
+while not query.awaitTermination(60):
+    pass
+```
+
+To land real-time results in a table, write them to a Kafka topic and ingest that topic with a
+micro-batch application.
+
+### Checkpoints
+
+A streaming query without its own `checkpointLocation` keeps its checkpoint in the application's
+run storage under `checkpoints/<queryName>`, the same folder for every run of the application. A new
+run, a restart or an updated lib resumes from the last committed batch, as long as the query stays
+compatible (changing stateful operators breaks the checkpoint).
+
+- Keep `queryName` stable; a new name starts over (from `startingOffsets`).
+- A run that sets any `AWS_*` env keeps its own AWS settings and gets no default checkpoint and no
+  Sail UI history; give its queries an explicit, durable `checkpointLocation`.
+- Deleting and recreating the application gives it new run storage, so its queries start over.
+- Only the latest batches are kept (see *Retention*).
+- A `memory` sink does not recover from a checkpoint in real-time (`update`) mode; give such queries
+  a new `queryName` or use a durable sink.
+
+## Sail UI
+
+Every run has the **Sail UI** (the run row's *Sail UI* button): jobs, stages, SQL plans, and for
+streaming queries their batches, input and processing rates, state and Kafka offsets. Clusters have
+it too, while their driver runs.
+
+Finished runs open their **History**: the same pages rendered from the run's event logs, with the
+application's earlier runs to compare. Long streaming runs keep only a recent window of history
+(see *Retention*).
+
+## Retention
+
+Set per application under **Run history** (each field's info icon explains it); empty fields use the
+defaults.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Keep finished runs for | 30 days | Older finished runs leave the run list with their history. |
+| Always keep the newest | 20 runs | Finished runs kept in the list whatever their age. |
+| Sail UI history window | 24 h streaming, 168 h batch | The running driver deletes its own history older than this, so long streams stay small. It also deletes ended runs' history once all of it is older, hourly while it runs; the run list follows the two settings above. |
+| Checkpoint batches to keep | 100 | Streaming queries keep the checkpoint records (offsets, commits, state) of this many latest batches and delete older ones. |
+
+The first two apply to existing finished runs at the next hourly sweep. The history window and
+checkpoint batches apply to runs started after the change; a running stream keeps the values it
+started with until it is restarted. Active runs and checkpoint folders are never removed.
 
 ## Catalogs
 
