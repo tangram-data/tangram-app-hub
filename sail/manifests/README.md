@@ -72,6 +72,10 @@ service account its runs use to reach the catalogs.
 - **Workers** (optional) — without workers the job runs inside the driver (local mode). With
   workers, the driver starts up to *max workers* workers on demand; *max
   workers × task slots* must cover the job's partitions.
+- **State store** (streaming applications) — real-time queries keep their state in memory by
+  default. Turn on RocksDB for large state: it lives on a scratch disk of the run pod and its workers
+  (the node's disk), optionally capped by a size limit; a pod over the limit is restarted. Checkpoints
+  stay the durable copy, so a restarted run reloads its state. Micro-batch queries always use memory.
 
 ### Files
 

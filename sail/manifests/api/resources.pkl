@@ -24,13 +24,13 @@ SailCluster = new resources.ResourceTypeDefinition {
       new resources.Role {
         name = "maintainer"
         permissions = List(
-          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetConnectionDetails"
+          "Get", "List", "Configure", "Stop", "Start", "GetEndpoints", "GetInstances", "GetInstanceLogs", "GetWorkerExits", "GetConnectionDetails"
         )
         description = "Configure sizing and auto-stop, stop and start, inspect instances and logs. Cannot initialize or decommission the cluster."
       },
       new resources.Role {
         name = "viewer"
-        permissions = List("Get", "List", "GetEndpoints", "GetInstances", "GetConnectionDetails")
+        permissions = List("Get", "List", "GetEndpoints", "GetInstances", "GetWorkerExits", "GetConnectionDetails")
         description = "Read-only — see the cluster, its endpoints and instances, and query it through the SQL proxy."
       }
     )
@@ -139,6 +139,16 @@ SailCluster = new resources.ResourceTypeDefinition {
         doc = "Tail of one driver or worker's logs (debugging aid)."
         openApiMapping = new resources.OpenApiMapping {
           operationId = "getSailClusterInstanceLogs"
+          resourceNameTemplate = "[{{parameters.name}}]"
+        }
+      },
+      new resources.Action {
+        name = "GetWorkerExits"
+        effect = Stateless
+        idempotent = true
+        doc = "Workers that stopped abnormally (out of memory, crash) in the last 7 days."
+        openApiMapping = new resources.OpenApiMapping {
+          operationId = "getSailClusterWorkerExits"
           resourceNameTemplate = "[{{parameters.name}}]"
         }
       },
