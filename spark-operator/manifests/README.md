@@ -162,6 +162,27 @@ checkpoints apply as usual. A `checkpointLocation` option, or
 Runs also get the folder as `TANGRAM_SPARK_APP_FOLDER` for other state. To start a query over,
 delete its checkpoint folder. Set the max duration to how long the stream should run.
 
+### Kafka topics
+
+Runs see the workspace's Kafka topics as the read-only `kafka` catalog,
+`spark.readStream.table("kafka.<cluster>.<topic>")`, read as the application's service account (grant it the
+Kafka cluster's *client* role and the topic's *reader* role). Decode the `value` column with `from_json` or, for
+Avro topics, `from_avro` (included in the image). The Kafka app writes Avro in the Confluent wire format and Spark's
+`from_avro` has no schema registry, so cut the 5-byte header and pass the topic's schema:
+
+```python
+from pyspark.sql import functions as F
+from pyspark.sql.avro.functions import from_avro
+decoded = from_avro(F.expr("substring(value, 6, length(value) - 5)"), avro_schema_json)
+```
+
+This decodes every message with one schema, so it assumes the topic has a single writer schema; after a schema
+change, messages still retained under the old schema may not decode with the new one.
+
+Lineage records a column against a field of the topic's schema when the column is that decoded field (directly or
+cast), the query reads one topic without a union, and the topic's schema has the field; otherwise the column stays
+attributed to `value`.
+
 ### What you can do
 
 | Action on `SparkApplication` | What it allows |
