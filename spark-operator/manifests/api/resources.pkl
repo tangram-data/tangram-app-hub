@@ -221,6 +221,10 @@ SparkApplication = new resources.ResourceTypeDefinition {
           new resources.OpenApiMapping {
             operationId = "getSparkApplicationRunStatus"
             resourceNameTemplate = "[{{parameters.app}}]"
+          },
+          new resources.OpenApiMapping {
+            operationId = "getSparkApplicationRunSummary"
+            resourceNameTemplate = "[{{parameters.app}}]"
           }
         )
       },

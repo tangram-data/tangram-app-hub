@@ -67,6 +67,7 @@ service account its runs use to reach the catalogs.
 
 - **Name** — lowercase letters, digits and dashes.
 - **Main file** — the file name of the Python file that starts the job, e.g. `main.py`.
+- **Streaming job** — off: a batch job that runs to completion; on: runs until stopped (see *Streaming applications*).
 - **Arguments and environment** — passed to every run as `sys.argv` and env (a run can override both).
 - **Driver sizing** and **max duration** — the run's driver; a run that exceeds the duration is failed.
 - **Workers** (optional) — without workers the job runs inside the driver (local mode). With
@@ -116,13 +117,29 @@ run or update the application can read or write its files through the platform t
 | `Run`, `CancelRun`, `ListRuns`, `GetRunLogs`, `GetRunStats` | start and cancel runs; list them; read logs and stats |
 | `Delete` | delete the application with its files, service account and run history (refused while a run is active) |
 
+### Notifications and retries
+
+Set under **⋯ → Run settings → Notifications and restarts**:
+
+- **Notify on** (default: failures) — a failed run opens an incident on the application in AI SRE and
+  the inbox; *failures and recovery* also resolves it when a later run succeeds; *off* stays quiet.
+- **Severity** (default: critical for streaming, warning for batch) — critical incidents are also
+  emailed to Ops admins; Slack gets incidents at or above the workspace's minimum Slack severity.
+  Pick *Critical* for a batch job whose failure someone must see right away.
+- **Retry on failure** (batch, off by default) — resubmits a failed run after 1, 2, 4 … minutes, at
+  most *Max retries* times in a row. A newer run (yours or a Flow's) takes over: the pending retry is
+  dropped and the count starts again. Errors a retry would
+  repeat (bad SQL, missing modules, too few task slots) are not retried. Turn it on only when the job
+  is safe to rerun after a partial write, and mind that a Flow that starts the job may retry too.
+
 ## Streaming applications
 
-Turn on **Streaming** for a job that runs until stopped (Structured Streaming). A streaming
-application gets:
+Turn on **Streaming job** for a job that runs until stopped (Structured Streaming). A streaming
+application runs one at a time (a second run is refused while one is pending or running, since runs
+share their queries' checkpoints) and gets:
 
-- **Alerts** — a failed run opens a critical incident (notify on failures, failures and recoveries,
-  or off).
+- **Alerts** — failed and stalled runs open a critical incident by default (see *Notifications and
+  retries*).
 - **Stall detection** — a running run whose driver writes no logs for *Stalled after* minutes
   (default 10; 0 = off) is marked stalled.
 - **Restart on failure** — a failed run is resubmitted after 1, 2, 4 … minutes, at most *Max
@@ -241,6 +258,20 @@ defaults.
 The first two apply to existing finished runs at the next hourly sweep. The history window and
 checkpoint batches apply to runs started after the change; a running stream keeps the values it
 started with until it is restarted. Active runs and checkpoint folders are never removed.
+
+## Engine settings
+
+Tune the engine per cluster (**Settings** tab; applying restarts the driver) or per application
+(**⋯ → Run settings**; each run keeps the values it started with). Empty fields use the defaults.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Task metrics | On | Busy, idle and backpressure times per task, shown in the Sail UI's **Backpressure** tab. Kept in the driver's memory. Off empties that tab. |
+| Task metrics window | 60 min | How far back the Backpressure tab can look. Longer windows use more driver memory. |
+| Default parallelism | Max workers × task slots ÷ 4 (CPU cores without workers) | Partitions per stage, so how many tasks a stage runs at once. With workers it can be at most half of max workers × task slots, since a shuffle runs two stages at once; keep it at a quarter for plans with several stages. |
+| Shuffle partitions (applications) | 200 (fixed, as in Spark) | `spark.sql.shuffle.partitions`: partitions of `REPARTITION` hints without a count and the state of new stateful streaming queries (fixed once a query has a checkpoint). Joins and aggregations follow **Default parallelism** instead. A query's own `spark.conf.set` wins. |
+
+An application's environment variables can't set the variables behind these settings.
 
 ## Catalogs
 

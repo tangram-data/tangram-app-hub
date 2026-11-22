@@ -98,6 +98,8 @@ and a service account its runs use to reach the Iceberg catalog.
 
 ### Define an application
 
+- **Streaming job** — off: a batch job that runs to completion; on: runs Structured Streaming queries
+  until stopped (see *Streaming jobs*).
 - **Name** — lowercase letters, digits and dashes.
 - **Main file** — the file name of the JAR or Python file that starts the job (`etl.jar`,
   `main.py`); for a JAR without a `Main-Class` manifest also the **main class**.
@@ -144,6 +146,22 @@ run or update the application can read or write its files through the platform t
 - **Logs** — driver and executor logs of a run, from the platform's log pipeline.
 - **Stats** — the last run's status and run counts per status.
 
+### Notifications and retries
+
+Set on the **Notifications and restarts** tab of the application (Edit):
+
+- **Notify on** (default: failures) — a failed run opens an incident on the application in AI SRE and
+  the inbox; *failures and recovery* also resolves it when a later run succeeds; *off* stays quiet.
+- **Severity** (default: critical for streaming, warning for batch) — critical incidents are also
+  emailed to Ops admins; Slack gets incidents at or above the workspace's minimum Slack severity.
+  Pick *Critical* for a batch job whose failure someone must see right away.
+- **Retry on failure** (batch, off by default) — resubmits a failed run after 1, 2, 4 … minutes, at
+  most *Max retries* times in a row. A newer run (yours or a Flow's) takes over: the pending retry is
+  dropped and the count starts again. Errors a retry would repeat (bad SQL, missing Python modules)
+  are not retried. Turn it on only when the job is safe to rerun after a partial write.
+- Streaming jobs also get **Stalled after** (no driver logs for that long marks the run stalled) and
+  **Restart on failure** (a run up 5 minutes resets the count).
+
 ### Streaming jobs
 
 Turn on **Streaming job** for an application that runs Structured Streaming queries. Its queries then
@@ -156,7 +174,7 @@ resumes where the last one stopped:
 events.writeStream.queryName("clickstream").toTable("iceberg.streaming.clickstream")
 ```
 
-An unnamed query gets a new checkpoint every run. Without Streaming job, Spark's temporary
+An unnamed query gets a new checkpoint every run. For batch jobs, Spark's temporary
 checkpoints apply as usual. A `checkpointLocation` option, or
 `spark.sql.streaming.checkpointLocation` in the application's Spark settings, overrides the default.
 Runs also get the folder as `TANGRAM_SPARK_APP_FOLDER` for other state. To start a query over,

@@ -491,6 +491,23 @@ paths:
                 $ref: '#/components/schemas/RunStatus'
         default:
           $ref: '#/components/responses/Error'
+  /api/v1/applications/{app}/runs/{runId}/summary:
+    get:
+      operationId: getSparkApplicationRunSummary
+      tags: [SparkService]
+      summary: What a finished run did, from its Spark event log (404 while it runs or without a log).
+      parameters:
+        - $ref: '#/components/parameters/app'
+        - $ref: '#/components/parameters/runId'
+      responses:
+        '200':
+          description: Run summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSummary'
+        default:
+          $ref: '#/components/responses/Error'
   /api/v1/applications/{app}/runs/{runId}/cancel:
     post:
       operationId: cancelSparkApplicationRun
@@ -818,19 +835,30 @@ components:
           type: string
           enum: ["off", failures, failures_and_recovery]
           description: >-
-            When failed (and stalled) runs open an AI SRE incident on this app; absent = failures for streaming
-            applications, off for batch. failures_and_recovery also resolves it when runs recover.
+            When failed (and stalled) runs open an AI SRE incident on this app; absent = failures.
+            failures_and_recovery also resolves it when runs recover.
+        failureSeverity:
+          type: string
+          nullable: true
+          enum: [critical, warning]
+          description: >-
+            Severity of those incidents; absent = critical for streaming, warning for batch. Critical incidents are
+            also emailed to Ops admins; Slack gets incidents at or above the workspace's minimum Slack severity.
         stallMinutes:
           type: integer
           description: Streaming only. A running run without driver logs this long is stalled; absent = 10, 0 = never.
         restartOnFailure:
           type: boolean
           default: false
-          description: Streaming only. Resubmit a failed run after 1, 2, 4 ... minutes, reusing its checkpoints.
+          description: >-
+            Resubmit a failed run after 1, 2, 4 ... minutes (streaming runs reuse their checkpoints). For batch jobs,
+            turn on only when a rerun after a partial write is safe.
         maxRestarts:
           type: integer
           default: 3
-          description: Most automatic restarts in a row (1-10); a run healthy for 5 minutes resets the count.
+          description: >-
+            Most automatic restarts in a row (1-10); a streaming run healthy for 5 minutes, or a run started by hand,
+            resets the count.
     ServiceAccountTokenSpec:
       type: object
       description: >-
@@ -1035,3 +1063,276 @@ components:
           type: integer
           format: int64
           description: That second (epoch seconds) had too many lines; only its newest are included.
+    RunSummary:
+      type: object
+      required: [appId, eventLogBytes, totals, findings, jobs, stages, sql, executors, truncated]
+      properties:
+        appId:
+          type: string
+        sparkVersion:
+          type: string
+        eventLogBytes:
+          type: integer
+          format: int64
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        totals:
+          $ref: '#/components/schemas/RunSummaryTotals'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunSummaryFinding'
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunSummaryJob'
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunSummaryStage'
+        sql:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunSummarySql'
+        executors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunSummaryExecutor'
+        truncated:
+          type: boolean
+          description: The log was larger than the summary reads or a list hit its cap.
+    RunSummaryTotals:
+      type: object
+      required: [durationMs, jobs, failedJobs, stages, skippedStages, tasks, retriedTasks, executors, taskTimeMs, gcTimeMs, inputBytes, inputRecords, outputBytes, outputRecords, shuffleReadBytes, shuffleWriteBytes, diskSpillBytes]
+      properties:
+        durationMs:
+          type: integer
+          format: int64
+        jobs:
+          type: integer
+          format: int64
+        failedJobs:
+          type: integer
+          format: int64
+        stages:
+          type: integer
+          format: int64
+        skippedStages:
+          type: integer
+          format: int64
+        tasks:
+          type: integer
+          format: int64
+        retriedTasks:
+          type: integer
+          format: int64
+        executors:
+          type: integer
+          format: int64
+        coresPerExecutor:
+          type: integer
+          format: int64
+        taskTimeMs:
+          type: integer
+          format: int64
+        gcTimeMs:
+          type: integer
+          format: int64
+        inputBytes:
+          type: integer
+          format: int64
+        inputRecords:
+          type: integer
+          format: int64
+        outputBytes:
+          type: integer
+          format: int64
+        outputRecords:
+          type: integer
+          format: int64
+        shuffleReadBytes:
+          type: integer
+          format: int64
+        shuffleWriteBytes:
+          type: integer
+          format: int64
+        diskSpillBytes:
+          type: integer
+          format: int64
+        peakMemoryBytes:
+          type: integer
+          format: int64
+        peakMemoryExecutor:
+          type: string
+    RunSummaryFinding:
+      type: object
+      required: [kind, severity, message]
+      properties:
+        kind:
+          type: string
+          enum: [jobFailed, stageFailed, skew, spill, gc]
+        severity:
+          type: string
+          enum: [error, warn]
+        message:
+          type: string
+        jobId:
+          type: integer
+          format: int64
+        stageId:
+          type: integer
+          format: int64
+    RunSummaryJob:
+      type: object
+      required: [jobId, description, stageIds, tasks, failedTasks, status]
+      properties:
+        jobId:
+          type: integer
+          format: int64
+        description:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        stageIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        tasks:
+          type: integer
+          format: int64
+        failedTasks:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [Succeeded, Failed, Running, Unknown]
+        sqlId:
+          type: integer
+          format: int64
+    RunSummaryStage:
+      type: object
+      required: [stageId, attempt, name, tasks, failedTasks, inputBytes, shuffleReadBytes, shuffleWriteBytes, spillBytes, status]
+      properties:
+        stageId:
+          type: integer
+          format: int64
+        attempt:
+          type: integer
+          format: int64
+        jobId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        tasks:
+          type: integer
+          format: int64
+        failedTasks:
+          type: integer
+          format: int64
+        inputBytes:
+          type: integer
+          format: int64
+        shuffleReadBytes:
+          type: integer
+          format: int64
+        shuffleWriteBytes:
+          type: integer
+          format: int64
+        spillBytes:
+          type: integer
+          format: int64
+        maxTaskMs:
+          type: integer
+          format: int64
+        medianTaskMs:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [Succeeded, Failed, Skipped, Unknown]
+        failureReason:
+          type: string
+          description: The full reason; its first line is the message.
+    RunSummarySql:
+      type: object
+      required: [id, description, jobIds, status]
+      properties:
+        id:
+          type: integer
+          format: int64
+        description:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        jobIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        status:
+          type: string
+          enum: [Succeeded, Failed, Unknown]
+        physicalPlan:
+          type: string
+          description: The final (adaptive) physical plan.
+    RunSummaryExecutor:
+      type: object
+      required: [id, tasks, failedTasks, taskTimeMs, gcTimeMs, shuffleReadBytes, shuffleWriteBytes]
+      properties:
+        id:
+          type: string
+          description: driver or the executor number
+        host:
+          type: string
+        cores:
+          type: integer
+          format: int64
+        addedAt:
+          type: string
+          format: date-time
+        removedAt:
+          type: string
+          format: date-time
+        removedReason:
+          type: string
+        tasks:
+          type: integer
+          format: int64
+        failedTasks:
+          type: integer
+          format: int64
+        taskTimeMs:
+          type: integer
+          format: int64
+        gcTimeMs:
+          type: integer
+          format: int64
+        shuffleReadBytes:
+          type: integer
+          format: int64
+        shuffleWriteBytes:
+          type: integer
+          format: int64
+        peakMemoryBytes:
+          type: integer
+          format: int64

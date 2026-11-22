@@ -653,6 +653,8 @@ components:
         image:
           type: string
           nullable: true
+        engine:
+          $ref: '#/components/schemas/EngineSpec'
     SailClusterInfo:
       type: object
       required: [name, workspace, spec, status, createdAt]
@@ -726,6 +728,46 @@ components:
           $ref: '#/components/schemas/PodResources'
         worker:
           $ref: '#/components/schemas/WorkerSpec'
+        engine:
+          $ref: '#/components/schemas/EngineSpec'
+          description: Absent or null keeps the cluster's engine settings. Applying restarts the driver.
+    EngineSpec:
+      type: object
+      nullable: true
+      description: >-
+        Engine tuning of a cluster or an application; absent fields use the defaults. Applications freeze it into each
+        run at submission; clusters apply it by restarting the driver.
+      properties:
+        taskMetrics:
+          type: boolean
+          nullable: true
+          description: >-
+            Task busy, idle and backpressure times for the Sail UI's Backpressure tab, kept in the driver's memory.
+            Absent: on.
+        taskMetricsMinutes:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 1440
+          description: 'How long task metrics are kept; absent: 60.'
+        defaultParallelism:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 10000
+          description: >-
+            Partitions per stage. With workers it must be at most half of max workers × task slots (a shuffle runs two
+            stages at once); a quarter fits plans with several stages. Absent: that quarter, or the CPU cores without
+            workers.
+        shufflePartitions:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 100000
+          description: >-
+            Applications only: spark.sql.shuffle.partitions of the runs (REPARTITION hints without a count, state
+            partitions of new stateful streaming queries; joins and aggregations follow defaultParallelism).
+            Absent: 200.
     ClusterEndpoints:
       type: object
       required: [flightSqlPort]
@@ -858,25 +900,38 @@ components:
           type: string
           enum: ["off", failures, failures_and_recovery]
           description: >-
-            When failed (and stalled) runs open an AI SRE incident on this app; absent = failures for streaming
-            applications, off for batch. failures_and_recovery also resolves it when runs recover.
+            When failed (and stalled) runs open an AI SRE incident on this app; absent = failures.
+            failures_and_recovery also resolves it when runs recover.
+        failureSeverity:
+          type: string
+          nullable: true
+          enum: [critical, warning]
+          description: >-
+            Severity of those incidents; absent = critical for streaming, warning for batch. Critical incidents are
+            also emailed to Ops admins; Slack gets incidents at or above the workspace's minimum Slack severity.
         stallMinutes:
           type: integer
           description: Streaming only. A running run without driver logs this long is stalled; absent = 10, 0 = never.
         restartOnFailure:
           type: boolean
           default: false
-          description: Streaming only. Resubmit a failed run after 1, 2, 4 ... minutes.
+          description: >-
+            Resubmit a failed run after 1, 2, 4 ... minutes. For batch jobs, turn on only when a rerun after a partial
+            write is safe.
         maxRestarts:
           type: integer
           default: 3
-          description: Most automatic restarts in a row (1-10); a run healthy for 5 minutes resets the count.
+          description: >-
+            Most automatic restarts in a row (1-10); a streaming run healthy for 5 minutes, or a run started by hand,
+            resets the count.
         serviceAccountToken:
           $ref: '#/components/schemas/ServiceAccountTokenSpec'
         runRetention:
           $ref: '#/components/schemas/RunRetentionSpec'
         stateStore:
           $ref: '#/components/schemas/StateStoreSpec'
+        engine:
+          $ref: '#/components/schemas/EngineSpec'
     StateStoreSpec:
       type: object
       description: >-
@@ -1059,6 +1114,8 @@ components:
           type: integer
           nullable: true
           description: Resolved from the application's run retention at submission; absent on older runs.
+        engine:
+          $ref: '#/components/schemas/EngineSpec'
     SailRun:
       type: object
       required: [appName, runId, status, spec, submittedAt]

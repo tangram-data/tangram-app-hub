@@ -11,7 +11,7 @@ local storageBucket = deps.bucketClaim.bucket()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "sail-server"
-    image = "ghcr.io/tangram-data/tangram-sail-server:0.1.13"
+    image = "ghcr.io/tangram-data/tangram-sail-server:0.1.14@sha256:828aa2489639599c7102fcbba922c9a7065f92e6156510b4d431f15db9b1fe18"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
@@ -33,7 +33,7 @@ sailManager: deployment.AppComponentSpec = new deployment.AppComponentSpec {
         "K8S_NAMESPACE", deploymentRuntime.context.k8sNamespace,
         "TANGRAM_CORE_SERVICE_URI", deploymentRuntime.context.tangramOSPublicUrl,
         // Sail fork build (branch rebase/lineage-listener): vended credentials, streaming, Kafka, the Sail UI.
-        "SAIL_IMAGE", "ghcr.io/tangram-data/sail:0.7.2-streaming.4",
+        "SAIL_IMAGE", "ghcr.io/tangram-data/sail:0.7.2-streaming.5@sha256:4e7929e7f3a384d5175d1d7455ab583bda21bdf85adbcc5ccea9f581797b2efc",
         "BUCKET_NAME", storageBucket.name,
         "SAIL_APP_JDBC_URL", "jdbc:postgresql://\(database.host):\(database.port)/\(database.name)",
         "SAIL_APP_JDBC_USER", dbSecrets.user,
