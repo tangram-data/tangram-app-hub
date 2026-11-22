@@ -11,7 +11,7 @@ local storageBucket = deps.bucketClaim.bucket()
   recommendedReplica = 1
   containers = List(new deployment.ContainerMeta {
     name = "sail-server"
-    image = "ghcr.io/tangram-data/tangram-sail-server:0.1.14@sha256:828aa2489639599c7102fcbba922c9a7065f92e6156510b4d431f15db9b1fe18"
+    image = "ghcr.io/tangram-data/tangram-sail-server:0.1.14@sha256:aecb8e832b6914c92ccd1a4ce5bc0816cd5a2e5433c57fa24188b8f77a41eb5d"
   })
   observability = new deployment.ComponentObservability {
     traces = "otlp"
